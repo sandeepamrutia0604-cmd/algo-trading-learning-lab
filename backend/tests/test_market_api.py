@@ -117,3 +117,10 @@ def test_trades_endpoint_exposes_market_date_and_realized_pnl(client):
     assert trades[1]["realized_pnl"] is None
     assert trades[0]["market_date"] > last_date
     assert sell["realized_pnl"] == trades[0]["realized_pnl"]
+
+
+def test_market_status_reports_latest_market_date(client):
+    assert client.get("/api/market/status").json() == {"date": None}
+    client.post("/api/market/generate", json={"days": 5, "seed": 1})
+    last = client.get("/api/stocks/ALPHA/prices", params={"limit": 1}).json()[0]["date"]
+    assert client.get("/api/market/status").json() == {"date": last}

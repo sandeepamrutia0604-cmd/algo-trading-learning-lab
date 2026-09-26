@@ -12,8 +12,8 @@ class StockOut(BaseModel):
     name: str
     starting_price: float
     current_price: float
-
-    model_config = {"from_attributes": True}
+    previous_close: float | None = None
+    recent_closes: list[float] = []
 
 
 class OrderRequest(BaseModel):
@@ -53,6 +53,7 @@ class PositionOut(BaseModel):
     current_price: float
     market_value: float
     unrealized_pnl: float
+    day_pnl: float
 
 
 class PortfolioOut(BaseModel):
@@ -62,6 +63,7 @@ class PortfolioOut(BaseModel):
     portfolio_value: float
     unrealized_pnl: float
     realized_pnl: float
+    day_pnl: float
     total_pnl: float
     return_pct: float
 
@@ -105,3 +107,8 @@ class IndicatorPoint(BaseModel):
 
 class IndicatorsOut(BaseModel):
     sma: dict[str, list[IndicatorPoint]]
+
+
+class EquityPoint(BaseModel):
+    date: dt.date
+    value: float

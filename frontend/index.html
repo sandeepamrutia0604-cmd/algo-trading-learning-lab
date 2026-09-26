@@ -1,137 +1,201 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Algo Trading Learning Lab</title>
+  <script>
+    try {
+      var saved = localStorage.getItem("algo-lab-theme");
+      if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+    } catch (e) {}
+    var requested = new URLSearchParams(location.search).get("theme");
+    if (requested === "light" || requested === "dark") document.documentElement.dataset.theme = requested;
+  </script>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <header>
-    <div class="header-row">
-      <div>
-        <h1>Algo Trading Learning Lab</h1>
-        <p class="subtitle">Phase 3 &mdash; Trading Dashboard</p>
-      </div>
-      <div class="header-actions">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">Algo Lab</div>
+      <nav class="nav" id="nav">
+        <a href="#/home" data-route="home">Home</a>
+        <a href="#/trade" data-route="trade">Trade</a>
+        <a href="#/strategies" data-route="strategies">Strategies <em>Soon</em></a>
+        <a href="#/backtests" data-route="backtests">Backtests <em>Soon</em></a>
+        <a href="#/compare" data-route="compare">Compare <em>Soon</em></a>
+        <a href="#/journal" data-route="journal">Journal <em>Soon</em></a>
+        <a href="#/learn" data-route="learn">Learn <em>Soon</em></a>
+      </nav>
+      <div class="side-foot">
         <span id="status" class="status-pill">Checking...</span>
-        <button id="reset-btn" class="btn btn-secondary">Reset Simulation</button>
+        <button id="theme-toggle" class="btn btn-ghost" title="Switch theme">Light mode</button>
+        <p>Paper trading only.<br />No real money, ever.</p>
       </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="kpi"><span>Portfolio value</span><b id="t-value">-</b></div>
+        <div class="kpi"><span>Cash</span><b id="t-cash">-</b></div>
+        <div class="kpi"><span>Invested</span><b id="t-invested">-</b></div>
+        <div class="kpi"><span>Today</span><b id="t-day">-</b></div>
+        <div class="kpi"><span>Total P&amp;L</span><b id="t-total">-</b></div>
+        <span class="spacer"></span>
+        <div class="kpi"><span>Market date</span><b id="t-date">-</b></div>
+        <button id="adv-1" class="btn">+1 day</button>
+        <button id="adv-5" class="btn">+5 days</button>
+        <button id="play-btn" class="btn btn-primary">&#9654; Play</button>
+        <select id="m-speed" class="select-sm" title="Play speed">
+          <option value="1000">Slow</option>
+          <option value="500" selected>Normal</option>
+          <option value="150">Fast</option>
+        </select>
+        <button id="reset-btn" class="btn">Reset</button>
+      </header>
+
+      <main>
+        <!-- ============ HOME ============ -->
+        <section id="page-home" class="page" hidden>
+          <div class="home-grid">
+            <div class="panel hero">
+              <h3>Your portfolio</h3>
+              <div class="hero-value"><span id="h-value">-</span><span id="h-return"></span></div>
+              <div class="muted" id="h-sub"></div>
+              <div id="h-equity" class="equity"></div>
+              <div class="chips" id="h-chips"></div>
+            </div>
+
+            <div class="panel checklist">
+              <h3>Practice checklist <span id="h-progress" class="muted"></span></h3>
+              <ul id="h-checklist"></ul>
+              <p class="hint">Trades on the Trade screen tick these off automatically.</p>
+            </div>
+
+            <div class="panel watch-card">
+              <h3>Watchlist</h3>
+              <div id="h-watch"></div>
+            </div>
+
+            <div class="panel recent">
+              <h3>Recent trades</h3>
+              <div id="h-recent"></div>
+              <a class="link" href="#/trade">Open the trade screen</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ TRADE (terminal) ============ -->
+        <section id="page-trade" class="page" hidden>
+          <div class="term">
+            <div class="t-watch">
+              <h3>Watchlist</h3>
+              <div id="t-watch"></div>
+              <div id="t-detail" class="t-detail"></div>
+            </div>
+
+            <div class="t-chart">
+              <div class="toolbar">
+                <span class="sym" id="c-sym">-</span>
+                <span class="ohlc" id="c-ohlc"></span>
+                <span class="spacer"></span>
+                <label class="chip-toggle"><input type="checkbox" id="ind-fast-on" checked /><i style="background:#4c8dff"></i>SMA
+                  <input id="ind-fast" class="period" type="number" min="2" max="500" value="20" /></label>
+                <label class="chip-toggle"><input type="checkbox" id="ind-slow-on" checked /><i style="background:#f5a524"></i>SMA
+                  <input id="ind-slow" class="period" type="number" min="2" max="500" value="50" /></label>
+                <label class="chip-toggle"><input type="checkbox" id="ind-trades" checked />My trades</label>
+              </div>
+              <div id="chart" class="chart"></div>
+            </div>
+
+            <div class="t-ticket">
+              <h3>Order ticket</h3>
+              <div class="seg" id="o-side">
+                <button data-side="BUY" class="on">BUY</button>
+                <button data-side="SELL">SELL</button>
+              </div>
+              <label class="field">Symbol
+                <select id="o-symbol"></select>
+              </label>
+              <label class="field">Quantity
+                <span class="field-row">
+                  <input id="o-qty" type="number" min="1" value="10" />
+                  <button id="o-max" class="link" type="button">max</button>
+                </span>
+              </label>
+              <div class="field">Order type
+                <span class="static">Market <small>Limit and stop-loss arrive in Phase 7</small></span>
+              </div>
+              <div class="sumrows" id="o-summary"></div>
+              <div id="o-warn" class="warn" hidden></div>
+              <button id="o-submit" class="btn btn-buy big">Buy</button>
+            </div>
+
+            <div class="t-bottom">
+              <div class="btabs" id="t-tabs">
+                <button data-tab="positions" class="on">Positions <em id="tab-pos-n">0</em></button>
+                <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
+                <button data-tab="market">Market settings</button>
+              </div>
+
+              <div id="tab-positions" class="tabpane">
+                <table id="positions-table">
+                  <thead><tr><th>Symbol</th><th class="num">Qty</th><th class="num">Avg</th><th class="num">LTP</th><th class="num">Value</th><th class="num">Unrealized P&amp;L</th><th class="num">Day</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <p id="positions-empty" class="empty" hidden>No open positions yet. Use the order ticket to buy a dummy stock.</p>
+              </div>
+
+              <div id="tab-trades" class="tabpane" hidden>
+                <table id="trades-table">
+                  <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Realized P&amp;L</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <p id="trades-empty" class="empty" hidden>No trades yet.</p>
+              </div>
+
+              <div id="tab-market" class="tabpane" hidden>
+                <div class="controls">
+                  <div class="field">Stock <span class="static" id="s-symbol">-</span></div>
+                  <label class="field">Model
+                    <select id="m-model">
+                      <option value="random_walk">Random walk</option>
+                      <option value="trending">Trending</option>
+                      <option value="volatile">Volatile</option>
+                      <option value="sideways">Sideways</option>
+                    </select>
+                  </label>
+                  <label class="field">Volatility (% / day) <input id="m-vol" type="number" step="0.1" min="0.1" max="20" /></label>
+                  <label class="field">Trend (% / day) <input id="m-trend" type="number" step="0.05" min="-5" max="5" /></label>
+                  <button id="m-apply" class="btn">Apply to stock</button>
+                  <span class="spacer"></span>
+                  <label class="field">History days <input id="m-days" type="number" min="2" max="1000" value="60" /></label>
+                  <button id="m-regen" class="btn">Regenerate history</button>
+                </div>
+                <p id="m-model-desc" class="hint"></p>
+                <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ COMING SOON ============ -->
+        <section id="page-soon" class="page" hidden>
+          <div class="panel soon">
+            <span class="chip" id="soon-phase"></span>
+            <h2 id="soon-title"></h2>
+            <p id="soon-blurb"></p>
+            <ul id="soon-list"></ul>
+            <a class="link" href="#/trade">Back to the trade screen</a>
+          </div>
+        </section>
+      </main>
     </div>
-  </header>
-
-  <main>
-    <section class="card wallet-card">
-      <h2>Wallet</h2>
-      <div id="wallet-grid" class="wallet-grid">
-        <div class="stat"><span class="stat-label">Cash</span><span class="stat-value" id="w-cash">-</span></div>
-        <div class="stat"><span class="stat-label">Invested</span><span class="stat-value" id="w-invested">-</span></div>
-        <div class="stat"><span class="stat-label">Portfolio Value</span><span class="stat-value" id="w-portfolio-value">-</span></div>
-        <div class="stat"><span class="stat-label">Unrealized P&amp;L</span><span class="stat-value" id="w-unrealized">-</span></div>
-        <div class="stat"><span class="stat-label">Realized P&amp;L</span><span class="stat-value" id="w-realized">-</span></div>
-        <div class="stat"><span class="stat-label">Total P&amp;L / Return</span><span class="stat-value" id="w-total">-</span></div>
-      </div>
-    </section>
-
-    <section class="card wide">
-      <h2>Market</h2>
-      <div class="controls">
-        <label>Stock <select id="m-symbol"></select></label>
-        <label>Model
-          <select id="m-model">
-            <option value="random_walk">Random walk</option>
-            <option value="trending">Trending</option>
-            <option value="volatile">Volatile</option>
-            <option value="sideways">Sideways</option>
-          </select>
-        </label>
-        <label>Volatility (% / day) <input id="m-vol" type="number" step="0.1" min="0.1" max="20" /></label>
-        <label>Trend (% / day) <input id="m-trend" type="number" step="0.05" min="-5" max="5" /></label>
-        <button id="m-apply" class="btn btn-secondary">Apply to stock</button>
-      </div>
-      <p id="m-model-desc" class="hint"></p>
-      <div class="controls chart-options">
-        <label class="check"><input type="checkbox" id="ind-fast-on" checked /> Fast SMA
-          <input id="ind-fast" class="period" type="number" min="2" max="500" value="20" /></label>
-        <label class="check"><input type="checkbox" id="ind-slow-on" checked /> Slow SMA
-          <input id="ind-slow" class="period" type="number" min="2" max="500" value="50" /></label>
-        <label class="check"><input type="checkbox" id="ind-trades" checked /> Show my trades</label>
-      </div>
-      <div id="chart" class="chart"></div>
-      <div class="controls">
-        <span class="market-date">Market date: <strong id="m-date">-</strong></span>
-        <button id="adv-1" class="btn btn-secondary">+1 day</button>
-        <button id="adv-5" class="btn btn-secondary">+5 days</button>
-        <button id="play-btn" class="btn btn-primary">Play</button>
-        <label>Speed
-          <select id="m-speed">
-            <option value="1000">Slow</option>
-            <option value="500" selected>Normal</option>
-            <option value="150">Fast</option>
-          </select>
-        </label>
-        <label>History days <input id="m-days" type="number" min="2" max="1000" value="60" /></label>
-        <button id="m-regen" class="btn btn-secondary">Regenerate history</button>
-      </div>
-    </section>
-
-    <section class="card wide">
-      <h2>Stocks</h2>
-      <table id="stocks-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Qty</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section class="card wide">
-      <h2>Positions</h2>
-      <table id="positions-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Qty</th>
-            <th>Avg Price</th>
-            <th>Current Price</th>
-            <th>Market Value</th>
-            <th>Unrealized P&amp;L</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <p id="positions-empty" class="empty-msg" hidden>No open positions yet — buy a dummy stock above to get started.</p>
-    </section>
-
-    <section class="card wide">
-      <h2>Trade History</h2>
-      <table id="trades-table">
-        <thead>
-          <tr>
-            <th>Market Date</th>
-            <th>Time</th>
-            <th>Symbol</th>
-            <th>Side</th>
-            <th>Qty</th>
-            <th>Price</th>
-            <th>Realized P&amp;L</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <p id="trades-empty" class="empty-msg" hidden>No trades yet.</p>
-    </section>
-  </main>
+  </div>
 
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
-  <script src="/js/app.js"></script>
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>

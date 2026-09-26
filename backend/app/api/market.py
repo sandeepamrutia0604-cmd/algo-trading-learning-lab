@@ -53,6 +53,11 @@ def set_config(symbol: str, body: MarketConfigIn, db: Session = Depends(get_db))
     return _config_out(config)
 
 
+@router.get("/market/status", response_model=MarketStatusOut)
+def status(db: Session = Depends(get_db)):
+    return MarketStatusOut(date=market_service.latest_market_date(db))
+
+
 @router.post("/market/generate", response_model=MarketStatusOut)
 def generate(body: GenerateRequest, db: Session = Depends(get_db)):
     market_service.generate_all(db, body.days, body.seed)

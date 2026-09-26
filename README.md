@@ -5,9 +5,14 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 3 — Trading Dashboard (candlestick chart with
-moving-average overlays and BUY/SELL markers, positions, trade history with
-realized P&L).
+**Current phase:** Phase 3 dashboard, redesigned as a multi-screen app with a
+dark trading-terminal theme (light theme toggle in the sidebar).
+
+Screens (left navigation):
+- **Home** — portfolio hero with equity curve, practice checklist, watchlist, recent trades.
+- **Trade** — the terminal: watchlist, candlestick chart with SMA overlays and BUY/SELL
+  markers, order ticket, and a bottom panel for positions, trades and market settings.
+- **Strategies / Backtests / Compare / Journal / Learn** — placeholders for later phases.
 
 ## Setup
 
@@ -29,9 +34,10 @@ wallet, a candlestick chart, four dummy stocks (ALPHA/BETA/GAMMA/DELTA),
 and be able to advance the market day by day (or press Play), change each
 stock's price model, buy/sell, and reset the simulation.
 
-Chart: tick Fast/Slow SMA (any period 2-500) to overlay moving averages,
-and "Show my trades" to plot your BUY/SELL markers. Click any stock symbol
-in the Stocks or Positions tables to switch the chart to it.
+Chart: tick the two SMA chips (any period 2-500) to overlay moving averages,
+and "My trades" to plot your BUY/SELL markers. Click a stock in the watchlist
+to switch the chart and order ticket to it. The market controls (+1 day, +5 days,
+Play, speed, Reset) are in the top bar on every screen.
 
 Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
@@ -63,6 +69,9 @@ backend/
     risk/           Risk management (Phase 7+)
   tests/
 frontend/
-  index.html, css/, js/
+  index.html      App shell (sidebar, top bar, page sections)
+  css/style.css   Dark/light theme tokens and layout
+  js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js
+  js/pages/       home.js, trade.js, soon.js
 data/               SQLite database file (gitignored)
 ```

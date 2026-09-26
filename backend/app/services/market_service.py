@@ -141,3 +141,14 @@ def get_prices(db: Session, symbol: str, limit: int | None = None) -> list[Price
     if limit:
         query = query.limit(limit)
     return list(reversed(query.all()))
+
+
+def recent_closes(db: Session, stock_id: int, n: int = 30) -> list[float]:
+    rows = (
+        db.query(PriceData.close)
+        .filter(PriceData.stock_id == stock_id)
+        .order_by(PriceData.timestamp.desc())
+        .limit(n)
+        .all()
+    )
+    return [r[0] for r in reversed(rows)]
