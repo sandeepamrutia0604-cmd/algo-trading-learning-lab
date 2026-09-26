@@ -1,6 +1,6 @@
 import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline, toast } from "../util.js";
 import { hooks, positionBySymbol, stockBySymbol, store } from "../store.js";
-import { SMA_COLORS, drawPriceChart, loadChartData } from "../chart.js";
+import { SMA_COLORS, drawPriceChart, loadChartData, smaOverlays } from "../chart.js";
 
 const MODEL_INFO = {
   random_walk: "Random walk: each day's move is random noise around the Trend. Yesterday tells you nothing about tomorrow.",
@@ -257,7 +257,7 @@ async function renderChart() {
     $("c-ohlc").textContent = "No price history yet. Use Regenerate history in Market settings.";
   }
 
-  drawPriceChart(chartEl, { symbol, prices, indicators, smas, trades: showTrades ? store.trades : [], signals });
+  drawPriceChart(chartEl, { symbol, prices, overlays: smaOverlays(smas, indicators), trades: showTrades ? store.trades : [], signals });
 }
 
 /* ---------------- public API ---------------- */

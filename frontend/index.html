@@ -185,28 +185,28 @@
           <div class="strat-grid">
             <div class="panel builder">
               <h3 id="sb-title">Strategy builder</h3>
-              <p class="hint">A moving-average crossover follows the trend: it buys when the short-term average climbs above the long-term one, and sells when it drops below.</p>
+              <label class="field">Strategy type
+                <select id="sb-type"></select>
+              </label>
+              <div id="sb-desc" class="type-desc"></div>
 
               <label class="field">Stock
                 <select id="sb-symbol"></select>
               </label>
 
-              <div class="kw">ENTRY &middot; BUY WHEN</div>
-              <div class="rule">
-                <span>Fast SMA</span><input id="sb-fast" type="number" min="2" max="499" value="20" />
-                <span>crosses above</span>
-                <span>Slow SMA</span><input id="sb-slow" type="number" min="3" max="500" value="50" />
-              </div>
-              <div class="kw">EXIT &middot; SELL WHEN</div>
-              <div class="rule"><span>Fast SMA crosses below Slow SMA</span></div>
-              <div class="kw">SIZE</div>
-              <div class="rule"><span>Buy</span><input id="sb-qty" type="number" min="1" value="10" /><span>shares per BUY signal</span></div>
+              <div id="sb-params" class="param-grid"></div>
+              <div class="rule stacked" id="sb-rule"></div>
+
+              <label class="field">Shares per BUY signal
+                <input id="sb-qty" type="number" min="1" value="10" />
+              </label>
 
               <label class="switch"><input type="checkbox" id="sb-auto" /> Auto-trade as the market advances</label>
-              <p class="hint">Off: signals are only marked on the chart. On: each new market day is checked and a paper trade is placed at that day's close.</p>
+              <p class="hint">Off: signals are only marked on the chart. On: each new market day is checked and a paper trade is placed at that day's close. A strategy holds one position at a time.</p>
 
               <button id="sb-create" class="btn btn-primary big">Create strategy</button>
               <button id="sb-cancel" class="btn big" hidden>Cancel editing</button>
+              <button id="sb-all" class="btn big" title="Creates all six strategy types with default settings on the chosen stock and runs them on the price history">Try one of each on this stock</button>
             </div>
 
             <div class="strat-main">
@@ -227,7 +227,7 @@
                 <div id="strat-chart" class="chart small"></div>
                 <h3 style="margin:14px 0 4px">Signals</h3>
                 <table id="signals-table">
-                  <thead><tr><th>Date</th><th>Signal</th><th class="num">Price</th><th class="num">Fast MA</th><th class="num">Slow MA</th><th>Result</th><th></th></tr></thead>
+                  <thead><tr><th>Date</th><th>Signal</th><th class="num">Price</th><th>Indicator</th><th>Result</th><th></th></tr></thead>
                   <tbody></tbody>
                 </table>
                 <p id="signals-empty" class="empty" hidden>No signals yet. Press "Run on history" on the strategy card.</p>

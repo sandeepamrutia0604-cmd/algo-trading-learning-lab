@@ -121,22 +121,15 @@ class EquityPoint(BaseModel):
 
 class StrategyCreate(BaseModel):
     symbol: str
-    fast: int = Field(default=20, ge=2, le=500)
-    slow: int = Field(default=50, ge=3, le=500)
+    type: str = "ma_crossover"
+    params: dict[str, float] = {}
     quantity: int = Field(default=10, ge=1, le=100000)
     auto_trade: bool = False
     name: str | None = Field(default=None, max_length=120)
 
-    @model_validator(mode="after")
-    def fast_below_slow(self):
-        if self.fast >= self.slow:
-            raise ValueError("fast period must be smaller than slow period")
-        return self
-
 
 class StrategyUpdate(BaseModel):
-    fast: int | None = Field(default=None, ge=2, le=500)
-    slow: int | None = Field(default=None, ge=3, le=500)
+    params: dict[str, float] | None = None
     quantity: int | None = Field(default=None, ge=1, le=100000)
     auto_trade: bool | None = None
     name: str | None = Field(default=None, max_length=120)
@@ -147,9 +140,10 @@ class StrategyOut(BaseModel):
     name: str
     description: str | None
     type: str
+    type_label: str
     symbol: str
-    fast: int
-    slow: int
+    params: dict
+    param_summary: str
     quantity: int
     auto_trade: bool
     created_at: datetime
@@ -157,6 +151,38 @@ class StrategyOut(BaseModel):
     buy_count: int
     sell_count: int
     held: int
+
+
+class ParamSpecOut(BaseModel):
+    name: str
+    label: str
+    default: float
+    min: float
+    max: float
+    step: float
+    kind: str
+
+
+class StrategyTypeOut(BaseModel):
+    key: str
+    label: str
+    summary: str
+    works_best: str
+    struggles: str
+    entry_text: str
+    exit_text: str
+    params: list[ParamSpecOut]
+
+
+class SeriesOut(BaseModel):
+    name: str
+    panel: str
+    color: str
+    dash: str
+    width: float
+    fill_to_previous: bool
+    y_range: list[float] | None = None
+    points: list["IndicatorPoint"]
 
 
 class SignalOut(BaseModel):

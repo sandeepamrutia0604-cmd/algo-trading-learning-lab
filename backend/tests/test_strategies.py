@@ -53,7 +53,15 @@ def append_price(db, symbol, close):
 
 
 def new_strategy(client, **overrides):
-    body = {"symbol": "ALPHA", "fast": 2, "slow": 3, "quantity": 10, "auto_trade": False}
+    fast = overrides.pop("fast", 2)
+    slow = overrides.pop("slow", 3)
+    body = {
+        "symbol": "ALPHA",
+        "type": "ma_crossover",
+        "params": {"fast": fast, "slow": slow},
+        "quantity": 10,
+        "auto_trade": False,
+    }
     body.update(overrides)
     res = client.post("/api/strategies", json=body)
     assert res.status_code == 200, res.text
@@ -63,7 +71,10 @@ def new_strategy(client, **overrides):
 def test_create_strategy_defaults_and_listing(client):
     created = new_strategy(client)
     assert created["name"] == "MA Crossover 2/3 on ALPHA"
-    assert (created["fast"], created["slow"], created["quantity"]) == (2, 3, 10)
+    assert created["params"] == {"fast": 2, "slow": 3}
+    assert created["quantity"] == 10
+    assert created["type_label"] == "MA Crossover"
+    assert created["param_summary"] == "Fast SMA 2 · Slow SMA 3"
     assert created["auto_trade"] is False
     assert created["signal_count"] == 0
     assert "crosses above" in created["description"]
@@ -73,16 +84,18 @@ def test_create_strategy_defaults_and_listing(client):
 @pytest.mark.parametrize(
     "overrides,status",
     [
-        ({"fast": 5, "slow": 5}, 422),
-        ({"fast": 10, "slow": 5}, 422),
-        ({"fast": 1}, 422),
-        ({"slow": 501}, 422),
+        ({"params": {"fast": 5, "slow": 5}}, 400),
+        ({"params": {"fast": 10, "slow": 5}}, 400),
+        ({"params": {"fast": 1, "slow": 5}}, 400),
+        ({"params": {"fast": 2, "slow": 501}}, 400),
+        ({"params": {"fast": 2, "slow": 3, "bogus": 1}}, 400),
+        ({"type": "moonshot"}, 400),
         ({"quantity": 0}, 422),
         ({"symbol": "ZZZZ"}, 404),
     ],
 )
 def test_create_strategy_validation(client, overrides, status):
-    body = {"symbol": "ALPHA", "fast": 2, "slow": 3, "quantity": 10}
+    body = {"symbol": "ALPHA", "type": "ma_crossover", "params": {"fast": 2, "slow": 3}, "quantity": 10}
     body.update(overrides)
     assert client.post("/api/strategies", json=body).status_code == status
 
@@ -99,8 +112,8 @@ def test_run_on_history_marks_crossovers_with_reasons_and_places_no_trades(clien
     assert buy["price"] == 6 and sell["price"] == 5
     assert "2-day average" in buy["reason"] and "crossed above" in buy["reason"]
     assert "crossed below" in sell["reason"]
-    assert buy["details"]["fast_ma"] == pytest.approx(5.5)
-    assert buy["details"]["slow_ma"] == pytest.approx(5.3333, abs=1e-3)
+    assert buy["details"]["values"]["fast_ma"] == pytest.approx(5.5)
+    assert buy["details"]["values"]["slow_ma"] == pytest.approx(5.3333, abs=1e-3)
     assert buy["executed"] is False and "no trade" in buy["note"]
     assert client.get("/api/trades").json() == []
     assert client.get("/api/portfolio").json()["cash"] == INITIAL_VIRTUAL_CASH
@@ -122,12 +135,15 @@ def test_run_on_history_is_idempotent_and_replaces_stale_signals(client, db_sess
 
 def test_update_strategy_changes_parameters_and_validates(client):
     strategy = new_strategy(client)
-    res = client.patch(f"/api/strategies/{strategy['id']}", json={"fast": 3, "slow": 8, "auto_trade": True})
+    res = client.patch(
+        f"/api/strategies/{strategy['id']}", json={"params": {"fast": 3, "slow": 8}, "auto_trade": True}
+    )
     body = res.json()
-    assert (body["fast"], body["slow"], body["auto_trade"]) == (3, 8, True)
-    assert "3-day" in body["description"]
+    assert (body["params"], body["auto_trade"]) == ({"fast": 3, "slow": 8}, True)
+    assert "Fast SMA (3)" in body["description"]
 
-    assert client.patch(f"/api/strategies/{strategy['id']}", json={"fast": 9}).status_code == 400
+    res = client.patch(f"/api/strategies/{strategy['id']}", json={"params": {"fast": 9}})
+    assert res.status_code == 400
     assert client.patch("/api/strategies/999", json={"auto_trade": True}).status_code == 404
 
 

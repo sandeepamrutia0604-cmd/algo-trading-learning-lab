@@ -12,6 +12,20 @@ export async function loadChartData(symbol, smas) {
   return { prices, indicators };
 }
 
+/** Turn the SMA indicator response into the generic overlay format drawPriceChart understands. */
+export function smaOverlays(smas, indicators) {
+  return smas.map((m) => ({
+    name: `SMA ${m.period}`,
+    panel: "price",
+    color: m.color,
+    dash: "solid",
+    width: 1.8,
+    fill_to_previous: false,
+    y_range: null,
+    points: indicators.sma[String(m.period)] || [],
+  }));
+}
+
 function signalTrace(side, list, c) {
   const buy = side === "BUY";
   return {
@@ -32,13 +46,18 @@ function signalTrace(side, list, c) {
   };
 }
 
-/** Candlesticks + volume, SMA lines, your trades (triangles) and strategy signals (stars). */
-export function drawPriceChart(el, { symbol, prices, indicators, smas, trades = [], signals = [] }) {
+/**
+ * Candlesticks + volume, indicator overlays, your trades (triangles) and strategy signals (stars).
+ * An overlay with panel "osc" is drawn in its own panel underneath (used for RSI).
+ */
+export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [], signals = [] }) {
   const c = themeColors();
   const dates = prices.map((p) => p.date);
   const first = dates[0];
   const last = dates[dates.length - 1];
   const inRange = (d) => d && d >= first && d <= last;
+  const oscillators = overlays.filter((o) => o.panel === "osc");
+  const hasOsc = oscillators.length > 0;
 
   const traces = [
     {
@@ -63,17 +82,18 @@ export function drawPriceChart(el, { symbol, prices, indicators, smas, trades = 
     },
   ];
 
-  for (const m of smas) {
-    const points = indicators.sma[String(m.period)] || [];
+  for (const o of overlays) {
+    const osc = o.panel === "osc";
     traces.push({
       type: "scatter",
       mode: "lines",
-      name: `SMA ${m.period}`,
-      x: points.map((pt) => pt.date),
-      y: points.map((pt) => pt.value),
-      line: { color: m.color, width: 1.8 },
-      yaxis: "y",
-      hovertemplate: `SMA ${m.period}: ₹%{y:.2f}<extra></extra>`,
+      name: o.name,
+      x: o.points.map((pt) => pt.date),
+      y: o.points.map((pt) => pt.value),
+      line: { color: o.color, width: o.width, dash: o.dash === "solid" ? "solid" : o.dash },
+      yaxis: osc ? "y3" : "y",
+      ...(o.fill_to_previous ? { fill: "tonexty", fillcolor: "rgba(138,148,163,0.13)" } : {}),
+      hovertemplate: `${o.name}: ${osc ? "" : "₹"}%{y:.${osc ? 1 : 2}f}<extra></extra>`,
     });
   }
 
@@ -101,16 +121,24 @@ export function drawPriceChart(el, { symbol, prices, indicators, smas, trades = 
     if (list.length) traces.push(signalTrace(side, list, c));
   }
 
+  const domains = hasOsc
+    ? { price: [0.42, 1], volume: [0.29, 0.38], osc: [0, 0.23] }
+    : { price: [0.22, 1], volume: [0, 0.17] };
+  const oscRange = oscillators.find((o) => o.y_range)?.y_range;
+
   const layout = {
     margin: { l: 6, r: 56, t: 6, b: 28 },
     showlegend: false,
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
     font: { color: c.muted, size: 11 },
-    xaxis: { anchor: "y2", rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }], gridcolor: c.line, linecolor: c.line },
-    yaxis: { domain: [0.22, 1], side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false },
-    yaxis2: { domain: [0, 0.17], side: "right", showgrid: false, showticklabels: false, zeroline: false },
+    xaxis: { anchor: hasOsc ? "y3" : "y2", rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }], gridcolor: c.line, linecolor: c.line },
+    yaxis: { domain: domains.price, side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false },
+    yaxis2: { domain: domains.volume, side: "right", showgrid: false, showticklabels: false, zeroline: false },
     hovermode: "x",
   };
+  if (hasOsc) {
+    layout.yaxis3 = { domain: domains.osc, side: "right", gridcolor: c.line, zeroline: false, ...(oscRange ? { range: oscRange } : {}) };
+  }
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
 }

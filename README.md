@@ -5,19 +5,28 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 4 - Moving Average Crossover strategy, with signals and
-"Why did I buy?" explanations. Dark trading-terminal theme with a light-theme toggle.
+**Current phase:** Phase 5 - Strategy Laboratory: six strategy types you can build, run on
+history, auto-trade and compare, each with "Why did I buy?" explanations. Dark trading-terminal
+theme with a light-theme toggle.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
 - **Trade** - the terminal: watchlist, candlestick chart with SMA overlays, your BUY/SELL
   markers and strategy signals, order ticket, and a bottom panel for positions, trades
   and market settings.
-- **Strategies** - build a moving-average crossover (fast/slow periods, shares per trade),
-  press "Run on history" to mark every crossover on the chart, or turn on auto-trade so it
-  places paper trades as the market advances. Each signal has a "Why?" explanation.
+- **Strategies** - the lab. Pick a type, tune its parameters, press "Run on history" to mark
+  every signal on the chart with its indicators, or turn on auto-trade to place paper trades
+  as the market advances. "Try one of each on this stock" creates all six so you can compare.
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Backtests / Compare / Learn** - placeholders for later phases.
+
+Strategy types (all long-only: one position at a time, signals never look ahead):
+- **MA Crossover** - fast SMA crosses above/below slow SMA. Best in trends; whipsaws in sideways markets.
+- **RSI** - buy when RSI falls below the oversold line, sell above the overbought line.
+- **Bollinger Bands** - buy below the lower band, sell above the upper band.
+- **Breakout** - buy a new N-day high, exit below the M-day low.
+- **Mean Reversion** - buy when the z-score vs the average is very low, sell back at the average.
+- **Combined** - a crossover that only buys if RSI, price and volatility checks also pass.
 
 ## Setup
 
@@ -44,9 +53,10 @@ and "My trades" to plot your BUY/SELL markers. Click a stock in the watchlist
 to switch the chart and order ticket to it. The market controls (+1 day, +5 days,
 Play, speed, Reset) are in the top bar on every screen.
 
-How the crossover works: BUY when the fast SMA crosses above the slow SMA, SELL when it
-crosses below. A signal on a given day only uses prices up to that day (no look-ahead).
-Auto-trade advances the market one day at a time so each signal trades at its own day's close.
+A signal on a given day only uses prices up to that day (no look-ahead). Auto-trade advances the
+market one day at a time so each signal trades at its own day's close. To add a strategy type,
+create a module in backend/app/strategies/ that defines a StrategyDef and register it in registry.py;
+the builder form, API, chart overlays and "Why" cards pick it up automatically.
 
 Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
@@ -72,7 +82,7 @@ backend/
                     PriceData, MarketConfig, Strategy, Signal)
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding
-    strategies/     ma_crossover.py (pure signal logic, no DB); more strategies in Phase 5
+    strategies/     One pure module per strategy type + registry.py (parameters, rules, signals, chart lines)
     engine/         price_models.py, indicators.py (pure, no DB); backtesting from Phase 6
     migrations.py   Adds new columns to databases created by earlier phases
     risk/           Risk management (Phase 7+)

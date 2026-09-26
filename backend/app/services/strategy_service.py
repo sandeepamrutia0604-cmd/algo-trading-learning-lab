@@ -3,26 +3,37 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from ..models import Position, PriceData, Signal, Stock, Strategy, Trade
-from ..strategies.ma_crossover import MAX_PERIOD, MIN_PERIOD, CrossoverSignal, ma_crossover_signals
+from ..strategies.base import ChartSeries, SignalEvent, StrategyDef
+from ..strategies.registry import get_definition
 from . import market_service, trading_service
 from .exceptions import InvalidStrategyError, StockNotFoundError, StrategyNotFoundError, TradingError
 
-STRATEGY_TYPE = "ma_crossover"
+
+def _definition(type_key: str) -> StrategyDef:
+    try:
+        return get_definition(type_key)
+    except ValueError as exc:
+        raise InvalidStrategyError(str(exc)) from exc
 
 
-def rule_text(fast: int, slow: int) -> str:
-    return f"BUY when the {fast}-day average crosses above the {slow}-day average; SELL when it crosses below."
+def _normalize(defn: StrategyDef, params: dict | None) -> dict:
+    try:
+        return defn.normalize(params)
+    except ValueError as exc:
+        raise InvalidStrategyError(str(exc)) from exc
 
 
-def default_name(symbol: str, fast: int, slow: int) -> str:
-    return f"MA Crossover {fast}/{slow} on {symbol}"
+def strategy_params(strategy: Strategy) -> dict:
+    """The strategy's tuning parameters (everything except the order quantity)."""
+    return {k: v for k, v in strategy.parameters.items() if k != "quantity"}
 
 
-def _validate(fast: int, slow: int, quantity: int) -> None:
-    if not (MIN_PERIOD <= fast < slow <= MAX_PERIOD):
-        raise InvalidStrategyError(f"Periods must satisfy {MIN_PERIOD} <= fast < slow <= {MAX_PERIOD}")
-    if quantity < 1:
-        raise InvalidStrategyError("Quantity must be at least 1")
+def strategy_quantity(strategy: Strategy) -> int:
+    return strategy.parameters["quantity"]
+
+
+def strategy_definition(strategy: Strategy) -> StrategyDef:
+    return _definition(strategy.type)
 
 
 def _get_stock(db: Session, symbol: str) -> Stock:
@@ -42,20 +53,24 @@ def get_strategy(db: Session, strategy_id: int) -> Strategy:
 def create_strategy(
     db: Session,
     symbol: str,
-    fast: int,
-    slow: int,
-    quantity: int,
+    params: dict | None = None,
+    quantity: int = 10,
     auto_trade: bool = False,
     name: str | None = None,
+    type_key: str = "ma_crossover",
 ) -> Strategy:
-    _validate(fast, slow, quantity)
+    defn = _definition(type_key)
+    clean = _normalize(defn, params)
+    if quantity < 1:
+        raise InvalidStrategyError("Quantity must be at least 1")
     stock = _get_stock(db, symbol)
+
     strategy = Strategy(
-        name=name or default_name(stock.symbol, fast, slow),
-        description=rule_text(fast, slow),
-        type=STRATEGY_TYPE,
+        name=name or defn.default_name(clean, stock.symbol),
+        description=defn.rule_text(clean),
+        type=defn.key,
         stock_id=stock.id,
-        parameters={"fast": fast, "slow": slow, "quantity": quantity},
+        parameters={**clean, "quantity": quantity},
         auto_trade=auto_trade,
     )
     db.add(strategy)
@@ -67,22 +82,23 @@ def create_strategy(
 def update_strategy(
     db: Session,
     strategy_id: int,
-    fast: int | None = None,
-    slow: int | None = None,
+    params: dict | None = None,
     quantity: int | None = None,
     auto_trade: bool | None = None,
     name: str | None = None,
 ) -> Strategy:
     strategy = get_strategy(db, strategy_id)
-    params = dict(strategy.parameters)
-    params["fast"] = fast if fast is not None else params["fast"]
-    params["slow"] = slow if slow is not None else params["slow"]
-    params["quantity"] = quantity if quantity is not None else params["quantity"]
-    _validate(params["fast"], params["slow"], params["quantity"])
+    defn = strategy_definition(strategy)
 
-    if params != strategy.parameters:
-        strategy.parameters = params
-        strategy.description = rule_text(params["fast"], params["slow"])
+    merged = {**strategy_params(strategy), **(params or {})}
+    clean = _normalize(defn, merged)
+    new_quantity = quantity if quantity is not None else strategy_quantity(strategy)
+    if new_quantity < 1:
+        raise InvalidStrategyError("Quantity must be at least 1")
+
+    if clean != strategy_params(strategy):
+        strategy.description = defn.rule_text(clean)
+    strategy.parameters = {**clean, "quantity": new_quantity}
     if auto_trade is not None:
         strategy.auto_trade = auto_trade
     if name:
@@ -110,38 +126,26 @@ def _series(db: Session, stock_id: int) -> tuple[list[date], list[float]]:
     return [r[0].date() for r in rows], [r[1] for r in rows]
 
 
-def build_reason(side: str, fast: int, slow: int, sig: CrossoverSignal) -> str:
-    if side == "BUY":
-        return (
-            f"The {fast}-day average (₹{sig.fast_ma:.2f}) crossed above the {slow}-day average "
-            f"(₹{sig.slow_ma:.2f}). The day before it was at or below it "
-            f"(₹{sig.prev_fast_ma:.2f} vs ₹{sig.prev_slow_ma:.2f})."
-        )
-    return (
-        f"The {fast}-day average (₹{sig.fast_ma:.2f}) crossed below the {slow}-day average "
-        f"(₹{sig.slow_ma:.2f}). The day before it was at or above it "
-        f"(₹{sig.prev_fast_ma:.2f} vs ₹{sig.prev_slow_ma:.2f})."
-    )
+def chart_series(db: Session, strategy: Strategy) -> tuple[list[date], list[ChartSeries]]:
+    defn = strategy_definition(strategy)
+    dates, closes = _series(db, strategy.stock_id)
+    return dates, defn.chart_series(closes, strategy_params(strategy))
 
 
-def _make_signal(strategy: Strategy, day: date, price: float, sig: CrossoverSignal) -> Signal:
-    fast, slow = strategy.parameters["fast"], strategy.parameters["slow"]
+def _make_signal(strategy: Strategy, defn: StrategyDef, day: date, price: float, event: SignalEvent) -> Signal:
     return Signal(
         strategy_id=strategy.id,
         stock_id=strategy.stock_id,
         market_date=day,
-        signal=sig.side,
+        signal=event.side,
         price=price,
-        reason=build_reason(sig.side, fast, slow, sig),
+        reason="; ".join(event.checks)[:400],
         details={
-            "rule": rule_text(fast, slow),
-            "fast_period": fast,
-            "slow_period": slow,
-            "fast_ma": round(sig.fast_ma, 4),
-            "slow_ma": round(sig.slow_ma, 4),
-            "prev_fast_ma": round(sig.prev_fast_ma, 4),
-            "prev_slow_ma": round(sig.prev_slow_ma, 4),
-            "quantity": strategy.parameters["quantity"],
+            "rule": defn.rule_text(strategy_params(strategy)),
+            "headline": event.headline,
+            "checks": event.checks,
+            "values": event.values,
+            "quantity": strategy_quantity(strategy),
         },
         executed=False,
         note="Historical signal: no trade placed",
@@ -149,10 +153,10 @@ def _make_signal(strategy: Strategy, day: date, price: float, sig: CrossoverSign
 
 
 def run_on_history(db: Session, strategy: Strategy) -> list[Signal]:
-    """Mark every crossover in the current price history. Places no trades; keeps executed signals."""
-    fast, slow = strategy.parameters["fast"], strategy.parameters["slow"]
+    """Mark every signal in the current price history. Places no trades; keeps executed signals."""
+    defn = strategy_definition(strategy)
     dates, closes = _series(db, strategy.stock_id)
-    computed = {dates[s.index]: s for s in ma_crossover_signals(closes, fast, slow)}
+    computed = {dates[e.index]: e for e in defn.generate(closes, strategy_params(strategy))}
     existing = {s.market_date: s for s in db.query(Signal).filter(Signal.strategy_id == strategy.id).all()}
 
     for day, old in list(existing.items()):
@@ -162,9 +166,9 @@ def run_on_history(db: Session, strategy: Strategy) -> list[Signal]:
     db.flush()
 
     price_on = dict(zip(dates, closes))
-    for day, sig in computed.items():
+    for day, event in computed.items():
         if day not in existing:
-            db.add(_make_signal(strategy, day, price_on[day], sig))
+            db.add(_make_signal(strategy, defn, day, price_on[day], event))
     db.commit()
     return list_signals(db, strategy_id=strategy.id)
 
@@ -175,27 +179,32 @@ def strategy_held(db: Session, strategy_id: int) -> int:
 
 
 def _execute_signal(db: Session, strategy: Strategy, stock: Stock, signal: Signal) -> Trade:
-    quantity = strategy.parameters["quantity"]
     reason = f"{strategy.name}: {signal.signal} signal"[:200]
+    held = strategy_held(db, strategy.id)
+
     if signal.signal == "BUY":
-        return trading_service.execute_buy(db, stock.symbol, quantity, reason=reason, strategy_id=strategy.id)
+        if held > 0:
+            raise TradingError("this strategy is already holding shares")
+        return trading_service.execute_buy(
+            db, stock.symbol, strategy_quantity(strategy), reason=reason, strategy_id=strategy.id
+        )
 
     position = db.query(Position).filter(Position.stock_id == stock.id).first()
-    sell_qty = min(strategy_held(db, strategy.id), position.quantity if position else 0)
+    sell_qty = min(held, position.quantity if position else 0)
     if sell_qty <= 0:
         raise TradingError("this strategy holds no shares to sell")
     return trading_service.execute_sell(db, stock.symbol, sell_qty, reason=reason, strategy_id=strategy.id)
 
 
 def run_auto_strategies(db: Session) -> list[str]:
-    """Check each auto-trade strategy for a crossover on its stock's latest day and trade it."""
+    """Check each auto-trade strategy for a signal on its stock's latest day and trade it."""
     events: list[str] = []
     for strategy in db.query(Strategy).filter(Strategy.auto_trade.is_(True)).all():
         dates, closes = _series(db, strategy.stock_id)
         if not closes:
             continue
-        fast, slow = strategy.parameters["fast"], strategy.parameters["slow"]
-        latest = [s for s in ma_crossover_signals(closes, fast, slow) if s.index == len(closes) - 1]
+        defn = strategy_definition(strategy)
+        latest = [e for e in defn.generate(closes, strategy_params(strategy)) if e.index == len(closes) - 1]
         if not latest:
             continue
         day = dates[-1]
@@ -204,7 +213,7 @@ def run_auto_strategies(db: Session) -> list[str]:
             continue
 
         stock = db.get(Stock, strategy.stock_id)
-        signal = _make_signal(strategy, day, closes[-1], latest[0])
+        signal = _make_signal(strategy, defn, day, closes[-1], latest[0])
         db.add(signal)
         db.flush()
         try:

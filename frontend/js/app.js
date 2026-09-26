@@ -1,5 +1,5 @@
 import { $, toast } from "./util.js";
-import { hooks, loadConfigs, loadCore } from "./store.js";
+import { hooks, loadConfigs, loadCore, loadStrategyTypes } from "./store.js";
 import { initTheme } from "./theme.js";
 import { checkHealth, initTopbar, renderTopbar } from "./topbar.js";
 import { renderHome } from "./pages/home.js";
@@ -58,7 +58,7 @@ async function boot() {
   window.addEventListener("hashchange", showRoute);
   checkHealth();
   try {
-    await loadConfigs();
+    await Promise.all([loadConfigs(), loadStrategyTypes()]);
   } catch (err) {
     toast(err.message, true);
   }
