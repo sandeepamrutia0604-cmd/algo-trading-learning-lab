@@ -28,6 +28,21 @@ class TradeOut(BaseModel):
     price: float
     timestamp: datetime
     reason: str | None = None
+    market_date: dt.date | None = None
+    realized_pnl: float | None = None
+
+    @classmethod
+    def from_trade(cls, trade) -> "TradeOut":
+        return cls(
+            symbol=trade.stock.symbol,
+            side=trade.side,
+            quantity=trade.quantity,
+            price=trade.price,
+            timestamp=trade.timestamp,
+            reason=trade.reason,
+            market_date=trade.market_date,
+            realized_pnl=trade.realized_pnl,
+        )
 
 
 class PositionOut(BaseModel):
@@ -81,3 +96,12 @@ class AdvanceRequest(BaseModel):
 
 class MarketStatusOut(BaseModel):
     date: dt.date | None
+
+
+class IndicatorPoint(BaseModel):
+    date: dt.date
+    value: float
+
+
+class IndicatorsOut(BaseModel):
+    sma: dict[str, list[IndicatorPoint]]

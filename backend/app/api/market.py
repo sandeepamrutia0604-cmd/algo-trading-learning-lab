@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..engine.indicators import sma
 from ..models import MarketConfig, Stock
 from ..schemas import (
     AdvanceRequest,
     CandleOut,
     GenerateRequest,
+    IndicatorPoint,
+    IndicatorsOut,
     MarketConfigIn,
     MarketConfigOut,
     MarketStatusOut,
@@ -60,3 +63,23 @@ def generate(body: GenerateRequest, db: Session = Depends(get_db)):
 def advance(body: AdvanceRequest, db: Session = Depends(get_db)):
     market_service.advance(db, body.days)
     return MarketStatusOut(date=market_service.latest_market_date(db))
+
+
+@router.get("/stocks/{symbol}/indicators", response_model=IndicatorsOut)
+def indicators(
+    symbol: str,
+    sma_periods: list[int] = Query(default=[], alias="sma", max_length=4),
+    db: Session = Depends(get_db),
+):
+    rows = market_service.get_prices(db, symbol)
+    closes = [r.close for r in rows]
+    result: dict[str, list[IndicatorPoint]] = {}
+    for period in sma_periods:
+        if not 1 <= period <= 500:
+            raise HTTPException(status_code=422, detail="sma period must be between 1 and 500")
+        result[str(period)] = [
+            IndicatorPoint(date=r.timestamp.date(), value=round(v, 4))
+            for r, v in zip(rows, sma(closes, period))
+            if v is not None
+        ]
+    return IndicatorsOut(sma=result)

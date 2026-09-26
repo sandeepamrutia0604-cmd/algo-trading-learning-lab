@@ -11,9 +11,12 @@
     <div class="header-row">
       <div>
         <h1>Algo Trading Learning Lab</h1>
-        <p class="subtitle">Phase 2 &mdash; Dummy Price Engine</p>
+        <p class="subtitle">Phase 3 &mdash; Trading Dashboard</p>
       </div>
-      <button id="reset-btn" class="btn btn-secondary">Reset Simulation</button>
+      <div class="header-actions">
+        <span id="status" class="status-pill">Checking...</span>
+        <button id="reset-btn" class="btn btn-secondary">Reset Simulation</button>
+      </div>
     </div>
   </header>
 
@@ -28,11 +31,6 @@
         <div class="stat"><span class="stat-label">Realized P&amp;L</span><span class="stat-value" id="w-realized">-</span></div>
         <div class="stat"><span class="stat-label">Total P&amp;L / Return</span><span class="stat-value" id="w-total">-</span></div>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>Backend Status</h2>
-      <p id="status">Checking...</p>
     </section>
 
     <section class="card wide">
@@ -52,6 +50,13 @@
         <button id="m-apply" class="btn btn-secondary">Apply to stock</button>
       </div>
       <p id="m-model-desc" class="hint"></p>
+      <div class="controls chart-options">
+        <label class="check"><input type="checkbox" id="ind-fast-on" checked /> Fast SMA
+          <input id="ind-fast" class="period" type="number" min="2" max="500" value="20" /></label>
+        <label class="check"><input type="checkbox" id="ind-slow-on" checked /> Slow SMA
+          <input id="ind-slow" class="period" type="number" min="2" max="500" value="50" /></label>
+        <label class="check"><input type="checkbox" id="ind-trades" checked /> Show my trades</label>
+      </div>
       <div id="chart" class="chart"></div>
       <div class="controls">
         <span class="market-date">Market date: <strong id="m-date">-</strong></span>
@@ -109,11 +114,13 @@
       <table id="trades-table">
         <thead>
           <tr>
+            <th>Market Date</th>
             <th>Time</th>
             <th>Symbol</th>
             <th>Side</th>
             <th>Qty</th>
             <th>Price</th>
+            <th>Realized P&amp;L</th>
           </tr>
         </thead>
         <tbody></tbody>

@@ -8,6 +8,7 @@ from .exceptions import (
     InvalidQuantityError,
     StockNotFoundError,
 )
+from .market_service import latest_market_date
 
 
 def get_portfolio(db: Session) -> Portfolio:
@@ -55,6 +56,7 @@ def execute_buy(db: Session, symbol: str, quantity: int) -> Trade:
         quantity=quantity,
         price=stock.current_price,
         reason="Manual trade",
+        market_date=latest_market_date(db),
     )
     db.add(trade)
     db.commit()
@@ -92,6 +94,8 @@ def execute_sell(db: Session, symbol: str, quantity: int) -> Trade:
         quantity=quantity,
         price=stock.current_price,
         reason="Manual trade",
+        market_date=latest_market_date(db),
+        realized_pnl=realized,
     )
     db.add(trade)
     db.commit()

@@ -39,10 +39,10 @@ async function checkHealth() {
   const statusEl = document.getElementById("status");
   try {
     const data = await api("/health");
-    statusEl.textContent = `${data.status.toUpperCase()} — ${data.app}`;
+    statusEl.textContent = `Backend ${data.status.toUpperCase()}`;
     statusEl.className = "ok";
   } catch (err) {
-    statusEl.textContent = `Unable to reach backend (${err.message})`;
+    statusEl.textContent = "Backend unreachable";
     statusEl.className = "error";
   }
 }
@@ -76,7 +76,7 @@ async function loadStocks() {
   for (const s of stocks) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${s.symbol}</td>
+      <td class="symbol-link" data-symbol="${s.symbol}" title="Show chart">${s.symbol}</td>
       <td>${s.name}</td>
       <td>${money(s.current_price)}</td>
       <td class="qty-input"><input type="number" min="1" value="1" id="qty-${s.symbol}" /></td>
@@ -93,6 +93,7 @@ async function loadStocks() {
   tbody.querySelectorAll("button[data-side]").forEach((btn) => {
     btn.addEventListener("click", () => placeOrder(btn.dataset.symbol, btn.dataset.side));
   });
+  bindSymbolLinks(tbody);
 }
 
 async function loadPositions() {
@@ -104,7 +105,7 @@ async function loadPositions() {
   for (const p of positions) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${p.symbol}</td>
+      <td class="symbol-link" data-symbol="${p.symbol}" title="Show chart">${p.symbol}</td>
       <td>${p.quantity}</td>
       <td>${money(p.average_price)}</td>
       <td>${money(p.current_price)}</td>
@@ -113,6 +114,7 @@ async function loadPositions() {
     `;
     tbody.appendChild(tr);
   }
+  bindSymbolLinks(tbody);
 }
 
 async function loadTrades() {
@@ -124,12 +126,18 @@ async function loadTrades() {
   for (const t of trades) {
     const tr = document.createElement("tr");
     const time = new Date(t.timestamp).toLocaleString("en-IN");
+    const pnl =
+      t.realized_pnl === null || t.realized_pnl === undefined
+        ? "-"
+        : `<span class="${pnlClass(t.realized_pnl)}">${money(t.realized_pnl)}</span>`;
     tr.innerHTML = `
+      <td>${t.market_date || "-"}</td>
       <td>${time}</td>
       <td>${t.symbol}</td>
-      <td>${t.side}</td>
+      <td class="side-${t.side.toLowerCase()}">${t.side}</td>
       <td>${t.quantity}</td>
       <td>${money(t.price)}</td>
+      <td>${pnl}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -213,6 +221,33 @@ async function loadMarketConfigs() {
   showConfig();
 }
 
+function selectSymbol(symbol) {
+  if (!market.configs[symbol]) return;
+  market.symbol = symbol;
+  document.getElementById("m-symbol").value = symbol;
+  showConfig();
+  loadChart();
+}
+
+function bindSymbolLinks(container) {
+  container.querySelectorAll(".symbol-link").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      selectSymbol(cell.dataset.symbol);
+      document.getElementById("chart").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
+function chartOptions() {
+  const smas = [];
+  for (const [kind, color] of [["fast", "#2563eb"], ["slow", "#f59e0b"]]) {
+    const enabled = document.getElementById(`ind-${kind}-on`).checked;
+    const value = parseInt(document.getElementById(`ind-${kind}`).value, 10);
+    if (enabled && value >= 2 && value <= 500) smas.push({ period: value, color });
+  }
+  return { smas, showTrades: document.getElementById("ind-trades").checked };
+}
+
 async function loadChart() {
   if (!market.symbol) return;
   const chartEl = document.getElementById("chart");
@@ -221,27 +256,72 @@ async function loadChart() {
     return;
   }
 
-  const prices = await api(`/stocks/${market.symbol}/prices`);
+  const { smas, showTrades } = chartOptions();
+  const smaQuery = smas.map((m) => `sma=${m.period}`).join("&");
+  const [prices, indicators, trades] = await Promise.all([
+    api(`/stocks/${market.symbol}/prices`),
+    smas.length ? api(`/stocks/${market.symbol}/indicators?${smaQuery}`) : { sma: {} },
+    showTrades ? api("/trades") : [],
+  ]);
   document.getElementById("m-date").textContent = prices.length ? prices[prices.length - 1].date : "-";
 
-  const trace = {
-    type: "candlestick",
-    x: prices.map((p) => p.date),
-    open: prices.map((p) => p.open),
-    high: prices.map((p) => p.high),
-    low: prices.map((p) => p.low),
-    close: prices.map((p) => p.close),
-    increasing: { line: { color: "#16a34a" } },
-    decreasing: { line: { color: "#dc2626" } },
-  };
+  const traces = [
+    {
+      type: "candlestick",
+      name: market.symbol,
+      x: prices.map((p) => p.date),
+      open: prices.map((p) => p.open),
+      high: prices.map((p) => p.high),
+      low: prices.map((p) => p.low),
+      close: prices.map((p) => p.close),
+      increasing: { line: { color: "#16a34a" } },
+      decreasing: { line: { color: "#dc2626" } },
+    },
+  ];
+
+  for (const m of smas) {
+    const points = indicators.sma[String(m.period)] || [];
+    traces.push({
+      type: "scatter",
+      mode: "lines",
+      name: `SMA ${m.period}`,
+      x: points.map((pt) => pt.date),
+      y: points.map((pt) => pt.value),
+      line: { color: m.color, width: 1.8 },
+      hovertemplate: `SMA ${m.period}: ₹%{y:.2f}<extra></extra>`,
+    });
+  }
+
+  const mine = trades.filter((t) => t.symbol === market.symbol && t.market_date);
+  for (const side of ["BUY", "SELL"]) {
+    const list = mine.filter((t) => t.side === side);
+    if (!list.length) continue;
+    const buy = side === "BUY";
+    traces.push({
+      type: "scatter",
+      mode: "markers",
+      name: side,
+      x: list.map((t) => t.market_date),
+      y: list.map((t) => t.price),
+      text: list.map((t) => `${side} ${t.quantity} @ ${money(t.price)}`),
+      hoverinfo: "text",
+      marker: {
+        symbol: buy ? "triangle-up" : "triangle-down",
+        size: 13,
+        color: buy ? "#15803d" : "#b91c1c",
+        line: { color: "white", width: 1.5 },
+      },
+    });
+  }
+
   const layout = {
-    margin: { l: 55, r: 15, t: 10, b: 35 },
+    margin: { l: 55, r: 15, t: 30, b: 35 },
     xaxis: { rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }] },
     yaxis: { title: "Price (₹)", tickprefix: "₹" },
-    showlegend: false,
+    legend: { orientation: "h", y: 1.1, x: 0 },
     paper_bgcolor: "rgba(0,0,0,0)",
   };
-  Plotly.react(chartEl, [trace], layout, { displayModeBar: false, responsive: true });
+  Plotly.react(chartEl, traces, layout, { displayModeBar: false, responsive: true });
 }
 
 async function applyConfig() {
@@ -320,11 +400,10 @@ document.getElementById("m-speed").addEventListener("change", () => {
     startPlaying();
   }
 });
-document.getElementById("m-symbol").addEventListener("change", (e) => {
-  market.symbol = e.target.value;
-  showConfig();
-  loadChart();
-});
+document.getElementById("m-symbol").addEventListener("change", (e) => selectSymbol(e.target.value));
+for (const id of ["ind-fast-on", "ind-fast", "ind-slow-on", "ind-slow", "ind-trades"]) {
+  document.getElementById(id).addEventListener("change", loadChart);
+}
 document.getElementById("m-model").addEventListener("change", (e) => {
   document.getElementById("m-model-desc").textContent = MODEL_INFO[e.target.value];
   const trendEl = document.getElementById("m-trend");

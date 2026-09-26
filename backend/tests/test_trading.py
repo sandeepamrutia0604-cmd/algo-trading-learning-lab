@@ -121,3 +121,26 @@ def test_reset_simulation_restores_initial_state(db_session):
 
     refreshed_stock = trading_service.get_stock_by_symbol(db_session, "ALPHA")
     assert refreshed_stock.current_price == refreshed_stock.starting_price
+
+
+def test_trades_record_market_date_and_realized_pnl(db_session):
+    from backend.app.services import market_service
+
+    market_service.generate_all(db_session, 10, seed=1)
+    market_date = market_service.latest_market_date(db_session)
+    stock = trading_service.get_stock_by_symbol(db_session, "ALPHA")
+
+    buy = trading_service.execute_buy(db_session, "ALPHA", 10)
+    stock.current_price = stock.current_price + 5
+    db_session.commit()
+    sell = trading_service.execute_sell(db_session, "ALPHA", 4)
+
+    assert buy.market_date == market_date
+    assert buy.realized_pnl is None
+    assert sell.market_date == market_date
+    assert sell.realized_pnl == pytest.approx(20.0)  # (+5 per share) * 4
+
+
+def test_trade_market_date_is_none_without_price_history(db_session):
+    trade = trading_service.execute_buy(db_session, "ALPHA", 1)
+    assert trade.market_date is None

@@ -76,3 +76,44 @@ def test_reset_restores_default_history_and_clears_trades(client):
     assert client.get("/api/trades").json() == []
     assert len(client.get("/api/stocks/ALPHA/prices").json()) == 60
     assert client.get("/api/portfolio").json()["cash"] == 100000.0
+
+
+def test_indicators_return_sma_matching_manual_average(client):
+    client.post("/api/market/generate", json={"days": 30, "seed": 1})
+    prices = client.get("/api/stocks/ALPHA/prices").json()
+    closes = [p["close"] for p in prices]
+
+    body = client.get("/api/stocks/ALPHA/indicators", params=[("sma", 5), ("sma", 20)]).json()
+
+    assert set(body["sma"]) == {"5", "20"}
+    assert len(body["sma"]["5"]) == 26
+    assert len(body["sma"]["20"]) == 11
+    first = body["sma"]["5"][0]
+    assert first["date"] == prices[4]["date"]
+    assert first["value"] == round(sum(closes[:5]) / 5, 4)
+    last = body["sma"]["20"][-1]
+    assert last["value"] == round(sum(closes[-20:]) / 20, 4)
+
+
+def test_indicators_validation_and_unknown_symbol(client):
+    client.post("/api/market/generate", json={"days": 10, "seed": 1})
+    assert client.get("/api/stocks/ALPHA/indicators", params={"sma": 0}).status_code == 422
+    assert client.get("/api/stocks/ALPHA/indicators", params={"sma": 501}).status_code == 422
+    assert client.get("/api/stocks/ZZZZ/indicators", params={"sma": 5}).status_code == 404
+    assert client.get("/api/stocks/ALPHA/indicators").json() == {"sma": {}}
+
+
+def test_trades_endpoint_exposes_market_date_and_realized_pnl(client):
+    client.post("/api/market/generate", json={"days": 10, "seed": 1})
+    last_date = client.get("/api/stocks/ALPHA/prices", params={"limit": 1}).json()[0]["date"]
+
+    client.post("/api/orders/buy", json={"symbol": "ALPHA", "quantity": 2})
+    client.post("/api/market/advance", json={"days": 1})
+    sell = client.post("/api/orders/sell", json={"symbol": "ALPHA", "quantity": 1}).json()
+
+    trades = client.get("/api/trades").json()
+    assert [t["side"] for t in trades] == ["SELL", "BUY"]
+    assert trades[1]["market_date"] == last_date
+    assert trades[1]["realized_pnl"] is None
+    assert trades[0]["market_date"] > last_date
+    assert sell["realized_pnl"] == trades[0]["realized_pnl"]

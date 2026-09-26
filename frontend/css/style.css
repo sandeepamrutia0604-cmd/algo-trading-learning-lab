@@ -72,16 +72,6 @@ main {
   letter-spacing: 0.04em;
 }
 
-#status.ok {
-  color: var(--ok);
-  font-weight: 600;
-}
-
-#status.error {
-  color: var(--danger);
-  font-weight: 600;
-}
-
 .wallet-card {
   flex: 1 1 100%;
 }
@@ -263,4 +253,64 @@ td.pnl.negative, span.negative {
 .btn-primary {
   background: var(--accent);
   color: white;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.status-pill.ok {
+  color: var(--ok);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.status-pill.error {
+  color: var(--danger);
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.controls label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.controls input.period {
+  width: 64px;
+}
+
+.symbol-link {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.symbol-link:hover {
+  text-decoration: underline;
+}
+
+.side-buy {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.side-sell {
+  color: var(--danger);
+  font-weight: 600;
 }

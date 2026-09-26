@@ -16,6 +16,7 @@ from .api.trades import router as trades_router
 from .config import settings
 from .db import Base, SessionLocal, engine
 from .logging_config import configure_logging
+from .migrations import ensure_columns
 from .services.exceptions import StockNotFoundError, TradingError
 from .services.seed import ensure_seed_data
 
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_columns(engine)
     db = SessionLocal()
     try:
         ensure_seed_data(db)

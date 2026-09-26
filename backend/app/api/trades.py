@@ -10,15 +10,5 @@ router = APIRouter()
 
 @router.get("/trades", response_model=list[TradeOut])
 def list_trades(db: Session = Depends(get_db)):
-    trades = db.query(Trade).order_by(Trade.timestamp.desc()).all()
-    return [
-        TradeOut(
-            symbol=t.stock.symbol,
-            side=t.side,
-            quantity=t.quantity,
-            price=t.price,
-            timestamp=t.timestamp,
-            reason=t.reason,
-        )
-        for t in trades
-    ]
+    trades = db.query(Trade).order_by(Trade.timestamp.desc(), Trade.id.desc()).all()
+    return [TradeOut.from_trade(t) for t in trades]
