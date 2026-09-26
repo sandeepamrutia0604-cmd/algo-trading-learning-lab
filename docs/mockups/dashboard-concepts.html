@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard concepts - Algo Trading Learning Lab</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e9ebef; color: #1a1d23; }
+  .page-head { padding: 18px 28px 0; }
+  .page-head h1 { margin: 0 0 4px; font-size: 20px; }
+  .page-head p { margin: 0 0 14px; color: #5b6472; font-size: 13px; max-width: 900px; line-height: 1.5; }
+  .tabs { display: flex; gap: 8px; padding: 0 28px 14px; flex-wrap: wrap; }
+  .tab { border: 1px solid #c9ced6; background: #fff; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600; color: #3b4350; }
+  .tab small { display: block; font-weight: 400; color: #7a8391; font-size: 11px; margin-top: 2px; }
+  .tab.active { background: #1a1d23; color: #fff; border-color: #1a1d23; }
+  .tab.active small { color: #b7bdc8; }
+
+  .concept { display: none; margin: 0 28px 28px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.12); }
+  .concept.active { display: block; }
+  .theme-dark { --bg:#0e1116; --panel:#151a21; --panel2:#1b212a; --line:#252c36; --text:#e6edf3; --muted:#8a94a3; --up:#26a69a; --down:#ef5350; --accent:#4c8dff; --warn:#f5a524; background: var(--bg); color: var(--text); }
+  .theme-light { --bg:#f5f6f8; --panel:#ffffff; --panel2:#f0f2f5; --line:#e3e6eb; --text:#1a1d23; --muted:#6b7482; --up:#16a34a; --down:#dc2626; --accent:#2563eb; --warn:#d97706; background: var(--bg); color: var(--text); }
+  .concept svg text { fill: var(--muted); font-size: 10px; font-family: inherit; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .concept h3 { margin: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .btn { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: default; }
+  .btn.buy { background: var(--up); border-color: var(--up); color: #fff; }
+  .btn.sell { background: var(--down); border-color: var(--down); color: #fff; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; } th.num { text-align: right; }
+
+  /* ---------- Concept 1: terminal ---------- */
+  .term { display: grid; grid-template-columns: 230px minmax(0,1fr) 270px; grid-template-rows: auto minmax(0,1fr) auto; gap: 1px; background: var(--line); min-height: 700px; }
+  .term > * { background: var(--bg); }
+  .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 26px; padding: 10px 16px; flex-wrap: wrap; background: var(--panel) !important; }
+  .brand { font-weight: 700; font-size: 14px; }
+  .kpi { display: flex; flex-direction: column; gap: 2px; }
+  .kpi span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .kpi b { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  .watch { padding: 10px 0; }
+  .watch h3 { padding: 0 14px 8px; }
+  .wrow { display: grid; grid-template-columns: 1fr 64px; gap: 6px; padding: 10px 14px; border-left: 3px solid transparent; align-items: center; }
+  .wrow.sel { background: var(--panel2); border-left-color: var(--accent); }
+  .wrow b { font-size: 13px; } .wrow small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .wrow .px { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .wrow .px small { font-size: 11px; }
+  .chartwrap { padding: 10px 14px 6px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  .toolbar .sym { font-size: 16px; font-weight: 700; margin-right: 6px; }
+  .toolbar .ohlc { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .legendline { font-size: 11px; color: var(--muted); display: flex; gap: 14px; }
+  .legendline i { display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle; border-radius: 2px; }
+  .ticket { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg span { text-align: center; padding: 8px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .seg span.on.b { background: var(--up); color: #fff; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+  .field div { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--text); display: flex; justify-content: space-between; }
+  .sumrow { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+  .sumrow span:first-child { color: var(--muted); }
+  .bottom { grid-column: 1 / -1; background: var(--panel) !important; }
+  .btabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+  .btabs span { padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  .btabs span.on { color: var(--text); border-bottom-color: var(--accent); }
+  .btabs em { font-style: normal; background: var(--panel2); border-radius: 9px; padding: 0 6px; margin-left: 5px; font-size: 10px; }
+
+  /* ---------- Concept 2: coach ---------- */
+  .coach { display: grid; grid-template-columns: 200px minmax(0,1fr); min-height: 720px; }
+  .side { background: var(--panel); border-right: 1px solid var(--line); padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .side .brand { padding: 0 10px 14px; font-size: 15px; }
+  .nav { padding: 9px 10px; border-radius: 7px; font-size: 13px; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+  .nav.on { background: #e8efff; color: var(--accent); }
+  .nav em { font-style: normal; font-size: 10px; background: var(--panel2); border-radius: 8px; padding: 1px 7px; }
+  .side .foot { margin-top: auto; padding: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .cmain { padding: 22px; display: grid; gap: 14px; grid-template-columns: repeat(12, minmax(0,1fr)); align-content: start; }
+  .c-hero { grid-column: span 8; padding: 18px 20px; }
+  .c-hero .big { font-size: 30px; font-weight: 700; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+  .c-learn { grid-column: span 4; padding: 18px 20px; }
+  .c-watch { grid-column: span 5; padding: 16px 18px; }
+  .c-why { grid-column: span 7; padding: 16px 18px; }
+  .c-chal { grid-column: span 12; padding: 14px 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .steps { display: flex; gap: 5px; margin: 10px 0 12px; }
+  .steps i { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+  .steps i.done { background: var(--up); } .steps i.cur { background: var(--accent); }
+  .cardcta { border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 12px; font-size: 12.5px; line-height: 1.5; }
+  .stockrow { display: grid; grid-template-columns: 1fr 70px auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .stockrow:last-child { border-bottom: 0; }
+  .stockrow b { font-size: 13px; } .stockrow small { display: block; color: var(--muted); font-size: 11px; }
+  .why { border: 1px dashed var(--accent); background: #f3f7ff; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; line-height: 1.7; margin-top: 10px; }
+  .why b.t { display: block; letter-spacing: .06em; font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+  .pillrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .progress { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; width: 220px; }
+  .progress div { height: 100%; background: var(--accent); }
+
+  /* ---------- Concept 3: lab ---------- */
+  .lab { padding: 18px; display: grid; gap: 14px; }
+  .labtop { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .labtop h2 { margin: 0; font-size: 16px; }
+  .labgrid { display: grid; grid-template-columns: 300px minmax(0,1fr); gap: 14px; align-items: start; }
+  .rules { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rule { border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; background: var(--panel2); font-size: 12.5px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .kw { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--accent); }
+  .tok { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 10px; }
+  .kpis .panel { padding: 11px 13px; } .kpis .panel span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .kpis .panel b { display: block; font-size: 19px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .lab-main { display: grid; gap: 14px; min-width: 0; }
+  .chartcard { padding: 12px 14px 8px; }
+  .chartcard .hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .two { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 14px; }
+  .bar { height: 7px; border-radius: 4px; background: var(--line); position: relative; } .bar div { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
+
+  .notes { margin: 0 28px 40px; background: #fff; border-radius: 10px; padding: 18px 22px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  .notes h2 { margin: 0 0 8px; font-size: 15px; } .notes p { margin: 4px 0 12px; font-size: 13px; color: #4a5361; line-height: 1.55; }
+  .notes table { font-size: 12.5px; } .notes th, .notes td { border-bottom: 1px solid #edf0f4; color: #2b323d; vertical-align: top; } .notes th { color: #6b7482; }
+
+  @media (max-width: 1000px) {
+    .term { grid-template-columns: 1fr; } .coach { grid-template-columns: 1fr; } .side { display: none; }
+    .labgrid { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, 1fr); } .two { grid-template-columns: 1fr; }
+    .c-hero, .c-learn, .c-watch, .c-why { grid-column: span 12; }
+  }
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Dashboard concepts</h1>
+  <p>Three directions for the Algo Trading Learning Lab, built from patterns in TradingView, Dhan, Neostox, AlgoTest, Sensibull, Moneybhai, StockGro, MegaBull and FrontPage. All numbers are dummy data. Charts are drawn by the script at the bottom of this file, so nothing here is connected to the real app.</p>
+</div>
+<div class="tabs">
+  <button class="tab active" data-target="c1">1. Trading Terminal<small>TradingView / Dhan style, for the Trade screen</small></button>
+  <button class="tab" data-target="c2">2. Learner Home<small>Moneybhai / StockGro / FrontPage style, for the landing page</small></button>
+  <button class="tab" data-target="c3">3. Strategy Lab<small>AlgoTest / Sensibull style, for Backtest and Compare</small></button>
+</div>
+
+<!-- =============== CONCEPT 1 =============== -->
+<section id="c1" class="concept theme-dark active">
+  <div class="term">
+    <div class="topbar">
+      <span class="brand">Algo Lab</span>
+      <div class="kpi"><span>Portfolio value</span><b>&#8377;1,04,320</b></div>
+      <div class="kpi"><span>Cash</span><b>&#8377;82,450</b></div>
+      <div class="kpi"><span>Invested</span><b>&#8377;17,550</b></div>
+      <div class="kpi"><span>Today</span><b class="up">+&#8377;640 (0.62%)</b></div>
+      <div class="kpi"><span>Total P&amp;L</span><b class="up">+&#8377;4,320 (4.32%)</b></div>
+      <span class="spacer"></span>
+      <div class="kpi"><span>Market date</span><b>26 Mar 2025</b></div>
+      <button class="btn">+1 day</button><button class="btn">+5 days</button><button class="btn primary">&#9654; Play</button>
+      <button class="btn">Reset</button>
+    </div>
+
+    <div class="watch">
+      <h3>Watchlist</h3>
+      <div class="wrow sel"><div><b>ALPHA</b><small>Alpha Industries</small></div><svg class="spark" data-seed="11" data-color="up" viewBox="0 0 64 26" width="64" height="26"></svg></div>
+      <div class="wrow"><div><b>BETA</b><small>Beta Technologies</small></div><svg class="spark" data-seed="4" data-color="up" viewBox="0 0 64 26" width="64" height="26"></svg></div>
+      <div class="wrow"><div><b>GAMMA</b><small>Gamma Foods</small></div><svg class="spark" data-seed="9" data-color="down" viewBox="0 0 64 26" width="64" height="26"></svg></div>
+      <div class="wrow"><div><b>DELTA</b><small>Delta Motors</small></div><svg class="spark" data-seed="2" data-color="down" viewBox="0 0 64 26" width="64" height="26"></svg></div>
+      <div style="padding:14px 14px 4px"><h3>Price</h3></div>
+      <div class="wrow" style="grid-template-columns:1fr;padding-top:4px"><div class="px" style="text-align:left"><b style="font-size:22px">&#8377;108.28</b><small class="up">+2.31 (+2.18%) today</small></div></div>
+      <div style="padding:0 14px"><div class="sumrow"><span>Model</span><span class="chip">Random walk</span></div><div class="sumrow"><span>Volatility</span><span>2.0% / day</span></div><div class="sumrow"><span>Trend</span><span>0.0% / day</span></div></div>
+    </div>
+
+    <div class="chartwrap">
+      <div class="toolbar">
+        <span class="sym">ALPHA</span><span class="chip">1D</span>
+        <span class="ohlc">O 105.9 &nbsp;H 108.9 &nbsp;L 105.1 &nbsp;C 108.3</span>
+        <span class="spacer"></span>
+        <span class="chip">SMA 20 &#10003;</span><span class="chip">SMA 50 &#10003;</span><span class="chip">RSI</span><span class="chip">Bollinger</span><span class="chip">Volume &#10003;</span>
+      </div>
+      <div class="legendline"><span><i style="background:#4c8dff"></i>SMA 20</span><span><i style="background:#f5a524"></i>SMA 50</span><span><i style="background:var(--up)"></i>&#9650; BUY</span><span><i style="background:var(--down)"></i>&#9660; SELL</span></div>
+      <svg class="candles" data-seed="21" data-n="90" data-start="100" data-drift="0.001" data-end="108.28" data-markers="1" viewBox="0 0 760 330" preserveAspectRatio="none" style="width:100%;height:340px"></svg>
+      <svg class="volume" data-seed="22" data-n="90" viewBox="0 0 760 56" preserveAspectRatio="none" style="width:100%;height:56px"></svg>
+    </div>
+
+    <div class="ticket">
+      <h3 style="color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin:0">Order ticket</h3>
+      <div class="seg"><span class="on b">BUY</span><span>SELL</span></div>
+      <div class="field">Symbol<div><span>ALPHA</span><span class="muted">&#8377;108.28</span></div></div>
+      <div class="field">Quantity<div><span>100</span><span class="muted">max 761</span></div></div>
+      <div class="field">Order type<div><span>Market</span><span class="muted">Limit &middot; SL later</span></div></div>
+      <div class="field">Stop loss (optional)<div><span>&#8377;102.87</span><span class="muted">-5%</span></div></div>
+      <div>
+        <div class="sumrow"><span>Order value</span><span>&#8377;10,828</span></div>
+        <div class="sumrow"><span>Cash after</span><span>&#8377;71,622</span></div>
+        <div class="sumrow"><span>Risk if stopped out</span><span class="down">-&#8377;541 (0.5%)</span></div>
+        <div class="sumrow"><span>Allocation after</span><span>16.6% of portfolio</span></div>
+      </div>
+      <button class="btn buy" style="padding:10px">Buy 100 ALPHA</button>
+      <div class="cardcta" style="background:var(--panel);color:var(--muted)">Learn: what is a market order? <span style="color:var(--accent)">Open lesson</span></div>
+    </div>
+
+    <div class="bottom">
+      <div class="btabs"><span class="on">Positions<em>2</em></span><span>Trades<em>6</em></span><span>Signals &amp; Why<em>3</em></span><span>Performance</span></div>
+      <table>
+        <thead><tr><th>Symbol</th><th class="num">Qty</th><th class="num">Avg</th><th class="num">LTP</th><th class="num">Value</th><th class="num">Unrealized P&amp;L</th><th class="num">Day</th><th>Stop loss</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><b>ALPHA</b></td><td class="num">100</td><td class="num">&#8377;100.00</td><td class="num">&#8377;108.28</td><td class="num">&#8377;10,828</td><td class="num up">+&#8377;828 (8.3%)</td><td class="num up">+2.18%</td><td>&#8377;95.00</td><td class="num"><button class="btn">+ Add</button> <button class="btn sell">Exit</button></td></tr>
+          <tr><td><b>BETA</b></td><td class="num">30</td><td class="num">&#8377;250.00</td><td class="num">&#8377;298.84</td><td class="num">&#8377;8,965</td><td class="num up">+&#8377;1,465 (19.5%)</td><td class="num up">+0.80%</td><td class="muted">not set</td><td class="num"><button class="btn">+ Add</button> <button class="btn sell">Exit</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- =============== CONCEPT 2 =============== -->
+<section id="c2" class="concept theme-light">
+  <div class="coach">
+    <aside class="side">
+      <div class="brand">Algo Lab</div>
+      <div class="nav on">Home</div>
+      <div class="nav">Trade</div>
+      <div class="nav">Strategies <em>4</em></div>
+      <div class="nav">Backtests</div>
+      <div class="nav">Journal</div>
+      <div class="nav">Learn <em>3/10</em></div>
+      <div class="foot">Paper trading only.<br>No real money, ever.<br><br>Market date: 26 Mar 2025</div>
+    </aside>
+    <div class="cmain">
+      <div class="panel c-hero">
+        <h3>Your portfolio</h3>
+        <div class="big">&#8377;1,04,320 <span class="up" style="font-size:15px;font-weight:600">&#9650; 4.32%</span></div>
+        <div class="muted" style="font-size:12px">Started with &#8377;1,00,000 &middot; Cash &#8377;82,450 &middot; Invested &#8377;17,550</div>
+        <svg class="line" data-seed="31" data-n="60" data-fill="1" data-end="104.32" viewBox="0 0 640 130" preserveAspectRatio="none" style="width:100%;height:130px;margin-top:8px"></svg>
+        <div class="pillrow" style="margin-top:8px"><span class="chip">Realized +&#8377;1,180</span><span class="chip">Unrealized +&#8377;3,140</span><span class="chip">Win rate 62%</span><span class="chip">vs buy &amp; hold +1.1%</span></div>
+      </div>
+
+      <div class="panel c-learn">
+        <h3>Learning path</h3>
+        <div style="font-size:15px;font-weight:700;margin-top:6px">Module 4: What is an indicator?</div>
+        <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="cardcta">Moving averages smooth out daily noise. <b>Try it:</b> add an SMA 20 to ALPHA and spot where price crosses it.</div>
+        <div style="margin-top:12px"><button class="btn primary">Continue lesson</button></div>
+      </div>
+
+      <div class="panel c-watch">
+        <h3>Watchlist</h3>
+        <div style="margin-top:6px">
+          <div class="stockrow"><div><b>ALPHA</b><small>&#8377;108.28 &middot; <span class="up">+2.18%</span></small></div><svg class="spark" data-seed="11" data-color="up" viewBox="0 0 64 26" width="70" height="26"></svg><button class="btn buy">Buy</button></div>
+          <div class="stockrow"><div><b>BETA</b><small>&#8377;298.84 &middot; <span class="up">+0.80%</span></small></div><svg class="spark" data-seed="4" data-color="up" viewBox="0 0 64 26" width="70" height="26"></svg><button class="btn buy">Buy</button></div>
+          <div class="stockrow"><div><b>GAMMA</b><small>&#8377;73.84 &middot; <span class="down">-1.05%</span></small></div><svg class="spark" data-seed="9" data-color="down" viewBox="0 0 64 26" width="70" height="26"></svg><button class="btn buy">Buy</button></div>
+          <div class="stockrow"><div><b>DELTA</b><small>&#8377;473.58 &middot; <span class="down">-3.10%</span></small></div><svg class="spark" data-seed="2" data-color="down" viewBox="0 0 64 26" width="70" height="26"></svg><button class="btn buy">Buy</button></div>
+        </div>
+      </div>
+
+      <div class="panel c-why">
+        <h3>Last trade journal</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><div><b>BUY 100 ALPHA</b> <span class="muted" style="font-size:12px">&middot; 21 Mar 2025 &middot; &#8377;100.00</span></div><span class="chip up">+&#8377;828 so far</span></div>
+        <div class="why"><b class="t">WHY DID I BUY?</b>&#10003; SMA 20 crossed above SMA 50<br>&#10003; RSI = 54 (not overbought)<br>&#10003; Price above SMA 20<br><span class="muted">Stop loss &#8377;95.00 &middot; Quantity 100 &middot; Risk 0.5% of portfolio</span></div>
+        <div style="margin-top:10px"><span class="chip">Add a note</span> <span class="chip">Rate this decision</span></div>
+      </div>
+
+      <div class="panel c-chal">
+        <div><h3>Practice challenge</h3><div style="font-size:14px;font-weight:700;margin-top:4px">Beat buy &amp; hold on ALPHA over 60 days</div></div>
+        <div class="progress"><div style="width:62%"></div></div><span class="muted" style="font-size:12px">Day 37 of 60 &middot; you +4.3% vs buy &amp; hold +3.2%</span>
+        <span class="spacer"></span><button class="btn">See history of past runs</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============== CONCEPT 3 =============== -->
+<section id="c3" class="concept theme-light">
+  <div class="lab">
+    <div class="labtop">
+      <h2>Strategy Lab</h2>
+      <span class="chip">MA Crossover 20/50</span><span class="chip">ALPHA</span><span class="chip">500 trading days</span><span class="chip">Capital &#8377;1,00,000</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn">Save strategy</button><button class="btn primary">&#9654; Run backtest</button>
+    </div>
+    <div class="labgrid">
+      <div class="panel rules">
+        <h3>Strategy builder</h3>
+        <div class="kw">ENTRY &middot; BUY WHEN</div>
+        <div class="rule"><span class="tok">SMA 20</span><span>crosses above</span><span class="tok">SMA 50</span></div>
+        <div class="kw">AND</div>
+        <div class="rule"><span class="tok">RSI (14)</span><span>&lt;</span><span class="tok">70</span></div>
+        <div class="kw">AND</div>
+        <div class="rule"><span class="tok">Price</span><span>&gt;</span><span class="tok">&#8377;100</span></div>
+        <div class="kw">EXIT &middot; SELL WHEN</div>
+        <div class="rule"><span class="tok">SMA 20</span><span>crosses below</span><span class="tok">SMA 50</span></div>
+        <div class="kw">OR</div>
+        <div class="rule"><span class="tok">Loss</span><span>&ge;</span><span class="tok">5%</span></div>
+        <div class="kw">RISK</div>
+        <div class="rule"><span>Risk per trade</span><span class="tok">2%</span><span>Max positions</span><span class="tok">5</span></div>
+        <div class="rule"><span>Fees + slippage</span><span class="tok">0.05%</span></div>
+        <button class="btn">+ Add condition</button>
+      </div>
+
+      <div class="lab-main">
+        <div class="kpis">
+          <div class="panel"><span>Total return</span><b class="up">+14.25%</b></div>
+          <div class="panel"><span>Final capital</span><b>&#8377;1,14,250</b></div>
+          <div class="panel"><span>Win rate</span><b>61%</b></div>
+          <div class="panel"><span>Max drawdown</span><b class="down">-6.8%</b></div>
+          <div class="panel"><span>Profit factor</span><b>1.74</b></div>
+          <div class="panel"><span>Sharpe</span><b>0.92</b></div>
+        </div>
+        <div class="panel chartcard">
+          <div class="hd"><h3>Equity curve vs buy &amp; hold</h3><span class="legendline" style="display:flex;gap:14px;font-size:11px;color:var(--muted)"><span><i style="display:inline-block;width:10px;height:3px;background:var(--accent);margin-right:5px;vertical-align:middle"></i>Strategy</span><span><i style="display:inline-block;width:10px;height:3px;background:#9aa3b2;margin-right:5px;vertical-align:middle"></i>Buy &amp; hold</span></span></div>
+          <div class="muted" style="font-size:11px;margin-bottom:2px">&#8377;1,00,000 start &rarr; &#8377;1,14,250 strategy vs &#8377;1,08,000 buy &amp; hold</div>
+          <svg class="line" data-seed="41" data-n="120" data-second="42" data-end="114.25" data-second-end="108" viewBox="0 0 760 190" preserveAspectRatio="none" style="width:100%;height:190px"></svg>
+          <div class="hd" style="margin-top:6px"><h3>Drawdown</h3><span class="muted" style="font-size:11px">worst: -6.8% (Aug to Oct)</span></div>
+          <svg class="dd" data-seed="41" data-n="120" data-end="114.25" viewBox="0 0 760 70" preserveAspectRatio="none" style="width:100%;height:70px"></svg>
+        </div>
+        <div class="two">
+          <div class="panel" style="padding-bottom:4px">
+            <div style="padding:12px 14px 4px"><h3>Compare strategies (same data)</h3></div>
+            <table>
+              <thead><tr><th>Metric</th><th class="num">MA Cross</th><th class="num">RSI</th><th class="num">Breakout</th></tr></thead>
+              <tbody>
+                <tr><td>Final capital</td><td class="num">&#8377;1.14L</td><td class="num">&#8377;1.09L</td><td class="num">&#8377;1.18L</td></tr>
+                <tr><td>Trades</td><td class="num">18</td><td class="num">32</td><td class="num">24</td></tr>
+                <tr><td>Win rate</td><td class="num">61%</td><td class="num">53%</td><td class="num">58%</td></tr>
+                <tr><td>Max drawdown</td><td class="num">6.8%</td><td class="num">8.4%</td><td class="num">10.1%</td></tr>
+              </tbody>
+            </table>
+            <div style="padding:6px 14px 12px;font-size:11px;color:var(--muted)">Measurements from this backtest only. Not a recommendation.</div>
+          </div>
+          <div class="panel" style="padding-bottom:4px">
+            <div style="padding:12px 14px 4px"><h3>Trades (click a row for "Why")</h3></div>
+            <table>
+              <thead><tr><th>Date</th><th>Side</th><th class="num">Price</th><th class="num">P&amp;L</th></tr></thead>
+              <tbody>
+                <tr><td>12 Feb</td><td class="up">BUY</td><td class="num">&#8377;124.50</td><td class="num muted">open</td></tr>
+                <tr><td>28 Jan</td><td class="down">SELL</td><td class="num">&#8377;131.10</td><td class="num up">+&#8377;1,980</td></tr>
+                <tr><td>09 Jan</td><td class="up">BUY</td><td class="num">&#8377;118.20</td><td class="num muted">-</td></tr>
+                <tr><td>21 Dec</td><td class="down">SELL</td><td class="num">&#8377;112.40</td><td class="num down">-&#8377;640</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="notes">
+  <h2>Where each idea comes from, and when it fits</h2>
+  <p>The three concepts are meant to be combined, not chosen one against the other. A suggested mix is at the bottom.</p>
+  <table>
+    <thead><tr><th>Element</th><th>Inspired by</th><th>Best used in</th><th>Build phase</th></tr></thead>
+    <tbody>
+      <tr><td>Chart-centred layout with watchlist on the side and a bottom tab panel</td><td>TradingView</td><td>Concept 1 (Trade screen)</td><td>Phase 3 refit</td></tr>
+      <tr><td>Positions with one-click Add / Exit and a stop-loss column</td><td>Dhan</td><td>Concept 1 bottom panel</td><td>Phase 7 (risk)</td></tr>
+      <tr><td>Performance strip: P&amp;L, win rate, fees for today and last 30 days</td><td>Neostox</td><td>Concepts 1 and 2</td><td>Phase 8</td></tr>
+      <tr><td>KPI tiles, equity curve, drawdown chart, trade-level table</td><td>AlgoTest</td><td>Concept 3</td><td>Phases 6 and 8</td></tr>
+      <tr><td>Rule "legs" with a live preview of the outcome</td><td>Sensibull strategy builder</td><td>Concept 3 rule builder</td><td>Phase 9</td></tr>
+      <tr><td>Home page with portfolio hero, next lesson and challenges</td><td>Moneybhai / StockGro (learn + leagues)</td><td>Concept 2</td><td>Learning Mode</td></tr>
+      <tr><td>Trade journal with reasons; reset portfolio anytime</td><td>FrontPage / MegaBull</td><td>Concept 2 "Why did I buy?" card</td><td>Phase 4 (Why system)</td></tr>
+      <tr><td>Leaderboards and public contests</td><td>Moneybhai / StockGro / MegaBull</td><td>Not needed (single user). Replaced by "beat buy &amp; hold" and past-run comparison.</td><td>-</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px"><b>Suggested mix:</b> use the Terminal (1) as the Trade screen, add a left navigation from the Learner Home (2) with its portfolio hero as the landing page, and use the Strategy Lab (3) for Backtests and Compare. Start with the dark terminal theme plus a light-theme toggle.</p>
+</div>
+
+<script>
+(function () {
+  function rng(seed) { var s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+  function gauss(r) { return (r() + r() + r() + r() - 2) * 1.7; }
+  function series(n, seed, start, vol, drift) { var r = rng(seed), v = [start]; for (var i = 1; i < n; i++) v.push(v[i-1] * (1 + drift + vol * gauss(r))); return v; }
+  function candles(n, seed, start, drift) {
+    var r = rng(seed), out = [], prev = start;
+    for (var i = 0; i < n; i++) { var c = prev * (1 + drift + 0.016 * gauss(r)), o = prev * (1 + 0.004 * gauss(r)); var h = Math.max(o, c) * (1 + 0.006 * r()), l = Math.min(o, c) * (1 - 0.006 * r()); out.push({o:o,h:h,l:l,c:c,v:60 + 80*Math.abs(c-o)/prev*100*r()+20*r()}); prev = c; }
+    return out;
+  }
+  function anchor(a, end) { var k = (end - 100) / (a[a.length - 1] - 100); return a.map(function (v) { return 100 + (v - 100) * k; }); }
+  function sma(a, p) { return a.map(function (_, i) { if (i < p - 1) return null; var s = 0; for (var k = i - p + 1; k <= i; k++) s += a[k]; return s / p; }); }
+  function css(name, el) { return getComputedStyle(el).getPropertyValue(name).trim(); }
+  function el(tag, attrs) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function scale(vals, h, pad) { var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals); return function (x) { return pad + (h - 2*pad) * (1 - (x - mn) / (mx - mn || 1)); }; }
+  function path(pts) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(''); }
+
+  document.querySelectorAll('svg.spark').forEach(function (svg) {
+    var d = series(20, +svg.dataset.seed, 100, 0.02, svg.dataset.color === 'up' ? 0.008 : -0.008), y = scale(d, 26, 3);
+    var col = css('--' + svg.dataset.color, svg);
+    svg.appendChild(el('path', {d: path(d.map(function (v, i) { return [i * 64 / 19, y(v)]; })), fill: 'none', stroke: col, 'stroke-width': 1.6}));
+  });
+
+  document.querySelectorAll('svg.candles').forEach(function (svg) {
+    var W = 760, H = 330, n = +svg.dataset.n, cs = candles(n, +svg.dataset.seed, +svg.dataset.start, +svg.dataset.drift || 0.004), up = css('--up', svg), dn = css('--down', svg), line = css('--line', svg);
+    if (svg.dataset.end) { var f = +svg.dataset.end / cs[cs.length - 1].c; cs.forEach(function (c) { c.o *= f; c.h *= f; c.l *= f; c.c *= f; }); }
+    var lo = Math.min.apply(null, cs.map(function (c) { return c.l; })), hi = Math.max.apply(null, cs.map(function (c) { return c.h; }));
+    var y = function (v) { return 14 + (H - 34) * (1 - (v - lo) / (hi - lo)); }, dx = (W - 56) / n;
+    for (var g = 0; g < 5; g++) { var gy = 14 + (H - 34) * g / 4; svg.appendChild(el('line', {x1:0, x2:W-50, y1:gy, y2:gy, stroke:line, 'stroke-width':1, 'vector-effect':'non-scaling-stroke'})); var t = el('text', {x:W-46, y:gy+3}); t.textContent = (hi - (hi-lo)*g/4).toFixed(0); svg.appendChild(t); }
+    cs.forEach(function (c, i) { var x = 4 + i * dx + dx / 2, col = c.c >= c.o ? up : dn;
+      svg.appendChild(el('line', {x1:x, x2:x, y1:y(c.h), y2:y(c.l), stroke:col, 'stroke-width':1, 'vector-effect':'non-scaling-stroke'}));
+      svg.appendChild(el('rect', {x:x - dx*0.32, y:Math.min(y(c.o), y(c.c)), width:dx*0.64, height:Math.max(1.2, Math.abs(y(c.o) - y(c.c))), fill:col})); });
+    var closes = cs.map(function (c) { return c.c; });
+    [[20, '#4c8dff'], [50, '#f5a524']].forEach(function (m) { var s = sma(closes, m[0]), pts = []; s.forEach(function (v, i) { if (v !== null) pts.push([4 + i*dx + dx/2, y(v)]); });
+      svg.appendChild(el('path', {d:path(pts), fill:'none', stroke:m[1], 'stroke-width':1.8, 'vector-effect':'non-scaling-stroke'})); });
+    if (svg.dataset.markers) { [[34,'b'],[52,'s'],[70,'b']].forEach(function (m) { var i = m[1] === 'b' ? m[0] : m[0], c = cs[i], x = 4 + i*dx + dx/2;
+      if (m[1] === 'b') svg.appendChild(el('path', {d:'M'+x+' '+(y(c.l)+16)+'l-6 10h12z', fill:up})); else svg.appendChild(el('path', {d:'M'+x+' '+(y(c.h)-16)+'l-6 -10h12z', fill:dn})); }); }
+  });
+
+  document.querySelectorAll('svg.volume').forEach(function (svg) {
+    var W = 760, H = 56, n = +svg.dataset.n, cs = candles(n, 21, 100, 0.001), up = css('--up', svg), dn = css('--down', svg), dx = (W - 56) / n, mx = Math.max.apply(null, cs.map(function (c) { return c.v; }));
+    cs.forEach(function (c, i) { var h = (H - 6) * c.v / mx; svg.appendChild(el('rect', {x:4 + i*dx + dx*0.18, y:H - h, width:dx*0.64, height:h, fill:c.c >= c.o ? up : dn, opacity:.55})); });
+  });
+
+  document.querySelectorAll('svg.line').forEach(function (svg) {
+    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, n = +svg.dataset.n, a = series(n, +svg.dataset.seed, 100, 0.006, 0.0022), accent = css('--accent', svg), line = css('--line', svg);
+    if (svg.dataset.end) a = anchor(a, +svg.dataset.end);
+    var b; var all = a.slice(); if (svg.dataset.second) { b = series(n, +svg.dataset.second, 100, 0.006, 0.0009); if (svg.dataset.secondEnd) b = anchor(b, +svg.dataset.secondEnd); all = all.concat(b); }
+    var y = scale(all, H, 8);
+    for (var g = 0; g < 4; g++) svg.appendChild(el('line', {x1:0, x2:W, y1:8 + (H-16)*g/3, y2:8 + (H-16)*g/3, stroke:line, 'stroke-width':1, 'vector-effect':'non-scaling-stroke'}));
+    var pts = a.map(function (v, i) { return [i * W / (n - 1), y(v)]; });
+    if (svg.dataset.fill) svg.appendChild(el('path', {d:path(pts) + 'L' + W + ' ' + H + 'L0 ' + H + 'Z', fill:accent, opacity:.10}));
+    if (b) svg.appendChild(el('path', {d:path(b.map(function (v, i) { return [i * W / (n - 1), y(v)]; })), fill:'none', stroke:'#9aa3b2', 'stroke-width':1.6, 'vector-effect':'non-scaling-stroke'}));
+    svg.appendChild(el('path', {d:path(pts), fill:'none', stroke:accent, 'stroke-width':2, 'vector-effect':'non-scaling-stroke'}));
+  });
+
+  document.querySelectorAll('svg.dd').forEach(function (svg) {
+    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, n = +svg.dataset.n, a = series(n, +svg.dataset.seed, 100, 0.006, 0.0022), peak = 0;
+    if (svg.dataset.end) a = anchor(a, +svg.dataset.end);
+    peak = a[0];
+    var dd = a.map(function (v) { peak = Math.max(peak, v); return (v - peak) / peak; });
+    var mn = Math.min.apply(null, dd), pts = dd.map(function (v, i) { return [i * W / (n - 1), 4 + (H - 8) * (v / (mn || -1))]; });
+    svg.appendChild(el('path', {d:path(pts) + 'L' + W + ' 4L0 4Z', fill:css('--down', svg), opacity:.28}));
+    svg.appendChild(el('path', {d:path(pts), fill:'none', stroke:css('--down', svg), 'stroke-width':1.4, 'vector-effect':'non-scaling-stroke'}));
+  });
+
+  function show(id) {
+    document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.dataset.target === id); });
+    document.querySelectorAll('.concept').forEach(function (c) { c.classList.toggle('active', c.id === id); });
+  }
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () { show(tab.dataset.target); history.replaceState(null, '', '#' + tab.dataset.target); });
+  });
+  if (document.getElementById(location.hash.slice(1))) show(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>
