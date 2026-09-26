@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
-from ..models import Portfolio, Stock
+from ..models import Portfolio, PriceData, Stock
+from . import market_service
 
 DUMMY_STOCKS = [
     {"symbol": "ALPHA", "name": "Alpha Industries", "starting_price": 100.0},
@@ -10,7 +11,7 @@ DUMMY_STOCKS = [
 ]
 
 
-def ensure_seed_data(db: Session) -> None:
+def ensure_seed_data(db: Session, with_history: bool = True) -> None:
     if db.query(Portfolio).first() is None:
         db.add(Portfolio())
 
@@ -25,5 +26,14 @@ def ensure_seed_data(db: Session) -> None:
                     current_price=stock["starting_price"],
                 )
             )
+    db.flush()
+
+    for stock in db.query(Stock).all():
+        market_service.get_config(db, stock)
+
+    if with_history and db.query(PriceData).count() == 0:
+        market_service.generate_all(
+            db, market_service.DEFAULT_HISTORY_DAYS, seed=market_service.DEFAULT_SEED
+        )
 
     db.commit()

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api.health import router as health_router
+from .api.market import router as market_router
 from .api.orders import router as orders_router
 from .api.portfolio import router as portfolio_router
 from .api.simulation import router as simulation_router
@@ -15,7 +16,7 @@ from .api.trades import router as trades_router
 from .config import settings
 from .db import Base, SessionLocal, engine
 from .logging_config import configure_logging
-from .services.exceptions import TradingError
+from .services.exceptions import StockNotFoundError, TradingError
 from .services.seed import ensure_seed_data
 
 configure_logging()
@@ -42,7 +43,13 @@ def trading_error_handler(request: Request, exc: TradingError):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(StockNotFoundError)
+def stock_not_found_handler(request: Request, exc: StockNotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
 app.include_router(health_router, prefix="/api")
+app.include_router(market_router, prefix="/api")
 app.include_router(stocks_router, prefix="/api")
 app.include_router(portfolio_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")

@@ -1,5 +1,16 @@
-const money = (n) =>
-  "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n) => {
+  const rounded = Math.round(Number(n) * 100) / 100;
+  const text = Math.abs(rounded).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return (rounded < 0 ? "-₹" : "₹") + text;
+};
+
+const percent = (n) => {
+  const rounded = Math.round(Number(n) * 100) / 100;
+  return (rounded === 0 ? 0 : rounded).toFixed(2) + "%";
+};
 
 const pnlClass = (n) => (n > 0 ? "positive" : n < 0 ? "negative" : "");
 
@@ -51,7 +62,7 @@ async function loadWallet() {
   realizedEl.className = "stat-value " + pnlClass(w.realized_pnl);
 
   const totalEl = document.getElementById("w-total");
-  totalEl.textContent = `${money(w.total_pnl)} (${w.return_pct.toFixed(2)}%)`;
+  totalEl.textContent = `${money(w.total_pnl)} (${percent(w.return_pct)})`;
   totalEl.className = "stat-value " + pnlClass(w.total_pnl);
 }
 
@@ -124,8 +135,12 @@ async function loadTrades() {
   }
 }
 
+async function refreshMarketViews() {
+  await Promise.all([loadWallet(), loadStocks(), loadPositions(), loadChart()]);
+}
+
 async function refreshAll() {
-  await Promise.all([loadWallet(), loadStocks(), loadPositions(), loadTrades()]);
+  await Promise.all([loadWallet(), loadStocks(), loadPositions(), loadTrades(), loadChart()]);
 }
 
 async function placeOrder(symbol, side) {
@@ -151,15 +166,170 @@ async function placeOrder(symbol, side) {
 async function resetSimulation() {
   if (!confirm("Reset the simulation? This clears all trades and positions.")) return;
   try {
+    stopPlaying();
     await api("/reset", { method: "POST" });
     showToast("Simulation reset");
+    await loadMarketConfigs();
     await refreshAll();
   } catch (err) {
     showToast(err.message, true);
   }
 }
 
+const MODEL_INFO = {
+  random_walk:
+    "Random walk: each day's move is random noise around the Trend. Yesterday tells you nothing about tomorrow.",
+  trending:
+    "Trending: moves carry momentum, so price keeps drifting in the Trend direction. Set a non-zero Trend (negative = downtrend).",
+  volatile:
+    "Volatile: like a random walk but daily swings are about 2.5x larger. More risk, bigger surprises.",
+  sideways:
+    "Sideways: price is pulled back toward its starting price, so it oscillates in a range instead of running away.",
+};
+
+const market = { symbol: null, configs: {}, timer: null, busy: false };
+
+const roundTo = (n, digits) => Number(n.toFixed(digits));
+
+function showConfig() {
+  const cfg = market.configs[market.symbol];
+  if (!cfg) return;
+  document.getElementById("m-model").value = cfg.model;
+  document.getElementById("m-vol").value = roundTo(cfg.volatility * 100, 3);
+  document.getElementById("m-trend").value = roundTo(cfg.trend * 100, 3);
+  document.getElementById("m-model-desc").textContent = MODEL_INFO[cfg.model];
+}
+
+async function loadMarketConfigs() {
+  const configs = await api("/market/config");
+  market.configs = Object.fromEntries(configs.map((c) => [c.symbol, c]));
+
+  const select = document.getElementById("m-symbol");
+  if (select.options.length === 0) {
+    for (const c of configs) select.add(new Option(c.symbol, c.symbol));
+  }
+  if (!market.symbol || !market.configs[market.symbol]) market.symbol = configs[0].symbol;
+  select.value = market.symbol;
+  showConfig();
+}
+
+async function loadChart() {
+  if (!market.symbol) return;
+  const chartEl = document.getElementById("chart");
+  if (typeof Plotly === "undefined") {
+    chartEl.textContent = "Chart library failed to load (check your internet connection).";
+    return;
+  }
+
+  const prices = await api(`/stocks/${market.symbol}/prices`);
+  document.getElementById("m-date").textContent = prices.length ? prices[prices.length - 1].date : "-";
+
+  const trace = {
+    type: "candlestick",
+    x: prices.map((p) => p.date),
+    open: prices.map((p) => p.open),
+    high: prices.map((p) => p.high),
+    low: prices.map((p) => p.low),
+    close: prices.map((p) => p.close),
+    increasing: { line: { color: "#16a34a" } },
+    decreasing: { line: { color: "#dc2626" } },
+  };
+  const layout = {
+    margin: { l: 55, r: 15, t: 10, b: 35 },
+    xaxis: { rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }] },
+    yaxis: { title: "Price (₹)", tickprefix: "₹" },
+    showlegend: false,
+    paper_bgcolor: "rgba(0,0,0,0)",
+  };
+  Plotly.react(chartEl, [trace], layout, { displayModeBar: false, responsive: true });
+}
+
+async function applyConfig() {
+  const body = {
+    model: document.getElementById("m-model").value,
+    volatility: parseFloat(document.getElementById("m-vol").value) / 100,
+    trend: parseFloat(document.getElementById("m-trend").value) / 100,
+  };
+  try {
+    const saved = await api(`/market/config/${market.symbol}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    market.configs[saved.symbol] = saved;
+    showConfig();
+    showToast(`${saved.symbol} set to ${saved.model}. Applies to new days (Advance or Regenerate).`);
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function advanceMarket(days) {
+  if (market.busy) return;
+  market.busy = true;
+  try {
+    await api("/market/advance", { method: "POST", body: JSON.stringify({ days }) });
+    await refreshMarketViews();
+  } catch (err) {
+    stopPlaying();
+    showToast(err.message, true);
+  } finally {
+    market.busy = false;
+  }
+}
+
+async function regenerateHistory() {
+  const days = parseInt(document.getElementById("m-days").value, 10);
+  if (!days || days < 2 || days > 1000) {
+    showToast("History days must be between 2 and 1000", true);
+    return;
+  }
+  try {
+    stopPlaying();
+    await api("/market/generate", { method: "POST", body: JSON.stringify({ days }) });
+    showToast(`Generated ${days} days of new history for all stocks`);
+    await refreshMarketViews();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+function startPlaying() {
+  const interval = parseInt(document.getElementById("m-speed").value, 10);
+  market.timer = setInterval(() => advanceMarket(1), interval);
+  document.getElementById("play-btn").textContent = "Pause";
+}
+
+function stopPlaying() {
+  clearInterval(market.timer);
+  market.timer = null;
+  document.getElementById("play-btn").textContent = "Play";
+}
+
 document.getElementById("reset-btn").addEventListener("click", resetSimulation);
+document.getElementById("m-apply").addEventListener("click", applyConfig);
+document.getElementById("adv-1").addEventListener("click", () => advanceMarket(1));
+document.getElementById("adv-5").addEventListener("click", () => advanceMarket(5));
+document.getElementById("m-regen").addEventListener("click", regenerateHistory);
+document.getElementById("play-btn").addEventListener("click", () => {
+  if (market.timer) stopPlaying();
+  else startPlaying();
+});
+document.getElementById("m-speed").addEventListener("change", () => {
+  if (market.timer) {
+    stopPlaying();
+    startPlaying();
+  }
+});
+document.getElementById("m-symbol").addEventListener("change", (e) => {
+  market.symbol = e.target.value;
+  showConfig();
+  loadChart();
+});
+document.getElementById("m-model").addEventListener("change", (e) => {
+  document.getElementById("m-model-desc").textContent = MODEL_INFO[e.target.value];
+  const trendEl = document.getElementById("m-trend");
+  if (e.target.value === "trending" && parseFloat(trendEl.value) === 0) trendEl.value = 0.3;
+});
 
 checkHealth();
-refreshAll();
+loadMarketConfigs().then(refreshAll);
