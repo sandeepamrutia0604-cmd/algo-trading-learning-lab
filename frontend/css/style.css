@@ -399,3 +399,56 @@ tr:last-child td { border-bottom: 0; }
   .hero, .checklist, .watch-card, .recent { grid-column: span 12; }
   .chart { height: 380px; }
 }
+
+/* ---------- strategies ---------- */
+.strat-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 14px; align-items: start; }
+.strat-main { display: grid; gap: 14px; min-width: 0; }
+.builder { display: flex; flex-direction: column; gap: 10px; }
+.builder .hint { margin: 0; }
+.kw { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); margin-top: 4px; }
+.rule {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 11px; font-size: 13px;
+}
+.rule input[type="number"] { width: 64px; padding: 4px 6px; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.switch input { accent-color: var(--accent); width: 16px; height: 16px; }
+.small { font-size: 12px; }
+
+.strat-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 10px; cursor: pointer; display: grid; gap: 4px; }
+.strat-card:hover { border-color: var(--muted); }
+.strat-card.sel { border-color: var(--accent); background: var(--accent-soft); }
+.strat-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.strat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+.sd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.sd-head h2 { font-size: 16px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.chart.small { height: 380px; margin-top: 8px; }
+#signals-table td { vertical-align: top; }
+.why-row td { background: var(--panel2); }
+
+.why {
+  border: 1px dashed var(--accent);
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.why .t { display: block; letter-spacing: 0.06em; font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+.why ul { margin: 0 0 6px; padding-left: 0; list-style: none; }
+.why li::before { content: "\2713  "; color: var(--up); font-weight: 700; }
+.why-rule, .why-outcome { color: var(--muted); font-size: 12px; }
+.why-outcome { margin-top: 2px; color: var(--text); }
+
+.journal { max-width: 760px; }
+.journal h2 { font-size: 20px; }
+.journal-item { margin-top: 12px; display: grid; gap: 10px; }
+.journal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 1100px) {
+  .strat-grid { grid-template-columns: 1fr; }
+}

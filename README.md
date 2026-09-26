@@ -5,14 +5,19 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 3 dashboard, redesigned as a multi-screen app with a
-dark trading-terminal theme (light theme toggle in the sidebar).
+**Current phase:** Phase 4 - Moving Average Crossover strategy, with signals and
+"Why did I buy?" explanations. Dark trading-terminal theme with a light-theme toggle.
 
 Screens (left navigation):
-- **Home** — portfolio hero with equity curve, practice checklist, watchlist, recent trades.
-- **Trade** — the terminal: watchlist, candlestick chart with SMA overlays and BUY/SELL
-  markers, order ticket, and a bottom panel for positions, trades and market settings.
-- **Strategies / Backtests / Compare / Journal / Learn** — placeholders for later phases.
+- **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
+- **Trade** - the terminal: watchlist, candlestick chart with SMA overlays, your BUY/SELL
+  markers and strategy signals, order ticket, and a bottom panel for positions, trades
+  and market settings.
+- **Strategies** - build a moving-average crossover (fast/slow periods, shares per trade),
+  press "Run on history" to mark every crossover on the chart, or turn on auto-trade so it
+  places paper trades as the market advances. Each signal has a "Why?" explanation.
+- **Journal** - a feed of every signal with its reasons and outcome.
+- **Backtests / Compare / Learn** - placeholders for later phases.
 
 ## Setup
 
@@ -39,6 +44,10 @@ and "My trades" to plot your BUY/SELL markers. Click a stock in the watchlist
 to switch the chart and order ticket to it. The market controls (+1 day, +5 days,
 Play, speed, Reset) are in the top bar on every screen.
 
+How the crossover works: BUY when the fast SMA crosses above the slow SMA, SELL when it
+crosses below. A signal on a given day only uses prices up to that day (no look-ahead).
+Auto-trade advances the market one day at a time so each signal trades at its own day's close.
+
 Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
 generated days ("Advance" or "Regenerate history"), not past candles.
@@ -60,10 +69,10 @@ backend/
     logging_config.py
     api/            Route handlers
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
-                    PriceData, MarketConfig)
+                    PriceData, MarketConfig, Strategy, Signal)
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding
-    strategies/      Strategy implementations (Phase 4+)
+    strategies/     ma_crossover.py (pure signal logic, no DB); more strategies in Phase 5
     engine/         price_models.py, indicators.py (pure, no DB); backtesting from Phase 6
     migrations.py   Adds new columns to databases created by earlier phases
     risk/           Risk management (Phase 7+)
@@ -71,7 +80,8 @@ backend/
 frontend/
   index.html      App shell (sidebar, top bar, page sections)
   css/style.css   Dark/light theme tokens and layout
-  js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js
-  js/pages/       home.js, trade.js, soon.js
+  js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
+                  chart.js (shared price chart), why.js (the "Why?" card)
+  js/pages/       home.js, trade.js, strategies.js, journal.js, soon.js
 data/               SQLite database file (gitignored)
 ```

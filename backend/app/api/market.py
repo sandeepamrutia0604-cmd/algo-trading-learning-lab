@@ -14,7 +14,7 @@ from ..schemas import (
     MarketConfigOut,
     MarketStatusOut,
 )
-from ..services import market_service
+from ..services import market_service, strategy_service
 
 router = APIRouter()
 
@@ -61,13 +61,14 @@ def status(db: Session = Depends(get_db)):
 @router.post("/market/generate", response_model=MarketStatusOut)
 def generate(body: GenerateRequest, db: Session = Depends(get_db)):
     market_service.generate_all(db, body.days, body.seed)
+    strategy_service.clear_unexecuted_signals(db)
     return MarketStatusOut(date=market_service.latest_market_date(db))
 
 
 @router.post("/market/advance", response_model=MarketStatusOut)
 def advance(body: AdvanceRequest, db: Session = Depends(get_db)):
-    market_service.advance(db, body.days)
-    return MarketStatusOut(date=market_service.latest_market_date(db))
+    events = strategy_service.advance_market(db, body.days)
+    return MarketStatusOut(date=market_service.latest_market_date(db), events=events)
 
 
 @router.get("/stocks/{symbol}/indicators", response_model=IndicatorsOut)

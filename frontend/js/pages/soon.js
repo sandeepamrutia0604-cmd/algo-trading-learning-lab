@@ -1,18 +1,6 @@
 import { $ } from "../util.js";
 
 const INFO = {
-  strategies: {
-    title: "Strategies",
-    phase: "Phases 4, 5 and 9",
-    blurb:
-      "Automated rules that generate BUY / SELL / HOLD signals. The first one is a moving-average crossover, then more indicators, then a no-code rule builder.",
-    items: [
-      "Moving-average crossover with adjustable fast/slow periods (Phase 4)",
-      "RSI, Bollinger Bands, breakout and mean reversion (Phase 5)",
-      "Signals drawn on the chart with a plain-language reason for each (Phase 4)",
-      "Rule builder: IF SMA 20 crosses above SMA 50 AND RSI < 70 THEN BUY (Phase 9)",
-    ],
-  },
   backtests: {
     title: "Backtests",
     phase: "Phases 6, 7 and 8",
@@ -34,16 +22,6 @@ const INFO = {
       "Final capital, trades, win rate and drawdown per strategy",
       "Same dataset for every strategy so the comparison is fair",
       "Risk versus return, and why strategies behave differently in different markets",
-    ],
-  },
-  journal: {
-    title: "Journal",
-    phase: "Phase 4 (the Why system)",
-    blurb: "Every trade and signal with the reasons behind it, so you learn from decisions rather than just outcomes.",
-    items: [
-      "WHY DID I BUY? card: indicator values, rule that fired, stop loss, quantity",
-      "Your own notes and a rating for each decision",
-      "Review past trades against what the market did next",
     ],
   },
   learn: {

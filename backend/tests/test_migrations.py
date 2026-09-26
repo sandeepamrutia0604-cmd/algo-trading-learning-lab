@@ -13,7 +13,7 @@ def test_ensure_columns_upgrades_old_trades_table_and_is_idempotent(tmp_path):
     ensure_columns(engine)
 
     columns = {c["name"] for c in inspect(engine).get_columns("trades")}
-    assert {"market_date", "realized_pnl"} <= columns
+    assert {"market_date", "realized_pnl", "strategy_id"} <= columns
     with engine.connect() as conn:
         assert conn.execute(text("SELECT market_date, realized_pnl FROM trades")).fetchall() == [(None, None)]
 

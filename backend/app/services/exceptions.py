@@ -16,3 +16,11 @@ class InsufficientFundsError(TradingError):
 
 class InsufficientSharesError(TradingError):
     pass
+
+
+class StrategyNotFoundError(TradingError):
+    pass
+
+
+class InvalidStrategyError(TradingError):
+    pass

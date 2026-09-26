@@ -5,6 +5,7 @@ export const store = {
   stocks: [],
   positions: [],
   trades: [],
+  strategies: [],
   configs: {},
   marketDate: null,
   symbol: "ALPHA",
@@ -18,14 +19,15 @@ export const hooks = {
 };
 
 export async function loadCore() {
-  const [portfolio, stocks, positions, trades, status] = await Promise.all([
+  const [portfolio, stocks, positions, trades, status, strategies] = await Promise.all([
     api("/portfolio"),
     api("/stocks"),
     api("/positions"),
     api("/trades"),
     api("/market/status"),
+    api("/strategies"),
   ]);
-  Object.assign(store, { portfolio, stocks, positions, trades, marketDate: status.date });
+  Object.assign(store, { portfolio, stocks, positions, trades, strategies, marketDate: status.date });
   if (!stocks.some((s) => s.symbol === store.symbol) && stocks.length) store.symbol = stocks[0].symbol;
 }
 

@@ -25,7 +25,9 @@ def get_stock_by_symbol(db: Session, symbol: str) -> Stock:
     return stock
 
 
-def execute_buy(db: Session, symbol: str, quantity: int) -> Trade:
+def execute_buy(
+    db: Session, symbol: str, quantity: int, reason: str = "Manual trade", strategy_id: int | None = None
+) -> Trade:
     if quantity <= 0:
         raise InvalidQuantityError("Quantity must be a positive integer")
 
@@ -55,7 +57,8 @@ def execute_buy(db: Session, symbol: str, quantity: int) -> Trade:
         side="BUY",
         quantity=quantity,
         price=stock.current_price,
-        reason="Manual trade",
+        reason=reason,
+        strategy_id=strategy_id,
         market_date=latest_market_date(db),
     )
     db.add(trade)
@@ -64,7 +67,9 @@ def execute_buy(db: Session, symbol: str, quantity: int) -> Trade:
     return trade
 
 
-def execute_sell(db: Session, symbol: str, quantity: int) -> Trade:
+def execute_sell(
+    db: Session, symbol: str, quantity: int, reason: str = "Manual trade", strategy_id: int | None = None
+) -> Trade:
     if quantity <= 0:
         raise InvalidQuantityError("Quantity must be a positive integer")
 
@@ -93,7 +98,8 @@ def execute_sell(db: Session, symbol: str, quantity: int) -> Trade:
         side="SELL",
         quantity=quantity,
         price=stock.current_price,
-        reason="Manual trade",
+        reason=reason,
+        strategy_id=strategy_id,
         market_date=latest_market_date(db),
         realized_pnl=realized,
     )

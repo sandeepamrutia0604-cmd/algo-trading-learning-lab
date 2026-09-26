@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base
 from .stock import Stock
+from .strategy import Strategy
 
 
 class Trade(Base):
@@ -21,5 +22,7 @@ class Trade(Base):
     reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     market_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     realized_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    strategy_id: Mapped[int | None] = mapped_column(ForeignKey("strategies.id"), nullable=True)
 
     stock: Mapped[Stock] = relationship()
+    strategy: Mapped[Strategy | None] = relationship()

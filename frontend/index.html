@@ -21,10 +21,10 @@
       <nav class="nav" id="nav">
         <a href="#/home" data-route="home">Home</a>
         <a href="#/trade" data-route="trade">Trade</a>
-        <a href="#/strategies" data-route="strategies">Strategies <em>Soon</em></a>
+        <a href="#/strategies" data-route="strategies">Strategies</a>
         <a href="#/backtests" data-route="backtests">Backtests <em>Soon</em></a>
         <a href="#/compare" data-route="compare">Compare <em>Soon</em></a>
-        <a href="#/journal" data-route="journal">Journal <em>Soon</em></a>
+        <a href="#/journal" data-route="journal">Journal</a>
         <a href="#/learn" data-route="learn">Learn <em>Soon</em></a>
       </nav>
       <div class="side-foot">
@@ -104,6 +104,7 @@
                 <label class="chip-toggle"><input type="checkbox" id="ind-slow-on" checked /><i style="background:#f5a524"></i>SMA
                   <input id="ind-slow" class="period" type="number" min="2" max="500" value="50" /></label>
                 <label class="chip-toggle"><input type="checkbox" id="ind-trades" checked />My trades</label>
+                <label class="chip-toggle"><input type="checkbox" id="ind-signals" checked />Signals</label>
               </div>
               <div id="chart" class="chart"></div>
             </div>
@@ -148,7 +149,7 @@
 
               <div id="tab-trades" class="tabpane" hidden>
                 <table id="trades-table">
-                  <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Realized P&amp;L</th></tr></thead>
+                  <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Realized P&amp;L</th><th>Source</th></tr></thead>
                   <tbody></tbody>
                 </table>
                 <p id="trades-empty" class="empty" hidden>No trades yet.</p>
@@ -176,6 +177,72 @@
                 <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles.</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ============ STRATEGIES ============ -->
+        <section id="page-strategies" class="page" hidden>
+          <div class="strat-grid">
+            <div class="panel builder">
+              <h3 id="sb-title">Strategy builder</h3>
+              <p class="hint">A moving-average crossover follows the trend: it buys when the short-term average climbs above the long-term one, and sells when it drops below.</p>
+
+              <label class="field">Stock
+                <select id="sb-symbol"></select>
+              </label>
+
+              <div class="kw">ENTRY &middot; BUY WHEN</div>
+              <div class="rule">
+                <span>Fast SMA</span><input id="sb-fast" type="number" min="2" max="499" value="20" />
+                <span>crosses above</span>
+                <span>Slow SMA</span><input id="sb-slow" type="number" min="3" max="500" value="50" />
+              </div>
+              <div class="kw">EXIT &middot; SELL WHEN</div>
+              <div class="rule"><span>Fast SMA crosses below Slow SMA</span></div>
+              <div class="kw">SIZE</div>
+              <div class="rule"><span>Buy</span><input id="sb-qty" type="number" min="1" value="10" /><span>shares per BUY signal</span></div>
+
+              <label class="switch"><input type="checkbox" id="sb-auto" /> Auto-trade as the market advances</label>
+              <p class="hint">Off: signals are only marked on the chart. On: each new market day is checked and a paper trade is placed at that day's close.</p>
+
+              <button id="sb-create" class="btn btn-primary big">Create strategy</button>
+              <button id="sb-cancel" class="btn big" hidden>Cancel editing</button>
+            </div>
+
+            <div class="strat-main">
+              <div class="panel">
+                <h3>Your strategies</h3>
+                <div id="strat-list"></div>
+                <p id="strat-empty" class="empty" hidden>No strategies yet. Create one on the left, then press "Run on history" to see where it would have traded.</p>
+              </div>
+
+              <div class="panel" id="strat-detail" hidden>
+                <div class="sd-head">
+                  <div>
+                    <h2 id="sd-title"></h2>
+                    <div class="muted small" id="sd-rule"></div>
+                  </div>
+                  <div class="legend" id="sd-legend"></div>
+                </div>
+                <div id="strat-chart" class="chart small"></div>
+                <h3 style="margin:14px 0 4px">Signals</h3>
+                <table id="signals-table">
+                  <thead><tr><th>Date</th><th>Signal</th><th class="num">Price</th><th class="num">Fast MA</th><th class="num">Slow MA</th><th>Result</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <p id="signals-empty" class="empty" hidden>No signals yet. Press "Run on history" on the strategy card.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ JOURNAL ============ -->
+        <section id="page-journal" class="page" hidden>
+          <div class="journal">
+            <h2>Journal</h2>
+            <p class="hint">Every strategy signal with the reasons behind it, newest first. Your manual trades are in Trade &rarr; Trades.</p>
+            <div id="journal-feed"></div>
+            <p id="journal-empty" class="empty" hidden>No signals yet. Create a strategy, press "Run on history", or turn on auto-trade and advance the market.</p>
           </div>
         </section>
 

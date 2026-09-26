@@ -3,7 +3,7 @@ from sqlalchemy import Engine, inspect, text
 # Columns added after a table first shipped. create_all() never alters existing tables,
 # so databases created by an earlier phase get these added on startup.
 ADDED_COLUMNS = {
-    "trades": {"market_date": "DATE", "realized_pnl": "FLOAT"},
+    "trades": {"market_date": "DATE", "realized_pnl": "FLOAT", "strategy_id": "INTEGER"},
 }
 
 

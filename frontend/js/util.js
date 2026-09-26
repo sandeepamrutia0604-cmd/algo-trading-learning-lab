@@ -35,7 +35,10 @@ export async function api(path, options) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const detail = Array.isArray(data.detail) ? data.detail.map((d) => d.msg).join("; ") : data.detail;
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
   return data;
 }
 

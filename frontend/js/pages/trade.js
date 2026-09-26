@@ -1,6 +1,6 @@
 import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline, toast } from "../util.js";
 import { hooks, positionBySymbol, stockBySymbol, store } from "../store.js";
-import { themeColors } from "../theme.js";
+import { SMA_COLORS, drawPriceChart, loadChartData } from "../chart.js";
 
 const MODEL_INFO = {
   random_walk: "Random walk: each day's move is random noise around the Trend. Yesterday tells you nothing about tomorrow.",
@@ -174,6 +174,7 @@ function renderTrades() {
         <td class="num">${t.quantity}</td>
         <td class="num">${money(t.price)}</td>
         <td class="num">${pnl}</td>
+        <td class="muted">${t.source}</td>
       </tr>`;
     })
     .join("");
@@ -225,11 +226,11 @@ async function regenerateHistory() {
 
 function chartOptions() {
   const smas = [];
-  for (const [kind, color] of [["fast", "#4c8dff"], ["slow", "#f5a524"]]) {
+  for (const kind of ["fast", "slow"]) {
     const value = parseInt($(`ind-${kind}`).value, 10);
-    if ($(`ind-${kind}-on`).checked && value >= 2 && value <= 500) smas.push({ period: value, color });
+    if ($(`ind-${kind}-on`).checked && value >= 2 && value <= 500) smas.push({ period: value, color: SMA_COLORS[kind] });
   }
-  return { smas, showTrades: $("ind-trades").checked };
+  return { smas, showTrades: $("ind-trades").checked, showSignals: $("ind-signals").checked };
 }
 
 async function renderChart() {
@@ -239,11 +240,10 @@ async function renderChart() {
     return;
   }
   const symbol = store.symbol;
-  const { smas, showTrades } = chartOptions();
-  const smaQuery = smas.map((m) => `sma=${m.period}`).join("&");
-  const [prices, indicators] = await Promise.all([
-    api(`/stocks/${symbol}/prices`),
-    smas.length ? api(`/stocks/${symbol}/indicators?${smaQuery}`) : { sma: {} },
+  const { smas, showTrades, showSignals } = chartOptions();
+  const [{ prices, indicators }, signals] = await Promise.all([
+    loadChartData(symbol, smas),
+    showSignals ? api(`/signals?symbol=${symbol}`) : [],
   ]);
   if (symbol !== store.symbol) return; // selection changed while loading
 
@@ -257,86 +257,7 @@ async function renderChart() {
     $("c-ohlc").textContent = "No price history yet. Use Regenerate history in Market settings.";
   }
 
-  const c = themeColors();
-  const dates = prices.map((p) => p.date);
-  const traces = [
-    {
-      type: "candlestick",
-      name: symbol,
-      x: dates,
-      open: prices.map((p) => p.open),
-      high: prices.map((p) => p.high),
-      low: prices.map((p) => p.low),
-      close: prices.map((p) => p.close),
-      increasing: { line: { color: c.up }, fillcolor: c.up },
-      decreasing: { line: { color: c.down }, fillcolor: c.down },
-      yaxis: "y",
-    },
-    {
-      type: "bar",
-      x: dates,
-      y: prices.map((p) => p.volume),
-      marker: { color: prices.map((p) => (p.close >= p.open ? c.up : c.down)), opacity: 0.5 },
-      yaxis: "y2",
-      hoverinfo: "skip",
-    },
-  ];
-
-  for (const m of smas) {
-    const points = indicators.sma[String(m.period)] || [];
-    traces.push({
-      type: "scatter",
-      mode: "lines",
-      name: `SMA ${m.period}`,
-      x: points.map((pt) => pt.date),
-      y: points.map((pt) => pt.value),
-      line: { color: m.color, width: 1.8 },
-      yaxis: "y",
-      hovertemplate: `SMA ${m.period}: ₹%{y:.2f}<extra></extra>`,
-    });
-  }
-
-  if (showTrades) {
-    const first = dates[0];
-    const lastDate = dates[dates.length - 1];
-    const mine = store.trades.filter(
-      (t) => t.symbol === symbol && t.market_date && t.market_date >= first && t.market_date <= lastDate,
-    );
-    for (const side of ["BUY", "SELL"]) {
-      const list = mine.filter((t) => t.side === side);
-      if (!list.length) continue;
-      const buy = side === "BUY";
-      traces.push({
-        type: "scatter",
-        mode: "markers",
-        name: side,
-        x: list.map((t) => t.market_date),
-        y: list.map((t) => t.price),
-        text: list.map((t) => `${side} ${t.quantity} @ ${money(t.price)}`),
-        hoverinfo: "text",
-        yaxis: "y",
-        marker: {
-          symbol: buy ? "triangle-up" : "triangle-down",
-          size: 13,
-          color: buy ? c.up : c.down,
-          line: { color: "#fff", width: 1.5 },
-        },
-      });
-    }
-  }
-
-  const layout = {
-    margin: { l: 6, r: 56, t: 6, b: 28 },
-    showlegend: false,
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: c.muted, size: 11 },
-    xaxis: { anchor: "y2", rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }], gridcolor: c.line, linecolor: c.line },
-    yaxis: { domain: [0.22, 1], side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false },
-    yaxis2: { domain: [0, 0.17], side: "right", showgrid: false, showticklabels: false, zeroline: false },
-    hovermode: "x",
-  };
-  Plotly.react(chartEl, traces, layout, { displayModeBar: false, responsive: true });
+  drawPriceChart(chartEl, { symbol, prices, indicators, smas, trades: showTrades ? store.trades : [], signals });
 }
 
 /* ---------------- public API ---------------- */
@@ -377,7 +298,7 @@ export function initTrade() {
     if (!t.warning) placeOrder(store.side, t.stock.symbol, t.qty);
   });
 
-  for (const id of ["ind-fast-on", "ind-fast", "ind-slow-on", "ind-slow", "ind-trades"]) $(id).addEventListener("change", renderChart);
+  for (const id of ["ind-fast-on", "ind-fast", "ind-slow-on", "ind-slow", "ind-trades", "ind-signals"]) $(id).addEventListener("change", renderChart);
 
   $("t-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-tab]");

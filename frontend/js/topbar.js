@@ -44,8 +44,9 @@ async function advance(days) {
   if (state.busy) return;
   state.busy = true;
   try {
-    await api("/market/advance", { method: "POST", body: JSON.stringify({ days }) });
+    const result = await api("/market/advance", { method: "POST", body: JSON.stringify({ days }) });
     await hooks.refresh();
+    if (result.events && result.events.length) toast(result.events.slice(-3).join("  |  "));
   } catch (err) {
     stopPlaying();
     toast(err.message, true);
