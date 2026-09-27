@@ -1,6 +1,6 @@
 import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline } from "../util.js";
 import { hooks, store } from "../store.js";
-import { themeColors } from "../theme.js";
+import { drawEquityChart } from "../chart.js";
 
 const INITIAL_CASH = 100000;
 
@@ -29,42 +29,15 @@ async function renderEquity() {
     el.innerHTML = '<p class="empty">The equity curve appears once the market has some history.</p>';
     return;
   }
-  const c = themeColors();
   const dates = curve.map((pt) => pt.date);
   const values = curve.map((pt) => pt.value);
-  const traces = [
-    {
-      type: "scatter",
-      mode: "lines",
-      x: dates,
-      y: dates.map(() => INITIAL_CASH),
-      line: { color: c.line, width: 1, dash: "dot" },
-      hoverinfo: "skip",
-    },
-    {
-      type: "scatter",
-      mode: "lines",
-      x: dates,
-      y: values,
-      fill: "tonexty",
-      fillcolor: c.accent + "22",
-      line: { color: c.accent, width: 2 },
-      hovertemplate: "%{x}<br>₹%{y:,.2f}<extra></extra>",
-    },
-  ];
-  const low = Math.min(...values, INITIAL_CASH);
-  const high = Math.max(...values, INITIAL_CASH);
-  const pad = Math.max((high - low) * 0.15, INITIAL_CASH * 0.005);
-  const layout = {
-    margin: { l: 8, r: 58, t: 6, b: 24 },
-    showlegend: false,
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: c.muted, size: 11 },
-    xaxis: { gridcolor: "rgba(0,0,0,0)", rangebreaks: [{ bounds: ["sat", "mon"] }], linecolor: c.line },
-    yaxis: { side: "right", gridcolor: c.line, tickprefix: "₹", tickformat: ",.0f", zeroline: false, range: [low - pad, high + pad] },
-  };
-  Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
+  drawEquityChart(el, {
+    dates,
+    values,
+    baseline: dates.map(() => INITIAL_CASH),
+    valueLabel: "Portfolio",
+    baselineLabel: "Starting capital",
+  });
 }
 
 function renderChecklist() {

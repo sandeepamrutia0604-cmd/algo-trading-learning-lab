@@ -22,7 +22,7 @@
         <a href="#/home" data-route="home">Home</a>
         <a href="#/trade" data-route="trade">Trade</a>
         <a href="#/strategies" data-route="strategies">Strategies</a>
-        <a href="#/backtests" data-route="backtests">Backtests <em>Soon</em></a>
+        <a href="#/backtests" data-route="backtests">Backtests</a>
         <a href="#/compare" data-route="compare">Compare <em>Soon</em></a>
         <a href="#/journal" data-route="journal">Journal</a>
         <a href="#/learn" data-route="learn">Learn <em>Soon</em></a>
@@ -231,6 +231,76 @@
                   <tbody></tbody>
                 </table>
                 <p id="signals-empty" class="empty" hidden>No signals yet. Press "Run on history" on the strategy card.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ BACKTESTS ============ -->
+        <section id="page-backtests" class="page" hidden>
+          <div class="strat-grid">
+            <div class="panel builder">
+              <h3>Backtest builder</h3>
+              <label class="field">Strategy type
+                <select id="bt-type"></select>
+              </label>
+              <div id="bt-desc" class="type-desc"></div>
+
+              <label class="field">Stock
+                <select id="bt-symbol"></select>
+              </label>
+
+              <div id="bt-params" class="param-grid"></div>
+              <div class="rule stacked" id="bt-rule"></div>
+
+              <label class="field">Shares per BUY signal
+                <input id="bt-qty" type="number" min="1" value="10" />
+              </label>
+              <label class="field">Initial capital
+                <input id="bt-capital" type="number" min="1" step="1000" value="100000" />
+              </label>
+
+              <button id="bt-run" class="btn btn-primary big">Run backtest</button>
+              <p class="hint">Runs over the full price history currently on the Trade screen. This is a what-if — no trades are placed.</p>
+            </div>
+
+            <div class="strat-main">
+              <div class="panel" id="bt-empty">
+                <p class="empty">Pick a strategy type and stock, then press "Run backtest" to see how it would have performed.</p>
+              </div>
+
+              <div id="bt-results" hidden>
+                <div class="panel">
+                  <div class="sd-head">
+                    <div>
+                      <h2 id="bt-title"></h2>
+                      <div class="muted small" id="bt-sub"></div>
+                    </div>
+                  </div>
+                  <div class="metrics-grid" id="bt-metrics"></div>
+                </div>
+
+                <div class="panel">
+                  <h3>Equity curve vs. buy &amp; hold</h3>
+                  <div id="bt-equity" class="chart small"></div>
+                </div>
+
+                <div class="panel">
+                  <div class="sd-head">
+                    <h3>Price chart</h3>
+                    <div class="legend" id="bt-legend"></div>
+                  </div>
+                  <div id="bt-chart" class="chart small"></div>
+                </div>
+
+                <div class="panel">
+                  <h3>Trades</h3>
+                  <table id="bt-trades-table">
+                    <thead><tr><th>Entry date</th><th class="num">Entry</th><th>Exit date</th><th class="num">Exit</th><th class="num">Qty</th><th class="num">P&amp;L</th><th class="num">P&amp;L %</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                  <p id="bt-trades-empty" class="empty" hidden>No completed trades in this run.</p>
+                </div>
               </div>
             </div>
           </div>

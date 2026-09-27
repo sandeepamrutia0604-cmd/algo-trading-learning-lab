@@ -200,3 +200,43 @@ class SignalOut(BaseModel):
     trade_quantity: int | None = None
     trade_price: float | None = None
     realized_pnl: float | None = None
+
+
+class BacktestRequest(BaseModel):
+    symbol: str
+    type: str = "ma_crossover"
+    params: dict[str, float] = {}
+    quantity: int = Field(default=10, ge=1, le=100000)
+    initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
+
+
+class BacktestTradeOut(BaseModel):
+    entry_date: dt.date
+    entry_price: float
+    quantity: int
+    exit_date: dt.date | None = None
+    exit_price: float | None = None
+    pnl: float | None = None
+    pnl_pct: float | None = None
+    open: bool
+
+
+class BacktestResultOut(BaseModel):
+    symbol: str
+    type: str
+    type_label: str
+    params: dict
+    rule: str
+    quantity: int
+    initial_capital: float
+    final_capital: float
+    total_return_pct: float
+    total_trades: int
+    winning_trades: int
+    losing_trades: int
+    win_rate_pct: float
+    max_drawdown_pct: float
+    skipped_buys: int
+    equity_curve: list[EquityPoint]
+    trades: list[BacktestTradeOut]
+    series: list[SeriesOut]

@@ -5,9 +5,9 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 5 - Strategy Laboratory: six strategy types you can build, run on
-history, auto-trade and compare, each with "Why did I buy?" explanations. Dark trading-terminal
-theme with a light-theme toggle.
+**Current phase:** Phase 6 - Backtesting Engine: run any strategy type over the full price
+history with a starting capital and see final capital, return, win rate and drawdown, plus
+its equity curve against buy-and-hold and every trade it would have made.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -17,8 +17,11 @@ Screens (left navigation):
 - **Strategies** - the lab. Pick a type, tune its parameters, press "Run on history" to mark
   every signal on the chart with its indicators, or turn on auto-trade to place paper trades
   as the market advances. "Try one of each on this stock" creates all six so you can compare.
+- **Backtests** - pick a type and starting capital, press "Run backtest" to replay it over
+  history: final capital, return, trade count, win rate, max drawdown, an equity curve against
+  buy-and-hold, and every simulated trade. Nothing here touches your real paper portfolio.
 - **Journal** - a feed of every signal with its reasons and outcome.
-- **Backtests / Compare / Learn** - placeholders for later phases.
+- **Compare / Learn** - placeholders for later phases.
 
 Strategy types (all long-only: one position at a time, signals never look ahead):
 - **MA Crossover** - fast SMA crosses above/below slow SMA. Best in trends; whipsaws in sideways markets.
@@ -83,7 +86,7 @@ backend/
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding
     strategies/     One pure module per strategy type + registry.py (parameters, rules, signals, chart lines)
-    engine/         price_models.py, indicators.py (pure, no DB); backtesting from Phase 6
+    engine/         price_models.py, indicators.py, backtest.py (all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
     risk/           Risk management (Phase 7+)
   tests/
@@ -92,6 +95,6 @@ frontend/
   css/style.css   Dark/light theme tokens and layout
   js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
                   chart.js (shared price chart), why.js (the "Why?" card)
-  js/pages/       home.js, trade.js, strategies.js, journal.js, soon.js
+  js/pages/       home.js, trade.js, strategies.js, backtests.js, journal.js, soon.js
 data/               SQLite database file (gitignored)
 ```

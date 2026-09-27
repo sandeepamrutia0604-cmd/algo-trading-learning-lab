@@ -460,3 +460,10 @@ tr:last-child td { border-bottom: 0; }
 .type-desc b { font-weight: 700; }
 .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .rule.stacked { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* ---------- backtests ---------- */
+#bt-results:not([hidden]) { display: contents; }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 12px; margin-top: 12px; }
+.metric { display: flex; flex-direction: column; gap: 4px; }
+.metric span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.metric b { font-size: 18px; font-variant-numeric: tabular-nums; }

@@ -1,18 +1,6 @@
 import { $ } from "../util.js";
 
 const INFO = {
-  backtests: {
-    title: "Backtests",
-    phase: "Phases 6, 7 and 8",
-    blurb:
-      "Run a strategy over simulated history and see what would have happened. This page will use the Strategy Lab layout: rules on the left, results on the right.",
-    items: [
-      "KPI tiles: return, win rate, max drawdown, profit factor, Sharpe",
-      "Equity curve against buy and hold, plus a drawdown chart",
-      "Trade list where each row explains why the trade happened",
-      "Risk settings: stop loss, position sizing, fees and slippage",
-    ],
-  },
   compare: {
     title: "Compare",
     phase: "Phase 10",

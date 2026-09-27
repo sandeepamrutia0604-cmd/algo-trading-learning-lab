@@ -3,6 +3,8 @@ import { themeColors } from "./theme.js";
 
 export const SMA_COLORS = { fast: "#4c8dff", slow: "#f5a524" };
 
+const DEFAULT_VISIBLE_DAYS = 90;
+
 export async function loadChartData(symbol, smas) {
   const query = smas.map((m) => `sma=${m.period}`).join("&");
   const [prices, indicators] = await Promise.all([
@@ -24,6 +26,41 @@ export function smaOverlays(smas, indicators) {
     y_range: null,
     points: indicators.sma[String(m.period)] || [],
   }));
+}
+
+function priceRange(rows, pad_frac = 0.08) {
+  const low = Math.min(...rows.map((p) => p.low));
+  const high = Math.max(...rows.map((p) => p.high));
+  const pad = (high - low) * pad_frac || high * 0.01 || 1;
+  return [low - pad, high + pad];
+}
+
+/** Rescale the price/volume axes to fit whatever date window is currently zoomed in on,
+ * so candles stay readable instead of flattening out over a long history. */
+function attachZoomAutoscale(el, prices) {
+  if (el.removeAllListeners) el.removeAllListeners("plotly_relayout");
+  let busy = false;
+  el.on("plotly_relayout", (ev) => {
+    if (busy) return;
+    if (ev["xaxis.autorange"]) {
+      const [low, high] = priceRange(prices);
+      const maxVol = Math.max(...prices.map((p) => p.volume), 1);
+      busy = true;
+      Plotly.relayout(el, { "yaxis.range": [low, high], "yaxis2.range": [0, maxVol * 1.15] }).finally(() => (busy = false));
+      return;
+    }
+    const x0 = ev["xaxis.range[0]"];
+    const x1 = ev["xaxis.range[1]"];
+    if (x0 == null || x1 == null) return;
+    const from = String(x0).slice(0, 10);
+    const to = String(x1).slice(0, 10);
+    const visible = prices.filter((p) => p.date >= from && p.date <= to);
+    if (!visible.length) return;
+    const [low, high] = priceRange(visible);
+    const maxVol = Math.max(...visible.map((p) => p.volume), 1);
+    busy = true;
+    Plotly.relayout(el, { "yaxis.range": [low, high], "yaxis2.range": [0, maxVol * 1.15] }).finally(() => (busy = false));
+  });
 }
 
 function signalTrace(side, list, c) {
@@ -126,19 +163,75 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
     : { price: [0.22, 1], volume: [0, 0.17] };
   const oscRange = oscillators.find((o) => o.y_range)?.y_range;
 
+  // Default to the most recent window so candles stay readable on a long history;
+  // scroll-to-zoom (and attachZoomAutoscale below) take it from there.
+  const visible = prices.length > DEFAULT_VISIBLE_DAYS ? prices.slice(-DEFAULT_VISIBLE_DAYS) : prices;
+  const xRange = prices.length > DEFAULT_VISIBLE_DAYS ? [visible[0].date, last] : null;
+  const [priceLow, priceHigh] = priceRange(visible);
+  const maxVol = Math.max(...visible.map((p) => p.volume), 1);
+
   const layout = {
     margin: { l: 6, r: 56, t: 6, b: 28 },
     showlegend: false,
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
     font: { color: c.muted, size: 11 },
-    xaxis: { anchor: hasOsc ? "y3" : "y2", rangeslider: { visible: false }, rangebreaks: [{ bounds: ["sat", "mon"] }], gridcolor: c.line, linecolor: c.line },
-    yaxis: { domain: domains.price, side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false },
-    yaxis2: { domain: domains.volume, side: "right", showgrid: false, showticklabels: false, zeroline: false },
+    xaxis: {
+      anchor: hasOsc ? "y3" : "y2",
+      rangeslider: { visible: false },
+      rangebreaks: [{ bounds: ["sat", "mon"] }],
+      gridcolor: c.line,
+      linecolor: c.line,
+      ...(xRange ? { range: xRange } : {}),
+    },
+    yaxis: { domain: domains.price, side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false, range: [priceLow, priceHigh], fixedrange: true },
+    yaxis2: { domain: domains.volume, side: "right", showgrid: false, showticklabels: false, zeroline: false, range: [0, maxVol * 1.15], fixedrange: true },
     hovermode: "x",
   };
   if (hasOsc) {
-    layout.yaxis3 = { domain: domains.osc, side: "right", gridcolor: c.line, zeroline: false, ...(oscRange ? { range: oscRange } : {}) };
+    layout.yaxis3 = { domain: domains.osc, side: "right", gridcolor: c.line, zeroline: false, fixedrange: true, ...(oscRange ? { range: oscRange } : {}) };
   }
+  Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true, scrollZoom: true });
+  attachZoomAutoscale(el, prices);
+}
+
+/** A value-over-time line against a reference line (flat starting capital or a buy-and-hold curve). */
+export function drawEquityChart(el, { dates, values, baseline, valueLabel = "Value", baselineLabel = "Baseline" }) {
+  const c = themeColors();
+  const traces = [
+    {
+      type: "scatter",
+      mode: "lines",
+      name: baselineLabel,
+      x: dates,
+      y: baseline,
+      line: { color: c.muted, width: 1.2, dash: "dot" },
+      hovertemplate: `${baselineLabel}: ₹%{y:,.2f}<extra></extra>`,
+    },
+    {
+      type: "scatter",
+      mode: "lines",
+      name: valueLabel,
+      x: dates,
+      y: values,
+      fill: "tonexty",
+      fillcolor: c.accent + "22",
+      line: { color: c.accent, width: 2 },
+      hovertemplate: `${valueLabel}: ₹%{y:,.2f}<extra></extra>`,
+    },
+  ];
+  const all = [...values, ...baseline];
+  const low = Math.min(...all);
+  const high = Math.max(...all);
+  const pad = Math.max((high - low) * 0.15, Math.abs(high) * 0.005 || 1);
+  const layout = {
+    margin: { l: 8, r: 58, t: 6, b: 24 },
+    showlegend: false,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: c.muted, size: 11 },
+    xaxis: { gridcolor: "rgba(0,0,0,0)", rangebreaks: [{ bounds: ["sat", "mon"] }], linecolor: c.line },
+    yaxis: { side: "right", gridcolor: c.line, tickprefix: "₹", tickformat: ",.0f", zeroline: false, range: [low - pad, high + pad] },
+  };
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
 }
