@@ -8,6 +8,7 @@ export const store = {
   strategies: [],
   strategyTypes: [],
   configs: {},
+  riskSettings: null,
   marketDate: null,
   symbol: "ALPHA",
   side: "BUY",
@@ -39,6 +40,10 @@ export async function loadConfigs() {
 
 export async function loadStrategyTypes() {
   store.strategyTypes = await api("/strategy-types");
+}
+
+export async function loadRiskSettings() {
+  store.riskSettings = await api("/risk-settings");
 }
 
 export const stockBySymbol = (symbol) => store.stocks.find((s) => s.symbol === symbol);

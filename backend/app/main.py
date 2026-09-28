@@ -11,6 +11,7 @@ from .api.health import router as health_router
 from .api.market import router as market_router
 from .api.orders import router as orders_router
 from .api.portfolio import router as portfolio_router
+from .api.risk import router as risk_router
 from .api.simulation import router as simulation_router
 from .api.stocks import router as stocks_router
 from .api.strategies import router as strategies_router
@@ -66,6 +67,7 @@ app.include_router(trades_router, prefix="/api")
 app.include_router(simulation_router, prefix="/api")
 app.include_router(strategies_router, prefix="/api")
 app.include_router(backtests_router, prefix="/api")
+app.include_router(risk_router, prefix="/api")
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

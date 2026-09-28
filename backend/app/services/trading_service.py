@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Position, Stock, Trade
 from ..models.portfolio import INITIAL_VIRTUAL_CASH, Portfolio
+from . import risk_service
 from .exceptions import (
     InsufficientFundsError,
     InsufficientSharesError,
@@ -40,6 +41,7 @@ def execute_buy(
             f"Buying {quantity} {stock.symbol} costs ₹{cost:,.2f}, "
             f"but only ₹{portfolio.virtual_cash:,.2f} cash is available"
         )
+    risk_service.check_buy_allowed(db, stock, quantity, stock.current_price)
 
     position = db.query(Position).filter(Position.stock_id == stock.id).first()
     if position is None:

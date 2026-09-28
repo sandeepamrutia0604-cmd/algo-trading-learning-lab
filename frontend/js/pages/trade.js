@@ -113,7 +113,7 @@ async function placeOrder(side, symbol, quantity) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "market", "risk"]) $(`tab-${pane}`).hidden = pane !== name;
 }
 
 function renderPositions() {
@@ -222,6 +222,50 @@ async function regenerateHistory() {
   }
 }
 
+function riskExample() {
+  const risk = parseFloat($("rk-risk").value) || 0;
+  const stop = parseFloat($("rk-stop").value) || 0;
+  const pv = store.portfolio?.portfolio_value || 0;
+  const example = $("rk-example");
+  if (!risk || !stop || !pv) {
+    example.textContent = "";
+    return;
+  }
+  const riskAmount = (pv * risk) / 100;
+  const entryPrice = 100;
+  const riskPerShare = (entryPrice * stop) / 100;
+  const qty = Math.floor(riskAmount / riskPerShare);
+  example.textContent = `Example: ${money(pv)} portfolio × ${risk}% risk = ${money(riskAmount)} max risk per trade. A ₹100 entry with a ${stop}% stop risks ${money(riskPerShare)} per share, so a signal would size to ${qty} shares.`;
+}
+
+function renderRisk() {
+  const r = store.riskSettings;
+  if (!r) return;
+  $("rk-enabled").checked = r.enabled;
+  $("rk-risk").value = r.max_risk_per_trade_pct;
+  $("rk-stop").value = r.stop_loss_pct;
+  $("rk-positions").value = r.max_open_positions;
+  $("rk-allocation").value = r.max_allocation_pct;
+  riskExample();
+}
+
+async function applyRiskSettings() {
+  const body = {
+    enabled: $("rk-enabled").checked,
+    max_risk_per_trade_pct: parseFloat($("rk-risk").value),
+    stop_loss_pct: parseFloat($("rk-stop").value),
+    max_open_positions: parseInt($("rk-positions").value, 10),
+    max_allocation_pct: parseFloat($("rk-allocation").value),
+  };
+  try {
+    store.riskSettings = await api("/risk-settings", { method: "PATCH", body: JSON.stringify(body) });
+    toast(store.riskSettings.enabled ? "Risk management is on." : "Risk management is off.");
+    renderRisk();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 /* ---------------- chart ---------------- */
 
 function chartOptions() {
@@ -277,6 +321,7 @@ export async function renderTrade() {
   renderPositions();
   renderTrades();
   renderSettings();
+  renderRisk();
   await renderChart();
 }
 
@@ -311,4 +356,7 @@ export function initTrade() {
     $("m-model-desc").textContent = MODEL_INFO[e.target.value];
     if (e.target.value === "trending" && parseFloat($("m-trend").value) === 0) $("m-trend").value = 0.3;
   });
+
+  $("rk-apply").addEventListener("click", applyRiskSettings);
+  for (const id of ["rk-risk", "rk-stop"]) $(id).addEventListener("input", riskExample);
 }

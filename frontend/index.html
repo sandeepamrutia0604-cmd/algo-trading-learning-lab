@@ -125,7 +125,7 @@
                 </span>
               </label>
               <div class="field">Order type
-                <span class="static">Market <small>Limit and stop-loss arrive in Phase 7</small></span>
+                <span class="static">Market <small>Limit orders arrive later. Auto-trade stop-loss is in the Risk management tab below.</small></span>
               </div>
               <div class="sumrows" id="o-summary"></div>
               <div id="o-warn" class="warn" hidden></div>
@@ -137,6 +137,7 @@
                 <button data-tab="positions" class="on">Positions <em id="tab-pos-n">0</em></button>
                 <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
                 <button data-tab="market">Market settings</button>
+                <button data-tab="risk">Risk management</button>
               </div>
 
               <div id="tab-positions" class="tabpane">
@@ -175,6 +176,21 @@
                 </div>
                 <p id="m-model-desc" class="hint"></p>
                 <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles.</p>
+              </div>
+
+              <div id="tab-risk" class="tabpane" hidden>
+                <label class="switch"><input type="checkbox" id="rk-enabled" /> Enable risk management</label>
+                <p class="hint">Off: strategies auto-trade a fixed quantity per signal, same as before. On: position size is
+                  computed from your risk per trade and stop-loss below, a stop-loss auto-exits an auto-trade strategy's
+                  position, and every BUY (manual or auto-trade) is capped by max open positions and max allocation per stock.</p>
+                <div class="controls">
+                  <label class="field">Max risk per trade (%) <input id="rk-risk" type="number" step="0.1" min="0.1" max="100" /></label>
+                  <label class="field">Stop-loss (%) <input id="rk-stop" type="number" step="0.1" min="0.1" max="100" /></label>
+                  <label class="field">Max open positions <input id="rk-positions" type="number" step="1" min="1" max="50" /></label>
+                  <label class="field">Max allocation per stock (%) <input id="rk-allocation" type="number" step="1" min="1" max="100" /></label>
+                  <button id="rk-apply" class="btn btn-primary">Save risk settings</button>
+                </div>
+                <p class="hint" id="rk-example"></p>
               </div>
             </div>
           </div>

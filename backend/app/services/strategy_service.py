@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..models import Position, PriceData, Signal, Stock, Strategy, Trade
 from ..strategies.base import ChartSeries, SignalEvent, StrategyDef
 from ..strategies.registry import get_definition
-from . import market_service, trading_service
+from . import market_service, risk_service, trading_service
 from .exceptions import InvalidStrategyError, StockNotFoundError, StrategyNotFoundError, TradingError
 
 
@@ -185,9 +185,10 @@ def _execute_signal(db: Session, strategy: Strategy, stock: Stock, signal: Signa
     if signal.signal == "BUY":
         if held > 0:
             raise TradingError("this strategy is already holding shares")
-        return trading_service.execute_buy(
-            db, stock.symbol, strategy_quantity(strategy), reason=reason, strategy_id=strategy.id
-        )
+        quantity = risk_service.position_size(db, stock.current_price, strategy_quantity(strategy))
+        if quantity <= 0:
+            raise TradingError("risk-based position sizing rounds down to zero shares at this price")
+        return trading_service.execute_buy(db, stock.symbol, quantity, reason=reason, strategy_id=strategy.id)
 
     position = db.query(Position).filter(Position.stock_id == stock.id).first()
     sell_qty = min(held, position.quantity if position else 0)
@@ -197,12 +198,26 @@ def _execute_signal(db: Session, strategy: Strategy, stock: Stock, signal: Signa
 
 
 def run_auto_strategies(db: Session) -> list[str]:
-    """Check each auto-trade strategy for a signal on its stock's latest day and trade it."""
+    """Check each auto-trade strategy for a signal on its stock's latest day and trade it.
+    A held position is checked against its risk-management stop-loss first; that protective
+    exit overrides the strategy's own signal for the day."""
     events: list[str] = []
     for strategy in db.query(Strategy).filter(Strategy.auto_trade.is_(True)).all():
         dates, closes = _series(db, strategy.stock_id)
         if not closes:
             continue
+
+        held = strategy_held(db, strategy.id)
+        if held > 0:
+            stop_price = risk_service.stop_loss_price_for_strategy(db, strategy.id)
+            if stop_price is not None and closes[-1] <= stop_price:
+                stock = db.get(Stock, strategy.stock_id)
+                trade = trading_service.execute_sell(
+                    db, stock.symbol, held, reason=f"{strategy.name}: stop-loss at ₹{stop_price:,.2f}", strategy_id=strategy.id
+                )
+                events.append(f"{strategy.name}: STOP-LOSS SELL {trade.quantity} {stock.symbol} @ ₹{trade.price:,.2f}")
+                continue
+
         defn = strategy_definition(strategy)
         latest = [e for e in defn.generate(closes, strategy_params(strategy)) if e.index == len(closes) - 1]
         if not latest:

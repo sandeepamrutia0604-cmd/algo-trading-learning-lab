@@ -35,6 +35,9 @@ class TradeOut(BaseModel):
 
     @classmethod
     def from_trade(cls, trade) -> "TradeOut":
+        source = trade.strategy.name if trade.strategy else "Manual"
+        if trade.reason and "stop-loss" in trade.reason.lower():
+            source += " · stop-loss"
         return cls(
             symbol=trade.stock.symbol,
             side=trade.side,
@@ -45,7 +48,7 @@ class TradeOut(BaseModel):
             market_date=trade.market_date,
             realized_pnl=trade.realized_pnl,
             strategy_id=trade.strategy_id,
-            source=trade.strategy.name if trade.strategy else "Manual",
+            source=source,
         )
 
 
@@ -200,6 +203,22 @@ class SignalOut(BaseModel):
     trade_quantity: int | None = None
     trade_price: float | None = None
     realized_pnl: float | None = None
+
+
+class RiskSettingsOut(BaseModel):
+    enabled: bool
+    max_risk_per_trade_pct: float
+    stop_loss_pct: float
+    max_open_positions: int
+    max_allocation_pct: float
+
+
+class RiskSettingsUpdate(BaseModel):
+    enabled: bool | None = None
+    max_risk_per_trade_pct: float | None = Field(default=None, gt=0, le=100)
+    stop_loss_pct: float | None = Field(default=None, gt=0, le=100)
+    max_open_positions: int | None = Field(default=None, ge=1, le=50)
+    max_allocation_pct: float | None = Field(default=None, gt=0, le=100)
 
 
 class BacktestRequest(BaseModel):

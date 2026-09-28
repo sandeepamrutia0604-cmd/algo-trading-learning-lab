@@ -5,15 +5,16 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 6 - Backtesting Engine: run any strategy type over the full price
-history with a starting capital and see final capital, return, win rate and drawdown, plus
-its equity curve against buy-and-hold and every trade it would have made.
+**Current phase:** Phase 7 - Risk Management: turn on risk-based position sizing, a stop-loss
+that auto-exits an auto-trade strategy's position, a cap on open positions, and a cap on how
+much capital can sit in one stock — off by default so you can compare "strategy signals alone"
+against "strategy signals with risk management" for yourself.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
 - **Trade** - the terminal: watchlist, candlestick chart with SMA overlays, your BUY/SELL
-  markers and strategy signals, order ticket, and a bottom panel for positions, trades
-  and market settings.
+  markers and strategy signals, order ticket, and a bottom panel for positions, trades,
+  market settings and risk management.
 - **Strategies** - the lab. Pick a type, tune its parameters, press "Run on history" to mark
   every signal on the chart with its indicators, or turn on auto-trade to place paper trades
   as the market advances. "Try one of each on this stock" creates all six so you can compare.
@@ -61,6 +62,13 @@ market one day at a time so each signal trades at its own day's close. To add a 
 create a module in backend/app/strategies/ that defines a StrategyDef and register it in registry.py;
 the builder form, API, chart overlays and "Why" cards pick it up automatically.
 
+Risk management (Trade → Risk management tab, off by default): with it on, an auto-trade
+strategy's BUY is sized from your risk per trade and stop-loss (`capital × risk% ÷ (price × stop%)`,
+same formula as the plan's worked example) instead of its fixed quantity, and a stop-loss
+auto-sells its position if the price closes below the entry minus the stop-loss %. Max open
+positions and max allocation per stock apply to every BUY, manual or auto-trade. Turn it off
+and the app behaves exactly as it did in Phase 4-6 (fixed quantity, no caps, no stop-loss).
+
 Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
 generated days ("Advance" or "Regenerate history"), not past candles.
@@ -82,13 +90,13 @@ backend/
     logging_config.py
     api/            Route handlers
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
-                    PriceData, MarketConfig, Strategy, Signal)
+                    PriceData, MarketConfig, Strategy, Signal, RiskSettings)
     schemas.py      Pydantic request/response models
-    services/       Trading logic, portfolio math, market/price history, seeding
+    services/       Trading logic, portfolio math, market/price history, seeding,
+                    risk_service.py (position sizing, stop-loss, exposure caps)
     strategies/     One pure module per strategy type + registry.py (parameters, rules, signals, chart lines)
     engine/         price_models.py, indicators.py, backtest.py (all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
-    risk/           Risk management (Phase 7+)
   tests/
 frontend/
   index.html      App shell (sidebar, top bar, page sections)
