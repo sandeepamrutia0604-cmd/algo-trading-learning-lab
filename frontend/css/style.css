@@ -467,3 +467,10 @@ tr:last-child td { border-bottom: 0; }
 .metric { display: flex; flex-direction: column; gap: 4px; }
 .metric span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .metric b { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* ---------- performance ---------- */
+#pf-content:not([hidden]) { display: contents; }
+.perf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 1100px) {
+  .perf-row { grid-template-columns: 1fr; }
+}

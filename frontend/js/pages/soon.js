@@ -1,17 +1,6 @@
 import { $ } from "../util.js";
 
 const INFO = {
-  compare: {
-    title: "Compare",
-    phase: "Phase 10",
-    blurb:
-      "Put several strategies side by side on the same data. Results are shown as measurements from that backtest, not as advice.",
-    items: [
-      "Final capital, trades, win rate and drawdown per strategy",
-      "Same dataset for every strategy so the comparison is fair",
-      "Risk versus return, and why strategies behave differently in different markets",
-    ],
-  },
   learn: {
     title: "Learn",
     phase: "Learning Mode",

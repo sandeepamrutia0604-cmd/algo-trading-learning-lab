@@ -5,10 +5,10 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 7 - Risk Management: turn on risk-based position sizing, a stop-loss
-that auto-exits an auto-trade strategy's position, a cap on open positions, and a cap on how
-much capital can sit in one stock — off by default so you can compare "strategy signals alone"
-against "strategy signals with risk management" for yourself.
+**Current phase:** Phase 8 - Performance Analytics: a Performance screen computed from your
+real paper trades — total return, max drawdown, Sharpe ratio, win rate, average win/loss,
+profit factor, an equity curve, a drawdown chart, monthly returns, a trade-P&L distribution,
+and a strategy-vs-strategy comparison table.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -21,8 +21,9 @@ Screens (left navigation):
 - **Backtests** - pick a type and starting capital, press "Run backtest" to replay it over
   history: final capital, return, trade count, win rate, max drawdown, an equity curve against
   buy-and-hold, and every simulated trade. Nothing here touches your real paper portfolio.
+- **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
-- **Compare / Learn** - placeholders for later phases.
+- **Learn** - placeholder for a later phase.
 
 Strategy types (all long-only: one position at a time, signals never look ahead):
 - **MA Crossover** - fast SMA crosses above/below slow SMA. Best in trends; whipsaws in sideways markets.
@@ -73,6 +74,11 @@ Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
 generated days ("Advance" or "Regenerate history"), not past candles.
 
+Performance analytics are computed from your closed (SELL) paper trades and the real equity
+curve: profit factor and average win/loss come from realized P&L per trade, max drawdown and
+Sharpe ratio (annualized, 0% risk-free rate) come from the day-by-day portfolio value, and the
+strategy comparison table groups trades by whichever strategy placed them (or "Manual").
+
 ## Test
 
 ```bash
@@ -93,7 +99,8 @@ backend/
                     PriceData, MarketConfig, Strategy, Signal, RiskSettings)
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding,
-                    risk_service.py (position sizing, stop-loss, exposure caps)
+                    risk_service.py (position sizing, stop-loss, exposure caps),
+                    analytics_service.py (trade stats, drawdown, Sharpe, monthly returns)
     strategies/     One pure module per strategy type + registry.py (parameters, rules, signals, chart lines)
     engine/         price_models.py, indicators.py, backtest.py (all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
@@ -103,6 +110,6 @@ frontend/
   css/style.css   Dark/light theme tokens and layout
   js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
                   chart.js (shared price chart), why.js (the "Why?" card)
-  js/pages/       home.js, trade.js, strategies.js, backtests.js, journal.js, soon.js
+  js/pages/       home.js, trade.js, strategies.js, backtests.js, performance.js, journal.js, soon.js
 data/               SQLite database file (gitignored)
 ```

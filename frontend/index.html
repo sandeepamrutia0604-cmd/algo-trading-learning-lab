@@ -23,7 +23,7 @@
         <a href="#/trade" data-route="trade">Trade</a>
         <a href="#/strategies" data-route="strategies">Strategies</a>
         <a href="#/backtests" data-route="backtests">Backtests</a>
-        <a href="#/compare" data-route="compare">Compare <em>Soon</em></a>
+        <a href="#/performance" data-route="performance">Performance</a>
         <a href="#/journal" data-route="journal">Journal</a>
         <a href="#/learn" data-route="learn">Learn <em>Soon</em></a>
       </nav>
@@ -317,6 +317,51 @@
                   </table>
                   <p id="bt-trades-empty" class="empty" hidden>No completed trades in this run.</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PERFORMANCE ============ -->
+        <section id="page-performance" class="page" hidden>
+          <div class="strat-main">
+            <div class="panel" id="pf-empty">
+              <p class="empty">No closed trades yet. Sell a position — manual or via an auto-trade strategy — to see performance analytics.</p>
+            </div>
+
+            <div id="pf-content" hidden>
+              <div class="panel">
+                <h3>Performance</h3>
+                <div class="metrics-grid" id="pf-metrics"></div>
+              </div>
+
+              <div class="panel">
+                <h3>Equity curve</h3>
+                <div id="pf-equity" class="chart small"></div>
+              </div>
+
+              <div class="perf-row">
+                <div class="panel">
+                  <h3>Drawdown</h3>
+                  <div id="pf-drawdown" class="chart small"></div>
+                </div>
+                <div class="panel">
+                  <h3>Monthly returns</h3>
+                  <div id="pf-monthly" class="chart small"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h3>Trade distribution</h3>
+                <div id="pf-dist" class="chart small"></div>
+              </div>
+
+              <div class="panel">
+                <h3>Strategy comparison</h3>
+                <table id="pf-strategy-table">
+                  <thead><tr><th>Source</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Avg win</th><th class="num">Avg loss</th><th class="num">Profit factor</th><th class="num">Total P&amp;L</th></tr></thead>
+                  <tbody></tbody>
+                </table>
               </div>
             </div>
           </div>

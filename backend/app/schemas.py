@@ -221,6 +221,39 @@ class RiskSettingsUpdate(BaseModel):
     max_allocation_pct: float | None = Field(default=None, gt=0, le=100)
 
 
+class TradeStatsOut(BaseModel):
+    total_trades: int
+    winning_trades: int
+    losing_trades: int
+    win_rate_pct: float
+    avg_win: float
+    avg_loss: float
+    profit_factor: float | None = None
+
+
+class MonthlyReturnOut(BaseModel):
+    month: str
+    return_pct: float
+
+
+class StrategyPerformanceOut(TradeStatsOut):
+    strategy_id: int | None
+    name: str
+    total_pnl: float
+
+
+class PerformanceOut(BaseModel):
+    total_return_pct: float
+    max_drawdown_pct: float
+    sharpe_ratio: float | None
+    trade_stats: TradeStatsOut
+    equity_curve: list[EquityPoint]
+    drawdown_curve: list[EquityPoint]
+    monthly_returns: list[MonthlyReturnOut]
+    trade_pnls: list[float]
+    by_strategy: list[StrategyPerformanceOut]
+
+
 class BacktestRequest(BaseModel):
     symbol: str
     type: str = "ma_crossover"
