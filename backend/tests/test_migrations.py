@@ -21,3 +21,14 @@ def test_ensure_columns_upgrades_old_trades_table_and_is_idempotent(tmp_path):
 def test_ensure_columns_ignores_missing_tables(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'empty.db'}")
     ensure_columns(engine)
+
+
+def test_ensure_columns_adds_rules_to_old_strategies_table(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'old_strategies.db'}")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE strategies (id INTEGER PRIMARY KEY, type VARCHAR(30))"))
+
+    ensure_columns(engine)
+    ensure_columns(engine)
+
+    assert "rules" in {c["name"] for c in inspect(engine).get_columns("strategies")}

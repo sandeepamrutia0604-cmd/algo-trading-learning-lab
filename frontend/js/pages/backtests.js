@@ -1,10 +1,12 @@
 import { $, api, money, percent, pnlClass, signedPercent, toast } from "../util.js";
 import { store } from "../store.js";
 import { drawEquityChart, drawPriceChart, loadChartData } from "../chart.js";
+import * as rb from "../rulebuilder.js";
 
 const state = { result: null, running: false };
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
+const isCustom = () => $("bt-type").value === "custom";
 
 /* ---------------- builder ---------------- */
 
@@ -41,11 +43,40 @@ function renderTypeFields() {
   renderRule();
 }
 
+function updateCustomPreview() {
+  const rules = { entry: rb.readSide($("bt-entry-rows"), $("bt-entry-logic").value), exit: rb.readSide($("bt-exit-rows"), $("bt-exit-logic").value) };
+  $("bt-custom-preview").textContent = rb.ruleSummaryText(rules);
+}
+
+function renderCustomRules(rules) {
+  $("bt-entry-logic").value = rules.entry.logic;
+  $("bt-exit-logic").value = rules.exit.logic;
+  rb.renderSide($("bt-entry-rows"), rules.entry);
+  rb.renderSide($("bt-exit-rows"), rules.exit);
+  updateCustomPreview();
+}
+
+function switchBuilderMode() {
+  const custom = isCustom();
+  $("bt-desc").hidden = custom;
+  $("bt-params").hidden = custom;
+  $("bt-rule").hidden = custom;
+  $("bt-custom").hidden = !custom;
+}
+
+function applyBuilderDefaults() {
+  switchBuilderMode();
+  if (isCustom()) renderCustomRules(rb.DEFAULT_RULES);
+  else renderTypeFields();
+}
+
 function renderBuilder() {
   const typeSelect = $("bt-type");
-  if (typeSelect.options.length !== store.strategyTypes.length) {
-    typeSelect.innerHTML = store.strategyTypes.map((t) => `<option value="${t.key}">${t.label}</option>`).join("");
-    renderTypeFields();
+  if (typeSelect.options.length !== store.strategyTypes.length + 1) {
+    typeSelect.innerHTML =
+      store.strategyTypes.map((t) => `<option value="${t.key}">${t.label}</option>`).join("") +
+      `<option value="custom">Custom (build your own rules)</option>`;
+    applyBuilderDefaults();
   }
   const symbolSelect = $("bt-symbol");
   if (symbolSelect.options.length !== store.stocks.length) {
@@ -66,16 +97,16 @@ async function runBacktest() {
   $("bt-run").disabled = true;
   $("bt-run").textContent = "Running...";
   try {
-    const result = await api("/backtests/run", {
-      method: "POST",
-      body: JSON.stringify({
-        symbol: $("bt-symbol").value,
-        type: $("bt-type").value,
-        params: readParams(),
-        quantity,
-        initial_capital: initialCapital,
-      }),
-    });
+    const body = isCustom()
+      ? {
+          symbol: $("bt-symbol").value,
+          type: "custom",
+          rules: { entry: rb.readSide($("bt-entry-rows"), $("bt-entry-logic").value), exit: rb.readSide($("bt-exit-rows"), $("bt-exit-logic").value) },
+          quantity,
+          initial_capital: initialCapital,
+        }
+      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital };
+    const result = await api("/backtests/run", { method: "POST", body: JSON.stringify(body) });
     state.result = result;
     await renderResults();
   } catch (err) {
@@ -175,6 +206,19 @@ export async function renderBacktests() {
 }
 
 export function initBacktests() {
-  $("bt-type").addEventListener("change", renderTypeFields);
+  $("bt-type").addEventListener("change", applyBuilderDefaults);
   $("bt-run").addEventListener("click", runBacktest);
+
+  $("bt-entry-add").addEventListener("click", () => {
+    rb.addRow($("bt-entry-rows"));
+    updateCustomPreview();
+  });
+  $("bt-exit-add").addEventListener("click", () => {
+    rb.addRow($("bt-exit-rows"));
+    updateCustomPreview();
+  });
+  rb.initSide($("bt-entry-rows"), updateCustomPreview);
+  rb.initSide($("bt-exit-rows"), updateCustomPreview);
+  $("bt-entry-logic").addEventListener("change", updateCustomPreview);
+  $("bt-exit-logic").addEventListener("change", updateCustomPreview);
 }

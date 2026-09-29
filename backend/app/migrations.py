@@ -4,6 +4,7 @@ from sqlalchemy import Engine, inspect, text
 # so databases created by an earlier phase get these added on startup.
 ADDED_COLUMNS = {
     "trades": {"market_date": "DATE", "realized_pnl": "FLOAT", "strategy_id": "INTEGER"},
+    "strategies": {"rules": "JSON"},
 }
 
 

@@ -213,6 +213,25 @@
               <div id="sb-params" class="param-grid"></div>
               <div class="rule stacked" id="sb-rule"></div>
 
+              <div id="sb-custom" hidden>
+                <div class="rule-side">
+                  <div class="rule-side-head">Entry (BUY)
+                    <select id="sb-entry-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                  </div>
+                  <div id="sb-entry-rows" class="cond-rows"></div>
+                  <button type="button" id="sb-entry-add" class="btn">+ Add condition</button>
+                </div>
+                <div class="rule-side">
+                  <div class="rule-side-head">Exit (SELL)
+                    <select id="sb-exit-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                  </div>
+                  <div id="sb-exit-rows" class="cond-rows"></div>
+                  <button type="button" id="sb-exit-add" class="btn">+ Add condition</button>
+                </div>
+                <div class="rule-preview" id="sb-custom-preview"></div>
+                <p class="hint">For a stop-loss exit, use the Risk management tab on the Trade screen instead of a condition here.</p>
+              </div>
+
               <label class="field">Shares per BUY signal
                 <input id="sb-qty" type="number" min="1" value="10" />
               </label>
@@ -268,6 +287,24 @@
 
               <div id="bt-params" class="param-grid"></div>
               <div class="rule stacked" id="bt-rule"></div>
+
+              <div id="bt-custom" hidden>
+                <div class="rule-side">
+                  <div class="rule-side-head">Entry (BUY)
+                    <select id="bt-entry-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                  </div>
+                  <div id="bt-entry-rows" class="cond-rows"></div>
+                  <button type="button" id="bt-entry-add" class="btn">+ Add condition</button>
+                </div>
+                <div class="rule-side">
+                  <div class="rule-side-head">Exit (SELL)
+                    <select id="bt-exit-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                  </div>
+                  <div id="bt-exit-rows" class="cond-rows"></div>
+                  <button type="button" id="bt-exit-add" class="btn">+ Add condition</button>
+                </div>
+                <div class="rule-preview" id="bt-custom-preview"></div>
+              </div>
 
               <label class="field">Shares per BUY signal
                 <input id="bt-qty" type="number" min="1" value="10" />

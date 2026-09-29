@@ -461,6 +461,19 @@ tr:last-child td { border-bottom: 0; }
 .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .rule.stacked { flex-direction: column; align-items: flex-start; gap: 4px; }
 
+/* ---------- custom rule builder ---------- */
+.rule-side { margin-top: 12px; }
+.rule-side-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.rule-side-head select { font-size: 12px; padding: 4px 6px; }
+.cond-rows { display: flex; flex-direction: column; gap: 6px; }
+.cond-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.cond-row select, .cond-row input { font-size: 12px; padding: 5px 6px; }
+.cond-row .cond-left-kind, .cond-row .cond-right-kind { width: 76px; }
+.cond-row .cond-op { width: 118px; }
+.cond-row .cond-left-period, .cond-row .cond-right-period, .cond-row .cond-right-value { width: 68px; }
+.cond-remove { padding: 4px 9px; margin-left: auto; }
+.rule-preview { margin-top: 12px; background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; color: var(--text); }
+
 /* ---------- backtests ---------- */
 #bt-results:not([hidden]) { display: contents; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 12px; margin-top: 12px; }

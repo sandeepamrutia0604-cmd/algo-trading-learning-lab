@@ -2,11 +2,14 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from ..engine import rule_engine
 from ..engine.backtest import BacktestResult, run_backtest
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
 from . import market_service
 from .exceptions import InvalidStrategyError
+
+CUSTOM_TYPE = "custom"
 
 
 def _definition(type_key: str) -> StrategyDef:
@@ -23,6 +26,14 @@ def _normalize(defn: StrategyDef, params: dict | None) -> dict:
         raise InvalidStrategyError(str(exc)) from exc
 
 
+def _validated_rules(rules: dict | None) -> dict:
+    try:
+        rule_engine.validate_rules(rules)
+    except ValueError as exc:
+        raise InvalidStrategyError(str(exc)) from exc
+    return rules
+
+
 def run(
     db: Session,
     symbol: str,
@@ -30,14 +41,20 @@ def run(
     params: dict | None,
     quantity: int,
     initial_capital: float,
+    rules: dict | None = None,
 ) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult]:
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     if initial_capital <= 0:
         raise InvalidStrategyError("Initial capital must be greater than zero")
 
-    defn = _definition(type_key)
-    clean = _normalize(defn, params)
+    if type_key == CUSTOM_TYPE:
+        clean_rules = _validated_rules(rules)
+        defn = rule_engine.build_definition(clean_rules)
+        clean = {}
+    else:
+        defn = _definition(type_key)
+        clean = _normalize(defn, params)
     prices = market_service.get_prices(db, symbol)
     if len(prices) < 2:
         raise InvalidStrategyError("Not enough price history to run a backtest")

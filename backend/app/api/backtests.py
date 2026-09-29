@@ -18,7 +18,7 @@ router = APIRouter()
 @router.post("/backtests/run", response_model=BacktestResultOut)
 def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
     defn, params, dates, closes, result = backtest_service.run(
-        db, body.symbol, body.type, body.params, body.quantity, body.initial_capital
+        db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules
     )
     return BacktestResultOut(
         symbol=body.symbol.upper(),

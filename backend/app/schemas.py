@@ -126,6 +126,7 @@ class StrategyCreate(BaseModel):
     symbol: str
     type: str = "ma_crossover"
     params: dict[str, float] = {}
+    rules: dict | None = None
     quantity: int = Field(default=10, ge=1, le=100000)
     auto_trade: bool = False
     name: str | None = Field(default=None, max_length=120)
@@ -133,6 +134,7 @@ class StrategyCreate(BaseModel):
 
 class StrategyUpdate(BaseModel):
     params: dict[str, float] | None = None
+    rules: dict | None = None
     quantity: int | None = Field(default=None, ge=1, le=100000)
     auto_trade: bool | None = None
     name: str | None = Field(default=None, max_length=120)
@@ -147,6 +149,7 @@ class StrategyOut(BaseModel):
     symbol: str
     params: dict
     param_summary: str
+    rules: dict | None = None
     quantity: int
     auto_trade: bool
     created_at: datetime
@@ -258,6 +261,7 @@ class BacktestRequest(BaseModel):
     symbol: str
     type: str = "ma_crossover"
     params: dict[str, float] = {}
+    rules: dict | None = None
     quantity: int = Field(default=10, ge=1, le=100000)
     initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
 

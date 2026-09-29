@@ -2,11 +2,14 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from ..engine import rule_engine
 from ..models import Position, PriceData, Signal, Stock, Strategy, Trade
 from ..strategies.base import ChartSeries, SignalEvent, StrategyDef
 from ..strategies.registry import get_definition
 from . import market_service, risk_service, trading_service
 from .exceptions import InvalidStrategyError, StockNotFoundError, StrategyNotFoundError, TradingError
+
+CUSTOM_TYPE = "custom"
 
 
 def _definition(type_key: str) -> StrategyDef:
@@ -23,6 +26,14 @@ def _normalize(defn: StrategyDef, params: dict | None) -> dict:
         raise InvalidStrategyError(str(exc)) from exc
 
 
+def _validated_rules(rules: dict | None) -> dict:
+    try:
+        rule_engine.validate_rules(rules)
+    except ValueError as exc:
+        raise InvalidStrategyError(str(exc)) from exc
+    return rules
+
+
 def strategy_params(strategy: Strategy) -> dict:
     """The strategy's tuning parameters (everything except the order quantity)."""
     return {k: v for k, v in strategy.parameters.items() if k != "quantity"}
@@ -33,6 +44,8 @@ def strategy_quantity(strategy: Strategy) -> int:
 
 
 def strategy_definition(strategy: Strategy) -> StrategyDef:
+    if strategy.type == CUSTOM_TYPE:
+        return rule_engine.build_definition(strategy.rules)
     return _definition(strategy.type)
 
 
@@ -58,21 +71,35 @@ def create_strategy(
     auto_trade: bool = False,
     name: str | None = None,
     type_key: str = "ma_crossover",
+    rules: dict | None = None,
 ) -> Strategy:
-    defn = _definition(type_key)
-    clean = _normalize(defn, params)
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     stock = _get_stock(db, symbol)
 
-    strategy = Strategy(
-        name=name or defn.default_name(clean, stock.symbol),
-        description=defn.rule_text(clean),
-        type=defn.key,
-        stock_id=stock.id,
-        parameters={**clean, "quantity": quantity},
-        auto_trade=auto_trade,
-    )
+    if type_key == CUSTOM_TYPE:
+        clean_rules = _validated_rules(rules)
+        defn = rule_engine.build_definition(clean_rules)
+        strategy = Strategy(
+            name=name or f"Custom strategy on {stock.symbol}",
+            description=defn.rule_text({}),
+            type=CUSTOM_TYPE,
+            stock_id=stock.id,
+            parameters={"quantity": quantity},
+            rules=clean_rules,
+            auto_trade=auto_trade,
+        )
+    else:
+        defn = _definition(type_key)
+        clean = _normalize(defn, params)
+        strategy = Strategy(
+            name=name or defn.default_name(clean, stock.symbol),
+            description=defn.rule_text(clean),
+            type=defn.key,
+            stock_id=stock.id,
+            parameters={**clean, "quantity": quantity},
+            auto_trade=auto_trade,
+        )
     db.add(strategy)
     db.commit()
     db.refresh(strategy)
@@ -86,19 +113,27 @@ def update_strategy(
     quantity: int | None = None,
     auto_trade: bool | None = None,
     name: str | None = None,
+    rules: dict | None = None,
 ) -> Strategy:
     strategy = get_strategy(db, strategy_id)
-    defn = strategy_definition(strategy)
-
-    merged = {**strategy_params(strategy), **(params or {})}
-    clean = _normalize(defn, merged)
     new_quantity = quantity if quantity is not None else strategy_quantity(strategy)
     if new_quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
 
-    if clean != strategy_params(strategy):
-        strategy.description = defn.rule_text(clean)
-    strategy.parameters = {**clean, "quantity": new_quantity}
+    if strategy.type == CUSTOM_TYPE:
+        if rules is not None:
+            clean_rules = _validated_rules(rules)
+            strategy.rules = clean_rules
+            strategy.description = rule_engine.build_definition(clean_rules).rule_text({})
+        strategy.parameters = {"quantity": new_quantity}
+    else:
+        defn = strategy_definition(strategy)
+        merged = {**strategy_params(strategy), **(params or {})}
+        clean = _normalize(defn, merged)
+        if clean != strategy_params(strategy):
+            strategy.description = defn.rule_text(clean)
+        strategy.parameters = {**clean, "quantity": new_quantity}
+
     if auto_trade is not None:
         strategy.auto_trade = auto_trade
     if name:

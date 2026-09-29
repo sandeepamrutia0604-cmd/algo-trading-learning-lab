@@ -8,7 +8,8 @@ from .stock import Stock
 
 
 class Strategy(Base):
-    """One strategy trades one stock. `parameters` holds e.g. {"fast": 20, "slow": 50, "quantity": 10}."""
+    """One strategy trades one stock. `parameters` holds e.g. {"fast": 20, "slow": 50, "quantity": 10}.
+    `rules` holds an entry/exit condition tree (see engine/rule_engine.py) for type == "custom"; null otherwise."""
 
     __tablename__ = "strategies"
 
@@ -18,6 +19,7 @@ class Strategy(Base):
     type: Mapped[str] = mapped_column(String(30), default="ma_crossover")
     stock_id: Mapped[int] = mapped_column(ForeignKey("stocks.id"))
     parameters: Mapped[dict] = mapped_column(JSON)
+    rules: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     auto_trade: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 

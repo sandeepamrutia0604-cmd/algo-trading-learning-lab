@@ -2,11 +2,13 @@ import { $, api, money, toast } from "../util.js";
 import { hooks, store } from "../store.js";
 import { drawPriceChart, loadChartData } from "../chart.js";
 import { signalHeadline, signalOutcome, whyCard } from "../why.js";
+import * as rb from "../rulebuilder.js";
 
 const state = { selectedId: null, editingId: null, openWhy: new Set() };
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
 const editingStrategy = () => store.strategies.find((s) => s.id === state.editingId) || null;
+const isCustom = () => $("sb-type").value === "custom";
 
 /* ---------------- builder ---------------- */
 
@@ -43,11 +45,40 @@ function renderTypeFields(values) {
   renderRule();
 }
 
+function updateCustomPreview() {
+  const rules = { entry: rb.readSide($("sb-entry-rows"), $("sb-entry-logic").value), exit: rb.readSide($("sb-exit-rows"), $("sb-exit-logic").value) };
+  $("sb-custom-preview").textContent = rb.ruleSummaryText(rules);
+}
+
+function renderCustomRules(rules) {
+  $("sb-entry-logic").value = rules.entry.logic;
+  $("sb-exit-logic").value = rules.exit.logic;
+  rb.renderSide($("sb-entry-rows"), rules.entry);
+  rb.renderSide($("sb-exit-rows"), rules.exit);
+  updateCustomPreview();
+}
+
+function switchBuilderMode() {
+  const custom = isCustom();
+  $("sb-desc").hidden = custom;
+  $("sb-params").hidden = custom;
+  $("sb-rule").hidden = custom;
+  $("sb-custom").hidden = !custom;
+}
+
+function applyBuilderDefaults() {
+  switchBuilderMode();
+  if (isCustom()) renderCustomRules(rb.DEFAULT_RULES);
+  else renderTypeFields();
+}
+
 function renderBuilder() {
   const typeSelect = $("sb-type");
-  if (typeSelect.options.length !== store.strategyTypes.length) {
-    typeSelect.innerHTML = store.strategyTypes.map((t) => `<option value="${t.key}">${t.label}</option>`).join("");
-    renderTypeFields();
+  if (typeSelect.options.length !== store.strategyTypes.length + 1) {
+    typeSelect.innerHTML =
+      store.strategyTypes.map((t) => `<option value="${t.key}">${t.label}</option>`).join("") +
+      `<option value="custom">Custom (build your own rules)</option>`;
+    applyBuilderDefaults();
   }
   const symbolSelect = $("sb-symbol");
   if (symbolSelect.options.length !== store.stocks.length) {
@@ -68,7 +99,7 @@ function resetBuilder() {
   $("sb-qty").value = 10;
   $("sb-auto").checked = false;
   $("sb-symbol").value = store.symbol;
-  renderTypeFields();
+  applyBuilderDefaults();
   renderBuilder();
 }
 
@@ -78,20 +109,24 @@ async function saveBuilder() {
     toast("Shares per trade must be at least 1", true);
     return;
   }
-  const params = readParams();
+  const custom = isCustom();
+  const body = custom
+    ? {
+        symbol: $("sb-symbol").value,
+        type: "custom",
+        rules: { entry: rb.readSide($("sb-entry-rows"), $("sb-entry-logic").value), exit: rb.readSide($("sb-exit-rows"), $("sb-exit-logic").value) },
+        quantity,
+        auto_trade: $("sb-auto").checked,
+      }
+    : { symbol: $("sb-symbol").value, type: $("sb-type").value, params: readParams(), quantity, auto_trade: $("sb-auto").checked };
   try {
     if (state.editingId) {
-      await api(`/strategies/${state.editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ params, quantity, auto_trade: $("sb-auto").checked }),
-      });
+      const patch = custom ? { rules: body.rules, quantity, auto_trade: body.auto_trade } : { params: body.params, quantity, auto_trade: body.auto_trade };
+      await api(`/strategies/${state.editingId}`, { method: "PATCH", body: JSON.stringify(patch) });
       toast("Strategy updated. Run it on history to refresh its signals.");
       resetBuilder();
     } else {
-      const created = await api("/strategies", {
-        method: "POST",
-        body: JSON.stringify({ symbol: $("sb-symbol").value, type: $("sb-type").value, params, quantity, auto_trade: $("sb-auto").checked }),
-      });
+      const created = await api("/strategies", { method: "POST", body: JSON.stringify(body) });
       state.selectedId = created.id;
       toast(`Created "${created.name}". Click "Run on history" to see its signals.`);
     }
@@ -125,7 +160,9 @@ function startEdit(id) {
   if (!s) return;
   state.editingId = id;
   $("sb-type").value = s.type;
-  renderTypeFields(s.params);
+  switchBuilderMode();
+  if (s.type === "custom") renderCustomRules(s.rules);
+  else renderTypeFields(s.params);
   $("sb-symbol").value = s.symbol;
   $("sb-qty").value = s.quantity;
   $("sb-auto").checked = s.auto_trade;
@@ -277,5 +314,18 @@ export function initStrategies() {
   $("sb-create").addEventListener("click", saveBuilder);
   $("sb-cancel").addEventListener("click", resetBuilder);
   $("sb-all").addEventListener("click", createOneOfEach);
-  $("sb-type").addEventListener("change", () => renderTypeFields());
+  $("sb-type").addEventListener("change", applyBuilderDefaults);
+
+  $("sb-entry-add").addEventListener("click", () => {
+    rb.addRow($("sb-entry-rows"));
+    updateCustomPreview();
+  });
+  $("sb-exit-add").addEventListener("click", () => {
+    rb.addRow($("sb-exit-rows"));
+    updateCustomPreview();
+  });
+  rb.initSide($("sb-entry-rows"), updateCustomPreview);
+  rb.initSide($("sb-exit-rows"), updateCustomPreview);
+  $("sb-entry-logic").addEventListener("change", updateCustomPreview);
+  $("sb-exit-logic").addEventListener("change", updateCustomPreview);
 }

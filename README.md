@@ -5,10 +5,10 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 8 - Performance Analytics: a Performance screen computed from your
-real paper trades — total return, max drawdown, Sharpe ratio, win rate, average win/loss,
-profit factor, an equity curve, a drawdown chart, monthly returns, a trade-P&L distribution,
-and a strategy-vs-strategy comparison table.
+**Current phase:** Phase 9 - Strategy Builder: build a strategy from your own entry/exit
+conditions — no Python required. Pick indicators (Price, SMA, RSI), operators (>, <, crosses
+above/below) and combine them with AND/OR, on the Strategies and Backtests builders alongside
+the six canned types.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -18,6 +18,7 @@ Screens (left navigation):
 - **Strategies** - the lab. Pick a type, tune its parameters, press "Run on history" to mark
   every signal on the chart with its indicators, or turn on auto-trade to place paper trades
   as the market advances. "Try one of each on this stock" creates all six so you can compare.
+  Pick "Custom" to build your own entry/exit conditions instead.
 - **Backtests** - pick a type and starting capital, press "Run backtest" to replay it over
   history: final capital, return, trade count, win rate, max drawdown, an equity curve against
   buy-and-hold, and every simulated trade. Nothing here touches your real paper portfolio.
@@ -79,6 +80,12 @@ curve: profit factor and average win/loss come from realized P&L per trade, max 
 Sharpe ratio (annualized, 0% risk-free rate) come from the day-by-day portfolio value, and the
 strategy comparison table groups trades by whichever strategy placed them (or "Manual").
 
+Custom strategies: entry is one side (all AND, or any OR) of conditions like "SMA(20) crosses
+above SMA(50)" or "RSI(14) < 30"; exit works the same way. A custom strategy plugs into the same
+signals/chart/auto-trade/backtest pipeline as the six canned types — it just builds its
+StrategyDef from your condition tree (backend/app/engine/rule_engine.py) instead of Python code.
+For a stop-loss exit, use the Risk management tab rather than a condition.
+
 ## Test
 
 ```bash
@@ -101,15 +108,17 @@ backend/
     services/       Trading logic, portfolio math, market/price history, seeding,
                     risk_service.py (position sizing, stop-loss, exposure caps),
                     analytics_service.py (trade stats, drawdown, Sharpe, monthly returns)
-    strategies/     One pure module per strategy type + registry.py (parameters, rules, signals, chart lines)
-    engine/         price_models.py, indicators.py, backtest.py (all pure, no DB)
+    strategies/     One pure module per canned strategy type + registry.py
+    engine/         price_models.py, indicators.py, backtest.py, rule_engine.py
+                    (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
   tests/
 frontend/
   index.html      App shell (sidebar, top bar, page sections)
   css/style.css   Dark/light theme tokens and layout
   js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
-                  chart.js (shared price chart), why.js (the "Why?" card)
+                  chart.js (shared price chart), why.js (the "Why?" card),
+                  rulebuilder.js (custom-strategy condition editor)
   js/pages/       home.js, trade.js, strategies.js, backtests.js, performance.js, journal.js, soon.js
 data/               SQLite database file (gitignored)
 ```

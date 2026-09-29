@@ -19,7 +19,9 @@ from ..strategies.registry import list_definitions
 router = APIRouter()
 
 
-def _summary(defn, params: dict) -> str:
+def _summary(strategy: Strategy, defn, params: dict) -> str:
+    if strategy.type == strategy_service.CUSTOM_TYPE:
+        return strategy.description or "Custom rules"
     return " · ".join(f"{spec.label} {params[spec.name]:g}" for spec in defn.params)
 
 
@@ -35,7 +37,8 @@ def _strategy_out(db: Session, strategy: Strategy) -> StrategyOut:
         type_label=defn.label,
         symbol=strategy.stock.symbol,
         params=params,
-        param_summary=_summary(defn, params),
+        param_summary=_summary(strategy, defn, params),
+        rules=strategy.rules,
         quantity=strategy_service.strategy_quantity(strategy),
         auto_trade=strategy.auto_trade,
         created_at=strategy.created_at,
@@ -94,7 +97,7 @@ def list_strategies(db: Session = Depends(get_db)):
 @router.post("/strategies", response_model=StrategyOut)
 def create_strategy(body: StrategyCreate, db: Session = Depends(get_db)):
     strategy = strategy_service.create_strategy(
-        db, body.symbol, body.params, body.quantity, body.auto_trade, body.name, body.type
+        db, body.symbol, body.params, body.quantity, body.auto_trade, body.name, body.type, body.rules
     )
     return _strategy_out(db, strategy)
 
@@ -102,7 +105,7 @@ def create_strategy(body: StrategyCreate, db: Session = Depends(get_db)):
 @router.patch("/strategies/{strategy_id}", response_model=StrategyOut)
 def update_strategy(strategy_id: int, body: StrategyUpdate, db: Session = Depends(get_db)):
     strategy = strategy_service.update_strategy(
-        db, strategy_id, body.params, body.quantity, body.auto_trade, body.name
+        db, strategy_id, body.params, body.quantity, body.auto_trade, body.name, body.rules
     )
     return _strategy_out(db, strategy)
 
