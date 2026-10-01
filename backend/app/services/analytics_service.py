@@ -5,7 +5,6 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from ..models import Trade
-from ..models.portfolio import INITIAL_VIRTUAL_CASH
 
 TRADING_DAYS_PER_YEAR = 252
 
@@ -65,7 +64,7 @@ def drawdown_curve(curve: list[dict]) -> list[dict]:
     return result
 
 
-def monthly_returns(curve: list[dict]) -> list[dict]:
+def monthly_returns(curve: list[dict], starting_capital: float) -> list[dict]:
     """% change in portfolio value for each calendar month that has data."""
     if not curve:
         return []
@@ -74,7 +73,7 @@ def monthly_returns(curve: list[dict]) -> list[dict]:
         by_month[point["date"].strftime("%Y-%m")] = point["value"]  # last value of the month wins
 
     result = []
-    prev_end = INITIAL_VIRTUAL_CASH
+    prev_end = starting_capital
     for month in sorted(by_month):
         end = by_month[month]
         pct = ((end - prev_end) / prev_end * 100) if prev_end else 0.0

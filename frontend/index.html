@@ -179,6 +179,13 @@
               </div>
 
               <div id="tab-risk" class="tabpane" hidden>
+                <div class="controls">
+                  <label class="field">Starting capital (₹) <input id="ac-capital" type="number" step="1000" min="1" max="100000000" /></label>
+                  <button id="ac-apply" class="btn">Set &amp; reset portfolio</button>
+                </div>
+                <p class="hint">Changes what "Reset" restores and what P&amp;L/return % are measured against.
+                  Applying it immediately resets the simulation (clears trades and positions) at the new amount --
+                  useful once real, higher-priced stocks make ₹1,00,000 too little to trade comfortably.</p>
                 <label class="switch"><input type="checkbox" id="rk-enabled" /> Enable risk management</label>
                 <p class="hint">Off: strategies auto-trade a fixed quantity per signal, same as before. On: position size is
                   computed from your risk per trade and stop-loss below, a stop-loss auto-exits an auto-trade strategy's

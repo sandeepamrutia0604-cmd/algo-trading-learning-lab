@@ -123,6 +123,21 @@ def test_reset_simulation_restores_initial_state(db_session):
     assert refreshed_stock.current_price == refreshed_stock.starting_price
 
 
+def test_set_starting_capital_changes_baseline_and_resets(db_session):
+    trading_service.execute_buy(db_session, "ALPHA", 100)
+
+    trading_service.set_starting_capital(db_session, 500_000.0)
+
+    portfolio = trading_service.get_portfolio(db_session)
+    assert portfolio.starting_capital == 500_000.0
+    assert portfolio.virtual_cash == 500_000.0
+    assert db_session.query(Position).count() == 0
+
+    summary = get_portfolio_summary(db_session)
+    assert summary["starting_capital"] == 500_000.0
+    assert summary["total_pnl"] == 0.0
+
+
 def test_trades_record_market_date_and_realized_pnl(db_session):
     from backend.app.services import market_service
 

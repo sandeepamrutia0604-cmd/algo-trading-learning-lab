@@ -2,18 +2,25 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..schemas import EquityPoint, PortfolioOut, PositionOut
+from ..schemas import EquityPoint, PortfolioOut, PositionOut, StartingCapitalUpdate
 from ..services.portfolio_service import (
     get_equity_curve,
     get_portfolio_summary,
     get_positions_with_pnl,
 )
+from ..services.trading_service import set_starting_capital
 
 router = APIRouter()
 
 
 @router.get("/portfolio", response_model=PortfolioOut)
 def portfolio_summary(db: Session = Depends(get_db)):
+    return get_portfolio_summary(db)
+
+
+@router.put("/portfolio/starting-capital", response_model=PortfolioOut)
+def update_starting_capital(body: StartingCapitalUpdate, db: Session = Depends(get_db)):
+    set_starting_capital(db, body.starting_capital)
     return get_portfolio_summary(db)
 
 

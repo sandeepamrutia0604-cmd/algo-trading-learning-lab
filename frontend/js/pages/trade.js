@@ -240,13 +240,32 @@ function riskExample() {
 
 function renderRisk() {
   const r = store.riskSettings;
-  if (!r) return;
-  $("rk-enabled").checked = r.enabled;
-  $("rk-risk").value = r.max_risk_per_trade_pct;
-  $("rk-stop").value = r.stop_loss_pct;
-  $("rk-positions").value = r.max_open_positions;
-  $("rk-allocation").value = r.max_allocation_pct;
-  riskExample();
+  if (r) {
+    $("rk-enabled").checked = r.enabled;
+    $("rk-risk").value = r.max_risk_per_trade_pct;
+    $("rk-stop").value = r.stop_loss_pct;
+    $("rk-positions").value = r.max_open_positions;
+    $("rk-allocation").value = r.max_allocation_pct;
+    riskExample();
+  }
+  if (store.portfolio) $("ac-capital").value = store.portfolio.starting_capital;
+}
+
+async function applyStartingCapital() {
+  const amount = parseFloat($("ac-capital").value);
+  if (!amount || amount <= 0) {
+    toast("Enter a starting capital above 0", true);
+    return;
+  }
+  if (!confirm(`Set starting capital to ${money(amount)}? This clears all trades and positions and resets the simulation.`)) return;
+  try {
+    store.portfolio = await api("/portfolio/starting-capital", { method: "PUT", body: JSON.stringify({ starting_capital: amount }) });
+    toast(`Starting capital set to ${money(amount)}`);
+    await hooks.reloadConfigs();
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 async function applyRiskSettings() {
@@ -357,6 +376,7 @@ export function initTrade() {
     if (e.target.value === "trending" && parseFloat($("m-trend").value) === 0) $("m-trend").value = 0.3;
   });
 
+  $("ac-apply").addEventListener("click", applyStartingCapital);
   $("rk-apply").addEventListener("click", applyRiskSettings);
   for (const id of ["rk-risk", "rk-stop"]) $(id).addEventListener("input", riskExample);
 }

@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 
 from ..models import Position, PriceData, Trade
-from ..models.portfolio import INITIAL_VIRTUAL_CASH
 from .market_service import recent_closes
 from .trading_service import get_portfolio
 
@@ -21,7 +20,7 @@ def get_portfolio_summary(db: Session) -> dict:
     market_value = sum(p.quantity * p.stock.current_price for p in positions)
     unrealized_pnl = market_value - invested
     portfolio_value = portfolio.virtual_cash + market_value
-    total_pnl = portfolio_value - INITIAL_VIRTUAL_CASH
+    total_pnl = portfolio_value - portfolio.starting_capital
 
     return {
         "cash": portfolio.virtual_cash,
@@ -32,7 +31,8 @@ def get_portfolio_summary(db: Session) -> dict:
         "realized_pnl": portfolio.realized_pnl,
         "day_pnl": sum(_day_pnl(db, p) for p in positions),
         "total_pnl": total_pnl,
-        "return_pct": (total_pnl / INITIAL_VIRTUAL_CASH) * 100,
+        "return_pct": (total_pnl / portfolio.starting_capital) * 100,
+        "starting_capital": portfolio.starting_capital,
     }
 
 
@@ -59,6 +59,7 @@ def get_positions_with_pnl(db: Session) -> list[dict]:
 
 def get_equity_curve(db: Session) -> list[dict]:
     """Portfolio value per market day, replaying dated trades over the price history."""
+    starting_capital = get_portfolio(db).starting_capital
     closes_by_date: dict = {}
     for stock_id, timestamp, close in (
         db.query(PriceData.stock_id, PriceData.timestamp, PriceData.close)
@@ -74,7 +75,7 @@ def get_equity_curve(db: Session) -> list[dict]:
         .all()
     )
 
-    cash = INITIAL_VIRTUAL_CASH
+    cash = starting_capital
     holdings: dict[int, int] = {}
     last_close: dict[int, float] = {}
     next_trade = 0

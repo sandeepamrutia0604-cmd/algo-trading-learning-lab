@@ -114,12 +114,12 @@ def test_monthly_returns_computed_against_initial_capital_and_prior_month_end():
         {"date": date(2025, 1, 20), "value": 110_000},  # Jan ends at 110,000: +10%
         {"date": date(2025, 2, 10), "value": 99_000},  # Feb ends at 99,000: -10% from Jan's 110,000
     ]
-    result = analytics_service.monthly_returns(curve)
+    result = analytics_service.monthly_returns(curve, INITIAL_VIRTUAL_CASH)
     assert [(r["month"], round(r["return_pct"], 2)) for r in result] == [("2025-01", 10.0), ("2025-02", -10.0)]
 
 
 def test_monthly_returns_on_empty_curve():
-    assert analytics_service.monthly_returns([]) == []
+    assert analytics_service.monthly_returns([], INITIAL_VIRTUAL_CASH) == []
 
 
 # ---------- strategy_comparison + API integration ----------

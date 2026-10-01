@@ -1,8 +1,7 @@
 import { $, api, money, percent, pnlClass, signedMoney, signedPercent } from "../util.js";
 import { drawEquityChart } from "../chart.js";
+import { store } from "../store.js";
 import { themeColors } from "../theme.js";
-
-const INITIAL_CASH = 100000;
 
 const fmtRatio = (v) => (v == null ? "—" : v.toFixed(2));
 const fmtProfitFactor = (v, wins) => (v == null ? (wins > 0 ? "∞" : "—") : v.toFixed(2));
@@ -117,7 +116,7 @@ export async function renderPerformance() {
   drawEquityChart($("pf-equity"), {
     dates: p.equity_curve.map((c) => c.date),
     values: p.equity_curve.map((c) => c.value),
-    baseline: p.equity_curve.map(() => INITIAL_CASH),
+    baseline: p.equity_curve.map(() => store.portfolio.starting_capital),
     valueLabel: "Portfolio",
     baselineLabel: "Starting capital",
   });

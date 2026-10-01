@@ -73,6 +73,11 @@ class PortfolioOut(BaseModel):
     day_pnl: float
     total_pnl: float
     return_pct: float
+    starting_capital: float
+
+
+class StartingCapitalUpdate(BaseModel):
+    starting_capital: float = Field(gt=0, le=100_000_000)
 
 
 class CandleOut(BaseModel):

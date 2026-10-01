@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from ..models import Position, Stock, Trade
-from ..models.portfolio import INITIAL_VIRTUAL_CASH, Portfolio
+from ..models.portfolio import Portfolio
 from . import risk_service
 from .exceptions import (
     InsufficientFundsError,
@@ -116,10 +116,21 @@ def reset_simulation(db: Session) -> None:
     db.query(Position).delete()
 
     portfolio = get_portfolio(db)
-    portfolio.virtual_cash = INITIAL_VIRTUAL_CASH
+    portfolio.virtual_cash = portfolio.starting_capital
     portfolio.realized_pnl = 0.0
 
     for stock in db.query(Stock).all():
         stock.current_price = stock.starting_price
 
     db.commit()
+
+
+def set_starting_capital(db: Session, amount: float) -> Portfolio:
+    """Change the paper-trading bankroll and reset the simulation to it -- the old cash/
+    trades/positions were all sized against the previous capital, so keeping them around
+    under a new baseline would make every P&L and return % figure meaningless."""
+    portfolio = get_portfolio(db)
+    portfolio.starting_capital = amount
+    db.commit()
+    reset_simulation(db)
+    return portfolio

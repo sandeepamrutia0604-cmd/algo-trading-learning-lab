@@ -25,7 +25,9 @@ def performance(db: Session = Depends(get_db)):
         trade_stats=TradeStatsOut(**stats),
         equity_curve=[EquityPoint(**c) for c in curve],
         drawdown_curve=[EquityPoint(**c) for c in analytics_service.drawdown_curve(curve)],
-        monthly_returns=[MonthlyReturnOut(**m) for m in analytics_service.monthly_returns(curve)],
+        monthly_returns=[
+            MonthlyReturnOut(**m) for m in analytics_service.monthly_returns(curve, summary["starting_capital"])
+        ],
         trade_pnls=[t.realized_pnl for t in trades],
         by_strategy=[StrategyPerformanceOut(**row) for row in analytics_service.strategy_comparison(db)],
     )

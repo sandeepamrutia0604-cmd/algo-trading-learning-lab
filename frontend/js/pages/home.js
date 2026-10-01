@@ -2,14 +2,12 @@ import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline } from "
 import { hooks, store } from "../store.js";
 import { drawEquityChart } from "../chart.js";
 
-const INITIAL_CASH = 100000;
-
 function renderHero() {
   const p = store.portfolio;
   $("h-value").textContent = money(p.portfolio_value);
   const ret = $("h-return");
   ret.innerHTML = `<small class="${pnlClass(p.total_pnl)}">${p.total_pnl > 0 ? "&#9650;" : p.total_pnl < 0 ? "&#9660;" : ""} ${signedPercent(p.return_pct)}</small>`;
-  $("h-sub").textContent = `Started with ${money(INITIAL_CASH)} · Cash ${money(p.cash)} · Invested ${money(p.invested)}`;
+  $("h-sub").textContent = `Started with ${money(p.starting_capital)} · Cash ${money(p.cash)} · Invested ${money(p.invested)}`;
 
   const chip = (label, value) =>
     `<span class="chip">${label} <b class="${pnlClass(value)}">${signedMoney(value)}</b></span>`;
@@ -34,7 +32,7 @@ async function renderEquity() {
   drawEquityChart(el, {
     dates,
     values,
-    baseline: dates.map(() => INITIAL_CASH),
+    baseline: dates.map(() => store.portfolio.starting_capital),
     valueLabel: "Portfolio",
     baselineLabel: "Starting capital",
   });
