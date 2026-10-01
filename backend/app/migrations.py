@@ -5,6 +5,7 @@ from sqlalchemy import Engine, inspect, text
 ADDED_COLUMNS = {
     "trades": {"market_date": "DATE", "realized_pnl": "FLOAT", "strategy_id": "INTEGER"},
     "strategies": {"rules": "JSON"},
+    "stocks": {"source": "VARCHAR(20) DEFAULT 'simulated'"},
 }
 
 

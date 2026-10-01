@@ -72,33 +72,9 @@ def test_dummy_adapter_latest_price(db_session):
     assert adapter.get_latest_price("ALPHA") == 95
 
 
-# ---------- Angel One adapter (designed, not wired up) ----------
-
-
-def test_angel_one_adapter_constructs_without_credentials():
-    AngelOneMarketDataAdapter(api_key="", client_code="")  # should not raise
-
-
-def test_angel_one_adapter_data_methods_raise_not_implemented():
-    adapter = AngelOneMarketDataAdapter(api_key="key", client_code="client")
-    with pytest.raises(NotImplementedError, match="Phase 12"):
-        adapter.get_historical_candles("RELIANCE")
-    with pytest.raises(NotImplementedError, match="Phase 12"):
-        adapter.get_latest_price("RELIANCE")
-
-
-def test_angel_one_adapter_resolves_a_configured_instrument_token():
-    adapter = AngelOneMarketDataAdapter(api_key="key", client_code="client", instrument_token_map={"RELIANCE": "2885"})
-    assert adapter.resolve_instrument_token("reliance") == "2885"  # case-insensitive
-
-
-def test_angel_one_adapter_unresolved_token_raises_not_implemented():
-    adapter = AngelOneMarketDataAdapter(api_key="key", client_code="client")
-    with pytest.raises(NotImplementedError):
-        adapter.resolve_instrument_token("RELIANCE")
-
-
 # ---------- factory ----------
+# See test_angel_one_adapter.py for the real AngelOneMarketDataAdapter's own tests
+# (auth, scrip master, candle/LTP parsing, caching) with a mocked SmartAPI transport.
 
 
 def test_factory_defaults_to_the_dummy_adapter(db_session):
@@ -106,9 +82,12 @@ def test_factory_defaults_to_the_dummy_adapter(db_session):
 
 
 def test_factory_selects_angel_one_when_configured(db_session):
+    import backend.app.adapters as adapters_module
+
     original = settings.market_data_provider
     settings.market_data_provider = "angel_one"
     try:
         assert isinstance(get_market_data_adapter(db_session), AngelOneMarketDataAdapter)
     finally:
         settings.market_data_provider = original
+        adapters_module._angel_one_adapter = None  # don't leak the singleton into other tests

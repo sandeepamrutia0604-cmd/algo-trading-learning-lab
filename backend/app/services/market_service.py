@@ -112,22 +112,31 @@ def latest_market_date(db: Session) -> date | None:
     return latest[0].date() if latest else None
 
 
+def _simulated_stocks(db: Session):
+    """Stocks whose history this app generates itself -- never the ones imported from a real
+    market data provider (see services/real_stocks.py), whose history must stay untouched."""
+    return db.query(Stock).filter(Stock.source == "simulated").order_by(Stock.symbol).all()
+
+
 def generate_all(db: Session, days: int, seed: int | None = None) -> None:
-    """Replace every stock's history with `days` fresh candles from its starting price."""
-    db.query(PriceData).delete()
-    for stock in db.query(Stock).order_by(Stock.symbol).all():
+    """Replace every simulated stock's history with `days` fresh candles from its starting
+    price. Imported real stocks (source="angel_one") are left alone."""
+    stocks = _simulated_stocks(db)
+    stock_ids = [s.id for s in stocks]
+    db.query(PriceData).filter(PriceData.stock_id.in_(stock_ids)).delete(synchronize_session=False)
+    for stock in stocks:
         _append_days(db, stock, days, _rng(seed, stock.symbol))
     db.commit()
 
 
 def advance(db: Session, days: int) -> None:
-    for stock in db.query(Stock).order_by(Stock.symbol).all():
+    for stock in _simulated_stocks(db):
         _append_days(db, stock, days, _rng(None, stock.symbol))
     db.commit()
 
 
 def reset_market(db: Session) -> None:
-    for stock in db.query(Stock).all():
+    for stock in _simulated_stocks(db):
         config = get_config(db, stock)
         config.model, config.volatility, config.trend = _default_config(stock.symbol)
     generate_all(db, DEFAULT_HISTORY_DAYS, seed=DEFAULT_SEED)

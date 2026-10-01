@@ -5,13 +5,12 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 11 - Market Data Adapter: the strategy engine, auto-trader and
-backtester now read historical candles through a `MarketDataAdapter` interface instead of
-depending on the dummy simulator directly. `DummyMarketDataAdapter` (today's only wired-up
-implementation) just serves the simulated history; an Angel One (SmartAPI) adapter's shape is
-designed and ready — `get_historical_candles`/`get_latest_price` raise `NotImplementedError`
-until Phase 12 plugs in real credentials. No user-visible change; this is a design-principle
-phase ("the strategy engine should not care where the price data came from").
+**Current phase:** Phase 12 - Paper Trading (in progress). First increment: `AngelOneMarketDataAdapter`
+is a real implementation — login (client code + PIN + TOTP), the historical candle API, the
+scrip-master symbol-to-token mapping, and an LTP quote endpoint, all against Angel One's real
+SmartAPI (see "Angel One market data" below for setup and how to import real NSE stocks into
+the app). Still to come: live WebSocket ticks instead of the current REST-poll-based price
+lookups. No real-money order execution ever — see Security and Safety Principles.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -111,15 +110,54 @@ history — no separate backend endpoint or persistence.
 Market data adapter (`backend/app/adapters/`): `strategy_service._series()` and
 `backtest_service.run()` fetch candles via `get_market_data_adapter(db)` rather than querying
 `PriceData` or `market_service` directly. Switch providers with `MARKET_DATA_PROVIDER` in
-`.env` (`dummy`, the default, or `angel_one`) — selecting `angel_one` swaps in that adapter's
-shape today; its two methods raise `NotImplementedError` referencing Phase 12 until a real
-SmartAPI client and credentials (`ANGEL_ONE_API_KEY`, `ANGEL_ONE_CLIENT_CODE`) are wired in.
-`angel_one.py` documents what that wiring needs: the historical-candle API, the published
-scrip-master JSON for mapping a trading symbol to Angel One's instrument token
-(`resolve_instrument_token`), and that a real implementation should cache/throttle rather than
-call out on every UI refresh, given SmartAPI's rate limits. "Current price" (used by risk-based
-position sizing and the watchlist) still reads `Stock.current_price` directly rather than
-going through the adapter — that becomes a live LTP feed in Phase 12, not before.
+`.env` (`dummy`, the default, or `angel_one`). "Current price" (used by risk-based position
+sizing and the watchlist) still reads `Stock.current_price` directly rather than going through
+the adapter — that's a live WebSocket feed, not built yet.
+
+### Angel One market data (real SmartAPI)
+
+`AngelOneMarketDataAdapter` logs into a real Angel One account and serves real NSE candles/LTP
+through the same `MarketDataAdapter` interface the dummy simulator uses — nothing downstream
+(strategies, backtests, auto-trade) needs to know the difference. It never calls an
+order-placement endpoint; this project only ever reads data from Angel One (see Security and
+Safety Principles below).
+
+Setup:
+1. Register for an API key at the SmartAPI developer portal, and enable TOTP 2FA on your
+   Angel One account to get a TOTP secret (the seed key, not a 6-digit code).
+2. Fill in `ANGEL_ONE_API_KEY`, `ANGEL_ONE_CLIENT_CODE`, `ANGEL_ONE_PIN` and
+   `ANGEL_ONE_TOTP_SECRET` in your own `.env` — never anywhere else, never in Git.
+3. Test it directly, without running the full app:
+   ```bash
+   python scripts/test_angel_one_adapter.py RELIANCE
+   ```
+   This logs in, resolves `RELIANCE`'s instrument token from the scrip master, and prints its
+   latest price and last 10 daily candles, then logs out.
+4. Import real stocks into the app's own database:
+   ```bash
+   python scripts/import_real_stocks.py              # RELIANCE, TCS, INFY, HDFCBANK, ICICIBANK
+   python scripts/import_real_stocks.py RELIANCE TCS  # or specific symbols
+   ```
+   This creates a `Stock` row and real daily candles (`PriceData` rows) for each symbol, the
+   same tables the simulator's ALPHA/BETA/GAMMA/DELTA stocks use — so a real stock shows up in
+   every existing dropdown (Trade, Strategies, Backtests), chart and the home watchlist with no
+   frontend changes. Re-run the script any time to refresh a stock's price history.
+
+   `MARKET_DATA_PROVIDER` stays `dummy` — it isn't involved in this path and doesn't need to be
+   flipped. Each `Stock` row has a `source` column (`"simulated"` or `"angel_one"`); the
+   simulator (`market_service.generate_all`/`advance`/`reset_market`, used by "Advance market"
+   and "Reset" in the UI) only ever touches `source="simulated"` stocks, so it can never
+   overwrite a real stock's imported history.
+
+How it works: `loginByPassword` (client code + PIN + a freshly generated TOTP) returns a JWT
+that's reused across requests and proactively refreshed well before SmartAPI's midnight
+session expiry (`angel_one_auth.py`); the scrip master (a daily JSON dump of every tradable
+instrument) is downloaded once and cached to `data/angel_one_scrip_master.json` for 24 hours
+to resolve a trading symbol to the instrument token SmartAPI's data endpoints expect
+(`scrip_master.py`); historical candles are cached in memory for 60 seconds and both the
+candle and LTP endpoints are throttled to stay under SmartAPI's published per-second rate
+limits (`angel_one.py`) — the adapter is a natural place for that caching since every caller
+goes through it rather than hitting the API directly.
 
 ### What backtests still don't model
 
@@ -146,14 +184,16 @@ backend/
     db.py           SQLAlchemy engine/session (SQLite for now)
     logging_config.py
     api/            Route handlers
-    adapters/       MarketDataAdapter interface; dummy.py (wired up), angel_one.py (designed,
-                    not implemented until Phase 12); get_market_data_adapter() picks one
+    adapters/       MarketDataAdapter interface (base.py); dummy.py (today's default);
+                    angel_one.py + angel_one_auth.py + scrip_master.py (real SmartAPI client);
+                    get_market_data_adapter() picks one by MARKET_DATA_PROVIDER
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
                     PriceData, MarketConfig, Strategy, Signal, RiskSettings)
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding,
                     risk_service.py (position sizing, stop-loss, exposure caps),
-                    analytics_service.py (trade stats, drawdown, Sharpe, monthly returns)
+                    analytics_service.py (trade stats, drawdown, Sharpe, monthly returns),
+                    real_stocks.py (imports a real symbol's history into Stock/PriceData)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
@@ -166,5 +206,9 @@ frontend/
                   chart.js (shared price chart), why.js (the "Why?" card),
                   rulebuilder.js (custom-strategy condition editor)
   js/pages/       home.js, trade.js, strategies.js, backtests.js, performance.js, journal.js, soon.js
-data/               SQLite database file (gitignored)
+scripts/
+  start.bat             Double-click launcher
+  test_angel_one_adapter.py   Smoke-tests the real Angel One adapter against your own account
+  import_real_stocks.py       Imports real NSE stocks + history into the app's own database
+data/               SQLite database file + cached Angel One scrip master (gitignored)
 ```

@@ -30,7 +30,7 @@ def ensure_seed_data(db: Session, with_history: bool = True) -> None:
             )
     db.flush()
 
-    for stock in db.query(Stock).all():
+    for stock in db.query(Stock).filter(Stock.source == "simulated").all():
         market_service.get_config(db, stock)
 
     if with_history and db.query(PriceData).count() == 0:

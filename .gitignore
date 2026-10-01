@@ -10,6 +10,7 @@ __pycache__/
 # Local data / database
 data/*.db
 data/*.sqlite3
+data/angel_one_scrip_master.json
 
 # OS
 .DS_Store
