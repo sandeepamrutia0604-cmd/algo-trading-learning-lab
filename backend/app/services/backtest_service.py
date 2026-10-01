@@ -2,11 +2,12 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from ..adapters import get_market_data_adapter
 from ..engine import rule_engine
 from ..engine.backtest import BacktestResult, RiskConfig, run_backtest
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
-from . import market_service, risk_service
+from . import risk_service
 from .exceptions import InvalidStrategyError
 
 CUSTOM_TYPE = "custom"
@@ -58,12 +59,12 @@ def run(
     else:
         defn = _definition(type_key)
         clean = _normalize(defn, params)
-    prices = market_service.get_prices(db, symbol)
-    if len(prices) < 2:
+    candles = get_market_data_adapter(db).get_historical_candles(symbol)
+    if len(candles) < 2:
         raise InvalidStrategyError("Not enough price history to run a backtest")
 
-    dates = [p.timestamp.date() for p in prices]
-    closes = [p.close for p in prices]
+    dates = [c.date for c in candles]
+    closes = [c.close for c in candles]
     settings = risk_service.get_settings(db)
     risk = RiskConfig(
         enabled=settings.enabled,

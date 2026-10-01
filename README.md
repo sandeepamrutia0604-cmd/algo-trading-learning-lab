@@ -5,10 +5,13 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 10 - Strategy Comparison: on the Backtests page, run any mix of
-strategy types on the same stock's history and add each result to a side-by-side comparison —
-initial/final capital, return, trades, win rate and max drawdown in one table, plus an overlaid
-equity-curve chart. Measurements only, not a recommendation for real money.
+**Current phase:** Phase 11 - Market Data Adapter: the strategy engine, auto-trader and
+backtester now read historical candles through a `MarketDataAdapter` interface instead of
+depending on the dummy simulator directly. `DummyMarketDataAdapter` (today's only wired-up
+implementation) just serves the simulated history; an Angel One (SmartAPI) adapter's shape is
+designed and ready — `get_historical_candles`/`get_latest_price` raise `NotImplementedError`
+until Phase 12 plugs in real credentials. No user-visible change; this is a design-principle
+phase ("the strategy engine should not care where the price data came from").
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -105,6 +108,19 @@ click just keeps that backtest's result in the browser (up to 6 at a time), so c
 strategies is really running `/api/backtests/run` several times against the same stock's price
 history — no separate backend endpoint or persistence.
 
+Market data adapter (`backend/app/adapters/`): `strategy_service._series()` and
+`backtest_service.run()` fetch candles via `get_market_data_adapter(db)` rather than querying
+`PriceData` or `market_service` directly. Switch providers with `MARKET_DATA_PROVIDER` in
+`.env` (`dummy`, the default, or `angel_one`) — selecting `angel_one` swaps in that adapter's
+shape today; its two methods raise `NotImplementedError` referencing Phase 12 until a real
+SmartAPI client and credentials (`ANGEL_ONE_API_KEY`, `ANGEL_ONE_CLIENT_CODE`) are wired in.
+`angel_one.py` documents what that wiring needs: the historical-candle API, the published
+scrip-master JSON for mapping a trading symbol to Angel One's instrument token
+(`resolve_instrument_token`), and that a real implementation should cache/throttle rather than
+call out on every UI refresh, given SmartAPI's rate limits. "Current price" (used by risk-based
+position sizing and the watchlist) still reads `Stock.current_price` directly rather than
+going through the adapter — that becomes a live LTP feed in Phase 12, not before.
+
 ### What backtests still don't model
 
 Position sizing, available capital, stop-loss, max allocation, and no-look-ahead are all
@@ -130,6 +146,8 @@ backend/
     db.py           SQLAlchemy engine/session (SQLite for now)
     logging_config.py
     api/            Route handlers
+    adapters/       MarketDataAdapter interface; dummy.py (wired up), angel_one.py (designed,
+                    not implemented until Phase 12); get_market_data_adapter() picks one
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
                     PriceData, MarketConfig, Strategy, Signal, RiskSettings)
     schemas.py      Pydantic request/response models

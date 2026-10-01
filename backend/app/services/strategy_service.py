@@ -2,8 +2,9 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from ..adapters import get_market_data_adapter
 from ..engine import rule_engine
-from ..models import Position, PriceData, Signal, Stock, Strategy, Trade
+from ..models import Position, Signal, Stock, Strategy, Trade
 from ..strategies.base import ChartSeries, SignalEvent, StrategyDef
 from ..strategies.registry import get_definition
 from . import market_service, risk_service, trading_service
@@ -151,19 +152,16 @@ def delete_strategy(db: Session, strategy_id: int) -> None:
     db.commit()
 
 
-def _series(db: Session, stock_id: int) -> tuple[list[date], list[float]]:
-    rows = (
-        db.query(PriceData.timestamp, PriceData.close)
-        .filter(PriceData.stock_id == stock_id)
-        .order_by(PriceData.timestamp)
-        .all()
-    )
-    return [r[0].date() for r in rows], [r[1] for r in rows]
+def _series(db: Session, symbol: str) -> tuple[list[date], list[float]]:
+    """Historical closes for `symbol`, through the market data adapter (Phase 11) so the
+    strategy engine never depends on how the candles were actually produced."""
+    candles = get_market_data_adapter(db).get_historical_candles(symbol)
+    return [c.date for c in candles], [c.close for c in candles]
 
 
 def chart_series(db: Session, strategy: Strategy) -> tuple[list[date], list[ChartSeries]]:
     defn = strategy_definition(strategy)
-    dates, closes = _series(db, strategy.stock_id)
+    dates, closes = _series(db, strategy.stock.symbol)
     return dates, defn.chart_series(closes, strategy_params(strategy))
 
 
@@ -190,7 +188,7 @@ def _make_signal(strategy: Strategy, defn: StrategyDef, day: date, price: float,
 def run_on_history(db: Session, strategy: Strategy) -> list[Signal]:
     """Mark every signal in the current price history. Places no trades; keeps executed signals."""
     defn = strategy_definition(strategy)
-    dates, closes = _series(db, strategy.stock_id)
+    dates, closes = _series(db, strategy.stock.symbol)
     computed = {dates[e.index]: e for e in defn.generate(closes, strategy_params(strategy))}
     existing = {s.market_date: s for s in db.query(Signal).filter(Signal.strategy_id == strategy.id).all()}
 
@@ -238,7 +236,8 @@ def run_auto_strategies(db: Session) -> list[str]:
     exit overrides the strategy's own signal for the day."""
     events: list[str] = []
     for strategy in db.query(Strategy).filter(Strategy.auto_trade.is_(True)).all():
-        dates, closes = _series(db, strategy.stock_id)
+        stock = strategy.stock
+        dates, closes = _series(db, stock.symbol)
         if not closes:
             continue
 
@@ -246,7 +245,6 @@ def run_auto_strategies(db: Session) -> list[str]:
         if held > 0:
             stop_price = risk_service.stop_loss_price_for_strategy(db, strategy.id)
             if stop_price is not None and closes[-1] <= stop_price:
-                stock = db.get(Stock, strategy.stock_id)
                 trade = trading_service.execute_sell(
                     db, stock.symbol, held, reason=f"{strategy.name}: stop-loss at ₹{stop_price:,.2f}", strategy_id=strategy.id
                 )
@@ -262,7 +260,6 @@ def run_auto_strategies(db: Session) -> list[str]:
         if already is not None:
             continue
 
-        stock = db.get(Stock, strategy.stock_id)
         signal = _make_signal(strategy, defn, day, closes[-1], latest[0])
         db.add(signal)
         db.flush()
