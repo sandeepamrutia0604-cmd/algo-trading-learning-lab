@@ -5,10 +5,10 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
-**Current phase:** Phase 9 - Strategy Builder: build a strategy from your own entry/exit
-conditions — no Python required. Pick indicators (Price, SMA, RSI), operators (>, <, crosses
-above/below) and combine them with AND/OR, on the Strategies and Backtests builders alongside
-the six canned types.
+**Current phase:** Phase 10 - Strategy Comparison: on the Backtests page, run any mix of
+strategy types on the same stock's history and add each result to a side-by-side comparison —
+initial/final capital, return, trades, win rate and max drawdown in one table, plus an overlaid
+equity-curve chart. Measurements only, not a recommendation for real money.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -21,7 +21,8 @@ Screens (left navigation):
   Pick "Custom" to build your own entry/exit conditions instead.
 - **Backtests** - pick a type and starting capital, press "Run backtest" to replay it over
   history: final capital, return, trade count, win rate, max drawdown, an equity curve against
-  buy-and-hold, and every simulated trade. Nothing here touches your real paper portfolio.
+  buy-and-hold, and every simulated trade. Add a result to the strategy comparison table to
+  weigh it against other runs on the same stock. Nothing here touches your real paper portfolio.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - placeholder for a later phase.
@@ -59,6 +60,10 @@ and "My trades" to plot your BUY/SELL markers. Click a stock in the watchlist
 to switch the chart and order ticket to it. The market controls (+1 day, +5 days,
 Play, speed, Reset) are in the top bar on every screen.
 
+Every response (API and static frontend files) is sent with `Cache-Control: no-store`, since this
+is a local single-user app with fast-changing state and files that get edited during development —
+your browser should never show stale data or a stale script after a change.
+
 A signal on a given day only uses prices up to that day (no look-ahead). Auto-trade advances the
 market one day at a time so each signal trades at its own day's close. To add a strategy type,
 create a module in backend/app/strategies/ that defines a StrategyDef and register it in registry.py;
@@ -85,6 +90,11 @@ above SMA(50)" or "RSI(14) < 30"; exit works the same way. A custom strategy plu
 signals/chart/auto-trade/backtest pipeline as the six canned types — it just builds its
 StrategyDef from your condition tree (backend/app/engine/rule_engine.py) instead of Python code.
 For a stop-loss exit, use the Risk management tab rather than a condition.
+
+Strategy comparison (Backtests page) is purely a frontend feature: every "Add to comparison"
+click just keeps that backtest's result in the browser (up to 6 at a time), so comparing several
+strategies is really running `/api/backtests/run` several times against the same stock's price
+history — no separate backend endpoint or persistence.
 
 ## Test
 

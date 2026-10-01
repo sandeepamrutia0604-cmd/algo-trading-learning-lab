@@ -235,3 +235,33 @@ export function drawEquityChart(el, { dates, values, baseline, valueLabel = "Val
   };
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
 }
+
+/** Several named value-over-time lines on one chart, each with its own date axis (for
+ * comparing backtests that may cover different stocks or history lengths). */
+export function drawMultiLineChart(el, series) {
+  const c = themeColors();
+  const traces = series.map((s) => ({
+    type: "scatter",
+    mode: "lines",
+    name: s.label,
+    x: s.dates,
+    y: s.values,
+    line: { color: s.color, width: 2 },
+    hovertemplate: `${s.label}: ₹%{y:,.2f}<extra></extra>`,
+  }));
+  const all = series.flatMap((s) => s.values);
+  const low = Math.min(...all);
+  const high = Math.max(...all);
+  const pad = Math.max((high - low) * 0.12, Math.abs(high) * 0.005 || 1);
+  const layout = {
+    margin: { l: 8, r: 58, t: 6, b: 40 },
+    showlegend: true,
+    legend: { orientation: "h", font: { size: 10, color: c.muted }, y: -0.22 },
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: c.muted, size: 11 },
+    xaxis: { gridcolor: "rgba(0,0,0,0)", rangebreaks: [{ bounds: ["sat", "mon"] }], linecolor: c.line },
+    yaxis: { side: "right", gridcolor: c.line, tickprefix: "₹", tickformat: ",.0f", zeroline: false, range: [low - pad, high + pad] },
+  };
+  Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
+}

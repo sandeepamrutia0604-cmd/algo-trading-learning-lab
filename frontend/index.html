@@ -329,6 +329,7 @@
                       <h2 id="bt-title"></h2>
                       <div class="muted small" id="bt-sub"></div>
                     </div>
+                    <button id="bt-add-compare" class="btn">+ Add to comparison</button>
                   </div>
                   <div class="metrics-grid" id="bt-metrics"></div>
                 </div>
@@ -353,6 +354,22 @@
                     <tbody></tbody>
                   </table>
                   <p id="bt-trades-empty" class="empty" hidden>No completed trades in this run.</p>
+                </div>
+
+                <div class="panel">
+                  <div class="sd-head">
+                    <h3>Strategy comparison</h3>
+                    <button id="bt-clear-compare" class="btn" hidden>Clear comparison</button>
+                  </div>
+                  <p class="hint">Measurements from each backtest on the same stock's history — not a recommendation for which strategy to use with real money. Different strategies suit different market conditions.</p>
+                  <p id="bt-compare-empty" class="empty">Run a backtest above and press "Add to comparison" to compare strategies side by side.</p>
+                  <div id="bt-compare-content" hidden>
+                    <div id="bt-compare-chart" class="chart small"></div>
+                    <table id="bt-compare-table">
+                      <thead><tr><th>Strategy</th><th class="num">Initial</th><th class="num">Final</th><th class="num">Return</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th></th></tr></thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

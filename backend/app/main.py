@@ -44,6 +44,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 
+@app.middleware("http")
+async def no_cache_headers(request: Request, call_next):
+    """Local single-user app with fast-changing state (and frontend files edited during
+    development): never let the browser serve a stale cached response for anything."""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.exception_handler(TradingError)
 def trading_error_handler(request: Request, exc: TradingError):
     return JSONResponse(status_code=400, content={"detail": str(exc)})

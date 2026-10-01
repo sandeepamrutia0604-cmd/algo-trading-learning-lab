@@ -1,9 +1,12 @@
 import { $, api, money, percent, pnlClass, signedPercent, toast } from "../util.js";
 import { store } from "../store.js";
-import { drawEquityChart, drawPriceChart, loadChartData } from "../chart.js";
+import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
 import * as rb from "../rulebuilder.js";
 
-const state = { result: null, running: false };
+const MAX_COMPARE = 6;
+const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
+
+const state = { result: null, running: false, compareList: [] };
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
 const isCustom = () => $("bt-type").value === "custom";
@@ -198,11 +201,69 @@ function renderTrades(r) {
     .join("");
 }
 
+/* ---------------- comparison ---------------- */
+
+function addToComparison() {
+  if (!state.result) return;
+  if (state.compareList.length >= MAX_COMPARE) {
+    toast(`You can compare up to ${MAX_COMPARE} strategies at a time. Remove one first.`, true);
+    return;
+  }
+  state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label: `${state.result.type_label} on ${state.result.symbol}`, result: state.result });
+  renderComparison();
+  toast("Added to comparison.");
+}
+
+function removeFromComparison(id) {
+  state.compareList = state.compareList.filter((row) => row.id !== id);
+  renderComparison();
+}
+
+function renderComparison() {
+  const rows = state.compareList;
+  $("bt-compare-empty").hidden = rows.length > 0;
+  $("bt-compare-content").hidden = rows.length === 0;
+  $("bt-clear-compare").hidden = rows.length === 0;
+  if (!rows.length) return;
+
+  const ranked = [...rows].sort((a, b) => b.result.total_return_pct - a.result.total_return_pct);
+  document.querySelector("#bt-compare-table tbody").innerHTML = ranked
+    .map(
+      (row) => `<tr>
+        <td>${row.label}</td>
+        <td class="num">${money(row.result.initial_capital)}</td>
+        <td class="num">${money(row.result.final_capital)}</td>
+        <td class="num ${pnlClass(row.result.total_return_pct)}">${signedPercent(row.result.total_return_pct)}</td>
+        <td class="num">${row.result.total_trades}</td>
+        <td class="num">${percent(row.result.win_rate_pct)}</td>
+        <td class="num ${row.result.max_drawdown_pct > 0 ? "down" : ""}">${percent(row.result.max_drawdown_pct)}</td>
+        <td class="num"><button class="btn btn-sell" data-remove="${row.id}">Remove</button></td>
+      </tr>`,
+    )
+    .join("");
+  document.querySelector("#bt-compare-table tbody").querySelectorAll("[data-remove]").forEach((btn) =>
+    btn.addEventListener("click", () => removeFromComparison(btn.dataset.remove)),
+  );
+
+  if (typeof Plotly !== "undefined") {
+    drawMultiLineChart(
+      $("bt-compare-chart"),
+      rows.map((row, i) => ({
+        label: row.label,
+        dates: row.result.equity_curve.map((p) => p.date),
+        values: row.result.equity_curve.map((p) => p.value),
+        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+      })),
+    );
+  }
+}
+
 /* ---------------- public API ---------------- */
 
 export async function renderBacktests() {
   renderBuilder();
   await renderResults();
+  renderComparison();
 }
 
 export function initBacktests() {
@@ -221,4 +282,10 @@ export function initBacktests() {
   rb.initSide($("bt-exit-rows"), updateCustomPreview);
   $("bt-entry-logic").addEventListener("change", updateCustomPreview);
   $("bt-exit-logic").addEventListener("change", updateCustomPreview);
+
+  $("bt-add-compare").addEventListener("click", addToComparison);
+  $("bt-clear-compare").addEventListener("click", () => {
+    state.compareList = [];
+    renderComparison();
+  });
 }
