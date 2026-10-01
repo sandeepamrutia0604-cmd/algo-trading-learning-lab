@@ -154,7 +154,9 @@ async function renderResults() {
   $("bt-title").textContent = `${r.type_label} on ${r.symbol}`;
   $("bt-sub").textContent =
     `${r.rule} · ${r.quantity} shares per trade · started with ${money(r.initial_capital)}` +
-    (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped for insufficient cash` : "");
+    (r.risk_managed ? " · sized and stop-lossed using your Risk management settings" : "") +
+    (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
+    (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
   renderMetrics(r);
 
   const { prices } = await loadChartData(r.symbol, []);
@@ -191,7 +193,7 @@ function renderTrades(r) {
       (t) => `<tr>
         <td>${t.entry_date}</td>
         <td class="num">${money(t.entry_price)}</td>
-        <td>${t.exit_date || "-"}</td>
+        <td>${t.exit_date ? t.exit_date + (t.stopped_out ? ' <span class="chip">stop-loss</span>' : "") : "-"}</td>
         <td class="num">${t.exit_date ? money(t.exit_price) : `<span class="muted">open</span>`}</td>
         <td class="num">${t.quantity}</td>
         <td class="num ${t.pnl == null ? "" : pnlClass(t.pnl)}">${t.pnl == null ? "-" : money(t.pnl)}</td>
@@ -209,7 +211,8 @@ function addToComparison() {
     toast(`You can compare up to ${MAX_COMPARE} strategies at a time. Remove one first.`, true);
     return;
   }
-  state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label: `${state.result.type_label} on ${state.result.symbol}`, result: state.result });
+  const label = `${state.result.type_label} on ${state.result.symbol}` + (state.result.risk_managed ? " (risk-managed)" : "");
+  state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label, result: state.result });
   renderComparison();
   toast("Added to comparison.");
 }

@@ -4,6 +4,22 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..strategies.base import StrategyDef
+from . import risk_math
+
+
+@dataclass
+class RiskConfig:
+    """The subset of RiskSettings that applies to a single-stock backtest.
+
+    max_open_positions is deliberately not here: a backtest only ever trades one stock, so
+    a strategy that is long-only (at most one open position at a time, enforced upstream by
+    long_only_signals) already satisfies any max-open-positions setting >= 1 by construction.
+    """
+
+    enabled: bool = False
+    max_risk_per_trade_pct: float = 0.0
+    stop_loss_pct: float = 0.0
+    max_allocation_pct: float = 0.0
 
 
 @dataclass
@@ -15,6 +31,7 @@ class BacktestTrade:
     exit_price: float | None = None
     pnl: float | None = None
     pnl_pct: float | None = None
+    stopped_out: bool = False
 
     @property
     def is_open(self) -> bool:
@@ -38,8 +55,17 @@ class BacktestResult:
     win_rate_pct: float
     max_drawdown_pct: float
     skipped_buys: int
+    stopped_out: int = 0
     equity_curve: list[EquityPoint] = field(default_factory=list)
     trades: list[BacktestTrade] = field(default_factory=list)
+
+
+def _close_trade(trade: BacktestTrade, day: date, price: float, *, stopped_out: bool = False) -> None:
+    trade.exit_date = day
+    trade.exit_price = price
+    trade.pnl = (price - trade.entry_price) * trade.quantity
+    trade.pnl_pct = (price - trade.entry_price) / trade.entry_price * 100
+    trade.stopped_out = stopped_out
 
 
 def run_backtest(
@@ -49,44 +75,66 @@ def run_backtest(
     closes: list[float],
     quantity: int,
     initial_capital: float,
+    risk: RiskConfig | None = None,
 ) -> BacktestResult:
-    """Process `dates`/`closes` chronologically, buying/selling `quantity` shares on each
-    signal at that day's close, marking to market every day. A BUY is skipped if it would
-    cost more than the cash on hand (recorded in `skipped_buys`) rather than going short;
-    the engine's long/flat state still tracks the strategy's own alternating assumption,
-    since a SELL only fires once a BUY actually filled.
+    """Process `dates`/`closes` chronologically, buying/selling on each signal at that day's
+    close, marking to market every day. A BUY is skipped if it would cost more than the cash
+    on hand, or breach `risk.max_allocation_pct` (recorded in `skipped_buys`) rather than
+    going short; the engine's long/flat state still tracks the strategy's own alternating
+    assumption, since a SELL only fires once a BUY actually filled.
+
+    When `risk` is enabled, each BUY is sized from `risk.max_risk_per_trade_pct` and
+    `risk.stop_loss_pct` instead of the fixed `quantity` (same formula as live auto-trading),
+    and a held position is stop-lossed out the first day its close drops to or below the
+    entry's stop price — overriding the strategy's own signal for that day, exactly like
+    live auto-trading's own stop-loss check.
 
     `defn.generate()` (from the strategy registry) only ever looks at closes up to the
     signal's own day, so this carries over the no-look-ahead guarantee already enforced there.
     """
     events_by_index = {e.index: e for e in defn.generate(closes, params)}
+    risk = risk if risk is not None else RiskConfig()
 
     cash = initial_capital
     held = 0
     trades: list[BacktestTrade] = []
     equity_curve: list[EquityPoint] = []
     skipped_buys = 0
+    stopped_out = 0
     peak = initial_capital
     max_drawdown_pct = 0.0
 
     for i, day in enumerate(dates):
         price = closes[i]
         event = events_by_index.get(i)
+
+        if risk.enabled and risk.stop_loss_pct and held > 0:
+            open_trade = trades[-1]
+            stop_price = risk_math.stop_loss_price(open_trade.entry_price, risk.stop_loss_pct)
+            if price <= stop_price:
+                cash += price * held
+                _close_trade(open_trade, day, price, stopped_out=True)
+                held = 0
+                stopped_out += 1
+                event = None  # the strategy's own signal (if any) is superseded for today
+
         if event is not None and event.side == "BUY" and held == 0:
-            cost = price * quantity
-            if cost <= cash:
+            equity = cash + held * price
+            buy_qty = risk_math.position_size(equity, price, risk.max_risk_per_trade_pct, risk.stop_loss_pct, quantity) if risk.enabled else quantity
+            cost = price * buy_qty
+            allowed = buy_qty > 0 and cost <= cash
+            if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and cost > equity * risk.max_allocation_pct / 100 + 1e-9:
+                allowed = False
+            if allowed:
                 cash -= cost
-                held = quantity
-                trades.append(BacktestTrade(entry_date=day, entry_price=price, quantity=quantity))
+                held = buy_qty
+                trades.append(BacktestTrade(entry_date=day, entry_price=price, quantity=buy_qty))
             else:
                 skipped_buys += 1
         elif event is not None and event.side == "SELL" and held > 0:
             open_trade = trades[-1]
             cash += price * held
-            open_trade.exit_date = day
-            open_trade.exit_price = price
-            open_trade.pnl = (price - open_trade.entry_price) * held
-            open_trade.pnl_pct = (price - open_trade.entry_price) / open_trade.entry_price * 100
+            _close_trade(open_trade, day, price)
             held = 0
 
         equity = cash + held * price
@@ -110,6 +158,7 @@ def run_backtest(
         win_rate_pct=(winning / len(closed) * 100) if closed else 0.0,
         max_drawdown_pct=max_drawdown_pct,
         skipped_buys=skipped_buys,
+        stopped_out=stopped_out,
         equity_curve=equity_curve,
         trades=trades,
     )

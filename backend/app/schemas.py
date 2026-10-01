@@ -275,6 +275,7 @@ class BacktestTradeOut(BaseModel):
     pnl: float | None = None
     pnl_pct: float | None = None
     open: bool
+    stopped_out: bool = False
 
 
 class BacktestResultOut(BaseModel):
@@ -293,6 +294,8 @@ class BacktestResultOut(BaseModel):
     win_rate_pct: float
     max_drawdown_pct: float
     skipped_buys: int
+    stopped_out: int = 0
+    risk_managed: bool = False
     equity_curve: list[EquityPoint]
     trades: list[BacktestTradeOut]
     series: list[SeriesOut]

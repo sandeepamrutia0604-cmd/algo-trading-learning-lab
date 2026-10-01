@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.post("/backtests/run", response_model=BacktestResultOut)
 def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
-    defn, params, dates, closes, result = backtest_service.run(
+    defn, params, dates, closes, result, risk_managed = backtest_service.run(
         db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules
     )
     return BacktestResultOut(
@@ -36,6 +36,8 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
         win_rate_pct=result.win_rate_pct,
         max_drawdown_pct=result.max_drawdown_pct,
         skipped_buys=result.skipped_buys,
+        stopped_out=result.stopped_out,
+        risk_managed=risk_managed,
         equity_curve=[EquityPoint(date=p.date, value=round(p.value, 2)) for p in result.equity_curve],
         trades=[
             BacktestTradeOut(
@@ -47,6 +49,7 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
                 pnl=t.pnl,
                 pnl_pct=t.pnl_pct,
                 open=t.is_open,
+                stopped_out=t.stopped_out,
             )
             for t in result.trades
         ],

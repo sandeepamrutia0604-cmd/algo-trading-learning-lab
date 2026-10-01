@@ -3,10 +3,10 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from ..engine import rule_engine
-from ..engine.backtest import BacktestResult, run_backtest
+from ..engine.backtest import BacktestResult, RiskConfig, run_backtest
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
-from . import market_service
+from . import market_service, risk_service
 from .exceptions import InvalidStrategyError
 
 CUSTOM_TYPE = "custom"
@@ -42,7 +42,10 @@ def run(
     quantity: int,
     initial_capital: float,
     rules: dict | None = None,
-) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult]:
+) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult, bool]:
+    """Returns (defn, params, dates, closes, result, risk_enabled). The backtest applies the
+    same RiskSettings (position sizing, stop-loss, max allocation) live auto-trading would,
+    so a backtest result reflects what auto-trading this strategy would actually have done."""
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     if initial_capital <= 0:
@@ -61,5 +64,12 @@ def run(
 
     dates = [p.timestamp.date() for p in prices]
     closes = [p.close for p in prices]
-    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital)
-    return defn, clean, dates, closes, result
+    settings = risk_service.get_settings(db)
+    risk = RiskConfig(
+        enabled=settings.enabled,
+        max_risk_per_trade_pct=settings.max_risk_per_trade_pct,
+        stop_loss_pct=settings.stop_loss_pct,
+        max_allocation_pct=settings.max_allocation_pct,
+    )
+    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital, risk)
+    return defn, clean, dates, closes, result, settings.enabled

@@ -76,6 +76,15 @@ auto-sells its position if the price closes below the entry minus the stop-loss 
 positions and max allocation per stock apply to every BUY, manual or auto-trade. Turn it off
 and the app behaves exactly as it did in Phase 4-6 (fixed quantity, no caps, no stop-loss).
 
+Backtests use these same saved risk settings — if risk management is on, a backtest sizes and
+stop-losses its trades exactly as live auto-trading would, and its allocation cap can skip a
+buy (counted in `skipped_buys` alongside cash-starved skips). `max_open_positions` is the one
+setting a backtest can't exercise, since it only ever trades one stock at a time. The shared
+formulas live in `backend/app/engine/risk_math.py`, used by both `risk_service.py` (against the
+real DB portfolio) and `engine/backtest.py` (against the backtest's own simulated capital), so
+the two paths can never drift apart. With risk management off, backtests behave exactly as
+before — this is a correctness fix, not a new toggle.
+
 Price models: random walk, trending (momentum), volatile (~2.5x swings),
 sideways (mean-reverting). Changing a stock's model applies to newly
 generated days ("Advance" or "Regenerate history"), not past candles.
@@ -95,6 +104,15 @@ Strategy comparison (Backtests page) is purely a frontend feature: every "Add to
 click just keeps that backtest's result in the browser (up to 6 at a time), so comparing several
 strategies is really running `/api/backtests/run` several times against the same stock's price
 history — no separate backend endpoint or persistence.
+
+### What backtests still don't model
+
+Position sizing, available capital, stop-loss, max allocation, and no-look-ahead are all
+accounted for (see above). Not yet modeled, by design — these are slated for Phase 13
+(Advanced Topics): brokerage/commission, taxes, slippage, and whether a fill at that exact
+historical price was realistically achievable. Corporate actions (splits, dividends, bonus
+issues) don't apply yet either, since ALPHA/BETA/GAMMA/DELTA are synthetic dummy stocks, not
+real listed companies — that becomes relevant once Phase 11/12 bring in real market data.
 
 ## Test
 

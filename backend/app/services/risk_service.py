@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from ..engine import risk_math
 from ..models import Portfolio, Position, RiskSettings, Stock, Trade
 from .exceptions import TradingError
 
@@ -31,13 +32,9 @@ def position_size(db: Session, price: float, fallback_qty: int) -> int:
     the sizing formula from the plan's example. Falls back to `fallback_qty` (the strategy's
     own configured quantity) when risk management is off or isn't fully configured."""
     settings = get_settings(db)
-    if not settings.enabled or not settings.max_risk_per_trade_pct or not settings.stop_loss_pct:
+    if not settings.enabled:
         return fallback_qty
-    risk_amount = portfolio_value(db) * settings.max_risk_per_trade_pct / 100
-    risk_per_share = price * settings.stop_loss_pct / 100
-    if risk_per_share <= 0:
-        return fallback_qty
-    return max(0, int(risk_amount // risk_per_share))
+    return risk_math.position_size(portfolio_value(db), price, settings.max_risk_per_trade_pct, settings.stop_loss_pct, fallback_qty)
 
 
 def check_buy_allowed(db: Session, stock: Stock, quantity: int, price: float) -> None:
@@ -82,4 +79,4 @@ def stop_loss_price_for_strategy(db: Session, strategy_id: int) -> float | None:
     )
     if entry is None:
         return None
-    return entry.price * (1 - settings.stop_loss_pct / 100)
+    return risk_math.stop_loss_price(entry.price, settings.stop_loss_pct)
