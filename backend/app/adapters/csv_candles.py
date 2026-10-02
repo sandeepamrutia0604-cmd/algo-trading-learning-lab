@@ -71,7 +71,8 @@ def _parse_volume(text: str, line: int) -> int:
 
 
 def parse_candles(text: str) -> list[Candle]:
-    """Candles from CSV/TSV text, oldest first, one per date (a repeated date keeps its last row)."""
+    """Candles from CSV/TSV text, oldest first, one per date (a repeated date keeps its last row).
+    If the file has a Series column, only its EQ rows are used."""
     text = text.lstrip("﻿")
     first_line = next((ln for ln in text.splitlines() if ln.strip()), "")
     if not first_line:
@@ -93,11 +94,20 @@ def parse_candles(text: str) -> list[Candle]:
             "The first row must name the columns (Date, Open, High, Low, Close, Volume)."
         )
 
+    data_rows = [(reader.line_num, row) for row in reader if any(cell.strip() for cell in row)]
+
+    # NSE's "all series" download mixes the regular equity series (EQ) with block-deal (BL),
+    # trade-for-trade and other rows, sometimes on the same date and with wildly different
+    # volumes and prices. Only EQ is the stock's actual daily candle, so when the file says
+    # which series each row is, use EQ and ignore the rest (files with no EQ rows are left as-is).
+    series_col = next((i for i, cell in enumerate(header) if cell.strip().lower() == "series"), None)
+    if series_col is not None:
+        eq_rows = [(n, r) for n, r in data_rows if len(r) > series_col and r[series_col].strip().upper() == "EQ"]
+        if eq_rows:
+            data_rows = eq_rows
+
     by_date: dict[date, Candle] = {}
-    for row in reader:
-        if not any(cell.strip() for cell in row):
-            continue
-        line = reader.line_num
+    for line, row in data_rows:
         needed = max(columns.values())
         if len(row) <= needed:
             raise CsvImportError(f"Line {line}: expected at least {needed + 1} columns but found {len(row)}")

@@ -107,3 +107,55 @@ def test_load_candles_falls_back_to_cp1252_for_old_excel_exports(tmp_path):
     path = tmp_path / "old.csv"
     path.write_bytes("Date,Open,High,Low,Close,Volume,Note\n2026-10-01,1,2,1,2,5,café\n".encode("cp1252"))
     assert len(load_candles(path)) == 1
+
+
+# ---------- NSE "all series" downloads ----------
+
+# The layout of NSE's historical-data download: quoted headers with trailing spaces, Indian
+# digit grouping (1,67,71,221), day-Mon-year dates, and extra rows for other series on the
+# same date -- BL (block deals) here, with open = high = low = close and a different volume.
+NSE_FILE = (
+    '"Symbol  ","Series  ","Date  ","Prev Close  ","Open Price  ","High Price  ","Low Price  ",'
+    '"Last Price  ","Close Price  ","Average Price ","Total Traded Quantity  ","Turnover ₹  "\n'
+    '"RELIANCE","EQ","05-Oct-2021","2,556.15","2,555.10","2,612.00","2,547.35","2,610.25","2,609.20","2,582.03","62,45,770","16,12,67,67,140.45"\n'
+    '"RELIANCE","EQ","04-Oct-2021","2,523.70","2,553.00","2,574.85","2,537.05","2,558.00","2,556.15","2,556.97","50,38,910","12,88,43,46,776.35"\n'
+    '"RELIANCE","BL","04-Oct-2021","2,076.85","2,523.70","2,523.70","2,523.70","2,523.70","2,523.70","2,523.70","27,05,236","6,82,72,04,093.20"\n'
+)
+
+
+def test_parses_an_nse_download_headers_indian_digit_grouping_and_dates():
+    candles = parse_candles(NSE_FILE)
+
+    assert [c.date for c in candles] == [date(2021, 10, 4), date(2021, 10, 5)]
+    last = candles[-1]
+    assert (last.open, last.high, last.low, last.close, last.volume) == (2555.10, 2612.0, 2547.35, 2609.20, 6245770)
+
+
+def test_only_eq_rows_are_used_when_a_series_column_mixes_in_other_series():
+    day = parse_candles(NSE_FILE)[0]  # 04-Oct-2021 appears as EQ and as BL, BL listed last
+
+    assert (day.close, day.volume) == (2556.15, 5038910)  # the EQ row, not the block-deal row
+
+
+def test_the_eq_row_wins_whichever_order_the_series_are_listed_in():
+    lines = NSE_FILE.splitlines()
+    reordered = "\n".join([lines[0], lines[3], lines[1], lines[2]])  # BL row first
+
+    assert parse_candles(reordered)[0].close == 2556.15
+
+
+def test_non_eq_rows_with_unreadable_values_are_ignored_not_fatal():
+    broken_bl = NSE_FILE.replace('"2,523.70","2,523.70","2,523.70","2,523.70","2,523.70","2,523.70"', '"-","-","-","-","-","-"')
+
+    assert len(parse_candles(broken_bl)) == 2
+
+
+def test_a_file_with_a_series_column_but_no_eq_rows_keeps_what_it_has():
+    only_be = NSE_FILE.replace('"EQ"', '"BE"').replace('"BL"', '"BE"')
+
+    assert len(parse_candles(only_be)) == 2
+
+
+def test_a_file_without_a_series_column_is_unaffected():
+    text = "Date,Open,High,Low,Close,Volume\n2026-10-01,1,2,1,2,5\n"
+    assert len(parse_candles(text)) == 1
