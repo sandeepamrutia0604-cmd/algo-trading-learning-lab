@@ -380,8 +380,243 @@ export const MODULES = [
       },
     ],
   },
-  { id: 4, title: "What is an indicator?", minutes: 6, summary: "Moving averages, RSI and other numbers calculated from price history." },
-  { id: 5, title: "What is a trading strategy?", minutes: 6, summary: "Rules that turn indicators into BUY and SELL signals." },
+  {
+    id: 4,
+    title: "What is an indicator?",
+    minutes: 6,
+    summary: "Moving averages, RSI and other numbers calculated from price history.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "A price chart is a noisy line. An **indicator** is a number, calculated from past prices (and sometimes volume), that summarises something about that line: which way it is trending, how stretched it is, or how jumpy it has been. Indicators don't see the future. They are just a different, simpler way of looking at what has already happened.",
+      },
+      {
+        p: "Algorithms like indicators because they turn a vague feeling (\"it looks like it's going up\") into an exact number a program can test.",
+      },
+
+      { h: "Moving average (SMA)" },
+      {
+        p: "A **simple moving average** is the average of the last N closing prices. Each new day, the oldest price drops out of the window and the newest one comes in, so the average *moves* along with the price while smoothing out the day-to-day jumps. A 20-day SMA reacts quickly, and a 50-day SMA is slower and smoother.",
+      },
+      {
+        example: {
+          title: "A 5-day SMA, worked by hand",
+          text: "The last five closes are 100, 102, 101, 103 and 104. Their total is 510, so the 5-day SMA is 510 ÷ 5 = **102**. Tomorrow the stock closes at 106. The 100 drops out and the 106 comes in: 102, 101, 103, 104, 106 total 516, so the SMA becomes **103.2**. The price jumped 2 but the average moved only 1.2. That smoothing is the point.",
+        },
+      },
+      {
+        p: "When the price (or a fast SMA) is above a slow SMA, the recent trend is up. When it is below, the trend is down. The moment a fast average crosses the slow one is called a **crossover**, and it is one of the oldest trading signals there is.",
+      },
+
+      { h: "RSI: how stretched is the price?" },
+      {
+        p: "The **Relative Strength Index** compares the size of recent up days with recent down days (over 14 days by default) and boils it down to a score from **0 to 100**. A common reading is that below 30 means the stock has fallen fast and may be **oversold**, and above 70 means it has risen fast and may be **overbought**. \"May be\" is doing a lot of work: in a strong trend RSI can stay above 70 for weeks.",
+      },
+
+      { h: "Bollinger Bands: how far is too far?" },
+      {
+        p: "Bollinger Bands draw a moving average in the middle, with an upper and lower band a few **standard deviations** above and below it. Standard deviation is just a measure of how much prices usually stray from their average. When the price pokes through the lower band, it is unusually low compared with its own recent past, and through the upper band, unusually high. The bands widen when the stock gets jumpy and tighten when it calms down.",
+      },
+
+      { h: "Volatility" },
+      {
+        p: "**Volatility** measures how much a price jumps around from day to day. A calm stock that moves 0.5% a day is low volatility. One that regularly moves 3% is high volatility. It says nothing about direction, only about how bumpy the ride is, and it matters a lot for risk, which comes later in this course.",
+      },
+      {
+        note: "Indicators **lag**: they are built from the past, so they confirm a move after it has started. No indicator predicts the future, and a signal that worked on one stock or one year can fail on the next. Treat indicators as tools for describing the market, not as crystal balls.",
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Indicator", "A number calculated from past prices that summarises something about them."],
+          ["SMA", "Simple moving average: the average of the last N closing prices."],
+          ["Crossover", "When a fast average crosses above or below a slow one."],
+          ["RSI", "A 0 to 100 score of how fast the price has recently risen or fallen."],
+          ["Bollinger Bands", "A moving average with bands a few standard deviations either side."],
+          ["Volatility", "How much the price jumps around from day to day."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Play with moving averages on RELIANCE",
+          hint: "Practical experiment: on the chart toolbar the two SMA boxes (blue and orange) show the 20-day and 50-day averages. Change the 20 to 5 and watch the blue line hug the price. Change it to 100 and watch it go smooth and late. Notice where the fast line crosses the slow one.",
+          route: "trade",
+          symbol: "RELIANCE",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "What is a simple moving average (SMA)?",
+        options: [
+          "The highest price of the last N days.",
+          "The price at which a stock opened.",
+          "The average of the last N closing prices.",
+          "A forecast of tomorrow's price.",
+        ],
+        answer: 2,
+        why: "An SMA averages the last N closes and moves forward one day at a time. It is built entirely from past prices, so it describes the market and doesn't forecast it.",
+      },
+      {
+        q: "Compared with a 50-day SMA, a 20-day SMA is:",
+        options: [
+          "Faster to react to price changes, but noisier.",
+          "Slower, but smoother.",
+          "Exactly the same.",
+          "Only useful for volatile stocks.",
+        ],
+        answer: 0,
+        why: "A shorter window gives each recent day more weight, so the line follows the price closely. A longer window is smoother but slower to turn.",
+      },
+      {
+        q: "A stock's RSI reads 82. What is the usual interpretation?",
+        options: [
+          "It is certain to fall tomorrow.",
+          "It has been very quiet.",
+          "It is a guaranteed buy.",
+          "It has risen fast and may be overbought, though in a strong trend it can stay high.",
+        ],
+        answer: 3,
+        why: "Above 70 is commonly read as overbought: the price has risen quickly. That is a warning light, not a prediction, because trending stocks can stay overbought for a long time.",
+      },
+      {
+        q: "Why do indicators \"lag\"?",
+        options: [
+          "The exchange sends the data late.",
+          "They are calculated from past prices, so they confirm a move after it has begun.",
+          "They only update once a week.",
+          "Because they ignore the closing price.",
+        ],
+        answer: 1,
+        why: "Every indicator is a calculation on prices that have already happened, so it can only describe or confirm. That is why none of them can reliably predict what comes next.",
+      },
+    ],
+  },
+
+  {
+    id: 5,
+    title: "What is a trading strategy?",
+    minutes: 6,
+    summary: "Rules that turn indicators into BUY and SELL signals.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "A **trading strategy** is a set of rules, written down exactly enough that a computer could follow them, that says when to buy and when to sell. Instead of deciding each trade on a hunch, you decide the rules in advance and let them make the calls. That is what makes it *algorithmic* trading.",
+      },
+      {
+        p: "A strategy needs two things: an **entry rule** (when to BUY) and an **exit rule** (when to SELL). Both must be unambiguous. \"Buy when it looks strong\" is not a rule. \"Buy when the 20-day SMA crosses above the 50-day SMA\" is.",
+      },
+
+      { h: "Signals" },
+      {
+        p: "Each day the strategy checks its rules against the latest prices. When a rule is met, it produces a **signal**: BUY or SELL, on that day, at that price. A signal is just a message that says \"the rules say act now\". Whether anything is actually traded is a separate step. In this lab, signals are marked on the chart, and if you turn on **auto-trade** the strategy also places a paper trade at that day's close. A strategy holds one position at a time.",
+      },
+      {
+        example: {
+          title: "The classic: moving average crossover",
+          text: "**Entry:** BUY when the 20-day SMA crosses above the 50-day SMA, meaning recent prices have climbed above the longer-term average. **Exit:** SELL when the 20-day SMA crosses back below the 50-day SMA. Two numbers and two rules, and a computer can follow it without any judgement.",
+        },
+      },
+
+      { h: "Two big families" },
+      {
+        terms: [
+          ["Trend following", "Bets that a move will continue: buy strength, sell weakness. MA Crossover and Breakout work this way. They do well in steady trends and badly in choppy, sideways markets."],
+          ["Mean reversion", "Bets that a stretched price will snap back to normal: buy when it's unusually low, sell when it returns to average. RSI, Bollinger Bands and Mean Reversion work this way. They do well in sideways markets and badly in steady downtrends."],
+        ],
+      },
+      {
+        p: "Neither family is better. Each one fits a different kind of market, which is why every strategy in this lab lists where it **works best** and where it **struggles**.",
+      },
+      {
+        p: "The classic trend follower's enemy is the **whipsaw**: the price wobbles around the average, the fast line crosses up, then straight back down, and each false signal costs a little money. A crossover strategy can lose small amounts over and over in a sideways market, then win big in a trend.",
+      },
+
+      { h: "Strategies in this lab" },
+      {
+        list: [
+          "**MA Crossover**: buy when a fast average crosses above a slow one.",
+          "**RSI**: buy when RSI falls below the oversold line, sell when it rises above the overbought line.",
+          "**Bollinger Bands**: buy below the lower band, sell above the upper band.",
+          "**Mean Reversion**: buy when the price is unusually far below its average, sell when it returns.",
+          "**Breakout**: buy a new N-day high, sell a new M-day low.",
+          "**Combined**: a crossover that also needs RSI, price and volatility checks to agree.",
+          "**Custom rules**: build your own entry and exit rules from the indicators.",
+        ],
+      },
+      {
+        note: "A strategy that looks good when you scroll through a chart is not proven. It might just match the stretch of history you happened to look at. The next module, backtesting, is how you test it properly, and the one after that is how you protect yourself when it is wrong.",
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Strategy", "A set of exact rules for when to buy and sell."],
+          ["Entry / exit rule", "The condition that triggers a BUY, and the one that triggers a SELL."],
+          ["Signal", "A BUY or SELL message produced when a rule is met."],
+          ["Auto-trade", "Letting a strategy place paper trades on its own as the market advances."],
+          ["Whipsaw", "A false signal that reverses straight away and costs a little money."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Create a strategy on RELIANCE",
+          hint: "Practical experiment: choose MA Crossover, keep the default 20 and 50 and press Create strategy, then press Run on history on its card. Look at where the BUY and SELL signals fall in the Signals table. Which ones came too late? Which were whipsaws?",
+          route: "strategies",
+          symbol: "RELIANCE",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "Which of these is a proper entry rule for an algorithm?",
+        options: [
+          "Buy when the stock looks strong.",
+          "Buy when the 20-day SMA crosses above the 50-day SMA.",
+          "Buy whenever you feel confident.",
+          "Buy low and sell high.",
+        ],
+        answer: 1,
+        why: "A rule must be exact enough for a computer to check. The SMA crossover can be tested on any day with no judgement, while the others depend on opinion.",
+      },
+      {
+        q: "A strategy produces a BUY signal. What does that mean in this lab?",
+        options: [
+          "Shares have already been bought.",
+          "It guarantees a profit.",
+          "The rules say to buy now. A paper trade is placed only if auto-trade is on.",
+          "The market date moves forward.",
+        ],
+        answer: 2,
+        why: "A signal is only a message that the rules were met. It is marked on the chart. A trade follows only when auto-trade is switched on for that strategy.",
+      },
+      {
+        q: "Which kind of market is the worst for a moving average crossover strategy?",
+        options: [
+          "A steady, strong uptrend.",
+          "A steady, strong downtrend.",
+          "A rapidly rising market.",
+          "A sideways, choppy market full of false crossovers.",
+        ],
+        answer: 3,
+        why: "In a sideways market the fast average keeps crossing the slow one back and forth. Each false crossover (a whipsaw) loses a little money, and there is never a big trend to pay for them.",
+      },
+      {
+        q: "RSI and Bollinger Band strategies buy when a price is unusually low. What are they betting on?",
+        options: [
+          "That the price will keep falling.",
+          "That the company will pay a dividend.",
+          "That the price will move back towards its average.",
+          "That volume will rise.",
+        ],
+        answer: 2,
+        why: "These are mean reversion strategies. They bet that a stretched price will return to normal. They struggle in strong downtrends, where cheap prices keep getting cheaper.",
+      },
+    ],
+  },
   { id: 6, title: "What is backtesting?", minutes: 7, summary: "Replaying a strategy over history, and why trading costs matter." },
   { id: 7, title: "What is risk management?", minutes: 6, summary: "Position sizing, stop-losses and limits that protect your capital." },
   { id: 8, title: "What is overfitting?", minutes: 6, summary: "Why a strategy that looks perfect on past data can fail on new data." },
