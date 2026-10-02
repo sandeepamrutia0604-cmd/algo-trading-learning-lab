@@ -540,3 +540,10 @@ tr:last-child td { border-bottom: 0; }
 .quiz-feedback.good b { color: var(--up); }
 .quiz-feedback.bad { color: var(--down); }
 .quiz-result { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border: 1px solid var(--up); background: color-mix(in srgb, var(--up) 10%, transparent); border-radius: 8px; padding: 12px 16px; line-height: 1.55; }
+
+/* ---------- import from a broker ---------- */
+.import-results { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; line-height: 1.5; }
+.import-results .ok b { color: var(--up); }
+.import-results .bad b { color: var(--down); }
+.import-results .muted { font-size: 12px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; }

@@ -206,6 +206,25 @@ header. Both the file layout and the endpoint were checked against Upstox's docs
 instrument file. `MARKET_DATA_PROVIDER=upstox` also works, like `angel_one`, but the import
 above is the usual route.
 
+### Adding stocks from the app: Trade, then Import data
+
+The **Import data** tab on the Trade page has an **Import from** choice: *A file (CSV)*, *Upstox* or
+*Angel One*. For a broker, type plain NSE symbols (`SBIN, WIPRO, INFY`, up to 25 at a time), pick
+the years of history (Upstox: 1 to 10, default 5; Angel One gives about 400 days), and press
+Import. Each stock is fetched and stored on its own, so one unknown symbol is reported without
+stopping the rest, and the result list shows what was stored for each (company name, candle
+count, date range, price). New stocks appear in every dropdown straight away and replay on the
+market clock like the others.
+
+The tab first shows whether the chosen broker is set up. If not, it names the `.env` settings
+still missing (names only, never values); add them to your local `.env` and press *check again*
+-- the app re-reads `.env` on each check, so no restart is needed. Your credentials are only ever
+read by the server and are never typed into the page or sent to it. By default a stock you
+already have is **replaced** by the broker's history (the page asks first); tick *Keep existing
+history (merge)* to keep anything the broker doesn't return. A rejected Upstox token stops the
+batch with a clear message instead of failing every symbol the same way. The command-line
+script and this screen share one code path (`services/data_sources.py`), so they behave alike.
+
 ### Importing market data from a file (no credentials)
 
 If you'd rather not put broker credentials in `.env` at all, download daily candles yourself

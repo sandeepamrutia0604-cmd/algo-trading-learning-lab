@@ -369,6 +369,96 @@ async function applyCostSettings() {
   }
 }
 
+/* ---------------- importing from a broker (Upstox / Angel One) ---------------- */
+
+const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const importState = { sources: [], busy: false };
+
+function renderBrokerStatus() {
+  const key = $("im-source").value;
+  const source = importState.sources.find((s) => s.key === key);
+  const status = $("im-broker-status");
+  if (!source) {
+    status.textContent = "Checking whether this source is set up...";
+    return;
+  }
+  status.innerHTML = source.configured
+    ? `<b class="up">&#10003; ${escapeHtml(source.label)} is set up.</b> ${escapeHtml(source.note)}`
+    : `<b class="down">${escapeHtml(source.label)} isn't set up yet.</b> Add ${source.missing.map((m) => `<code>${escapeHtml(m)}</code>`).join(", ")} to your local <code>.env</code> file, then <button type="button" class="link-btn" id="im-recheck">check again</button>. No restart is needed.`;
+  const recheck = $("im-recheck");
+  if (recheck) recheck.addEventListener("click", loadDataSources);
+}
+
+async function loadDataSources() {
+  try {
+    importState.sources = await api("/data-sources");
+  } catch (err) {
+    importState.sources = [];
+    toast(err.message, true);
+  }
+  renderBrokerStatus();
+}
+
+function switchImportSource() {
+  const source = $("im-source").value;
+  const fromFile = source === "file";
+  $("im-file-section").hidden = !fromFile;
+  $("im-broker-section").hidden = fromFile;
+  $("im-years-field").hidden = source !== "upstox";
+  if (!fromFile) {
+    renderBrokerStatus();
+    loadDataSources();
+  }
+}
+
+function renderBrokerResults(result) {
+  const rows = result.results
+    .map((r) =>
+      r.ok
+        ? `<div class="ok"><b>&#10003; ${escapeHtml(r.symbol)}</b> ${r.name && r.name !== r.symbol ? escapeHtml(r.name) : ""} <span class="muted">&middot; ${r.candles_stored.toLocaleString("en-IN")} candles (${r.first_date} to ${r.last_date}) &middot; price ${money(r.current_price)}</span></div>`
+        : `<div class="bad"><b>&#10007; ${escapeHtml(r.symbol)}</b> ${escapeHtml(r.error)}</div>`,
+    )
+    .join("");
+  const summary = `<div><b>Imported ${result.imported} of ${result.results.length}.</b> <span class="muted">Market date ${result.market_date}; later candles are revealed as the market advances.</span></div>`;
+  $("im-broker-results").innerHTML = summary + rows;
+}
+
+async function importFromBroker() {
+  if (importState.busy) return;
+  const source = $("im-source").value;
+  const symbols = [...new Set($("im-symbols").value.split(/[\s,;]+/).map((s) => s.replace(/[^A-Za-z0-9&-]/g, "").toUpperCase()).filter(Boolean))];
+  if (!symbols.length) return toast("Enter at least one symbol, for example SBIN, WIPRO", true);
+  if (symbols.length > 25) return toast("Import up to 25 symbols at a time", true);
+
+  const merge = $("im-merge").checked;
+  const existing = symbols.filter((s) => stockBySymbol(s));
+  if (!merge && existing.length && !confirm(`This replaces the stored history for ${existing.join(", ")} with the broker's data. Continue?`)) return;
+
+  const body = { source, symbols, merge };
+  if (source === "upstox") body.years = parseInt($("im-years").value, 10) || 5;
+
+  const button = $("im-broker-apply");
+  importState.busy = true;
+  button.disabled = true;
+  button.textContent = "Importing...";
+  $("im-broker-results").innerHTML = `<div class="muted">Fetching ${symbols.length} stock${symbols.length === 1 ? "" : "s"} from ${source === "upstox" ? "Upstox" : "Angel One"}. This can take a few seconds each.</div>`;
+  try {
+    const result = await api("/data-sources/import", { method: "POST", body: JSON.stringify(body) });
+    renderBrokerResults(result);
+    toast(`Imported ${result.imported} of ${result.results.length}`, result.imported === 0);
+    const first = result.results.find((r) => r.ok);
+    if (first) store.symbol = first.symbol;
+    await hooks.refresh();
+  } catch (err) {
+    $("im-broker-results").innerHTML = "";
+    toast(err.message, true);
+  } finally {
+    importState.busy = false;
+    button.disabled = false;
+    button.textContent = "Import from broker";
+  }
+}
+
 const cleanSymbol = (text) => text.replace(/[^A-Za-z0-9&-]/g, "").slice(0, 10).toUpperCase();
 
 /* Fill in the symbol from the file itself when it names one (NSE downloads have a Symbol or
@@ -503,6 +593,8 @@ export function initTrade() {
     if (e.target.value === "trending" && parseFloat($("m-trend").value) === 0) $("m-trend").value = 0.3;
   });
 
+  $("im-source").addEventListener("change", switchImportSource);
+  $("im-broker-apply").addEventListener("click", importFromBroker);
   $("im-apply").addEventListener("click", importData);
   $("im-file").addEventListener("change", suggestSymbol);
   $("co-apply").addEventListener("click", applyCostSettings);

@@ -35,6 +35,40 @@ class StockImportOut(BaseModel):
     market_date: dt.date | None = None
 
 
+class DataSourceOut(BaseModel):
+    key: str
+    label: str
+    configured: bool
+    missing: list[str]  # names of the .env settings still needed, never their values
+    note: str
+
+
+class BrokerImportRequest(BaseModel):
+    source: Literal["upstox", "angel_one"]
+    symbols: list[str] = Field(min_length=1, max_length=25)
+    years: int | None = Field(default=None, ge=1, le=10)
+    merge: bool = False
+
+
+class BrokerImportItem(BaseModel):
+    symbol: str
+    ok: bool
+    name: str | None = None
+    candles_stored: int | None = None
+    first_date: dt.date | None = None
+    last_date: dt.date | None = None
+    current_price: float | None = None
+    error: str | None = None
+
+
+class BrokerImportOut(BaseModel):
+    source: str
+    results: list[BrokerImportItem]
+    imported: int
+    failed: int
+    market_date: dt.date | None = None
+
+
 class OrderRequest(BaseModel):
     symbol: str
     quantity: int = Field(gt=0)

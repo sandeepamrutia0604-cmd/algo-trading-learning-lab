@@ -30,46 +30,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import func  # noqa: E402
-
-from backend.app.adapters.angel_one import AngelOneMarketDataAdapter  # noqa: E402
-from backend.app.adapters.upstox import MAX_DAYS_PER_REQUEST, UpstoxError, UpstoxMarketDataAdapter  # noqa: E402
-from backend.app.config import settings  # noqa: E402
+from backend.app.adapters.angel_one_auth import AngelOneAuthError  # noqa: E402
 from backend.app.db import Base, SessionLocal, engine  # noqa: E402
 from backend.app.migrations import ensure_columns  # noqa: E402
-from backend.app.models import PriceData  # noqa: E402
-from backend.app.services.exceptions import StockNotFoundError  # noqa: E402
-from backend.app.services.real_stocks import REAL_STOCKS, import_real_stock  # noqa: E402
-
-
-def missing_settings(pairs: list[tuple[str, str]]) -> list[str]:
-    return [name for name, value in pairs if not value]
-
-
-def build_angel_one():
-    missing = missing_settings(
-        [
-            ("ANGEL_ONE_API_KEY", settings.angel_one_api_key),
-            ("ANGEL_ONE_CLIENT_CODE", settings.angel_one_client_code),
-            ("ANGEL_ONE_PIN", settings.angel_one_pin),
-            ("ANGEL_ONE_TOTP_SECRET", settings.angel_one_totp_secret),
-        ]
-    )
-    if missing:
-        sys.exit(f"Missing from .env: {', '.join(missing)}")
-    adapter = AngelOneMarketDataAdapter(
-        settings.angel_one_api_key, settings.angel_one_client_code, settings.angel_one_pin, settings.angel_one_totp_secret
-    )
-    print(f"Logging in as {settings.angel_one_client_code}...")
-    adapter.auth.login()
-    print("Login OK.")
-    return adapter, adapter.auth.logout
-
-
-def build_upstox(years: int):
-    if missing_settings([("UPSTOX_ANALYTICS_TOKEN", settings.upstox_analytics_token)]):
-        sys.exit("Missing from .env: UPSTOX_ANALYTICS_TOKEN (Upstox Developer Apps page -> Analytics tab -> Generate Token)")
-    return UpstoxMarketDataAdapter(settings.upstox_analytics_token, history_days=years * 365), lambda: None
+from backend.app.services import data_sources  # noqa: E402
+from backend.app.services.real_stocks import REAL_STOCKS  # noqa: E402
 
 
 def main() -> None:
@@ -83,45 +48,35 @@ def main() -> None:
     if args.years is not None:
         if args.source != "upstox":
             parser.error("--years only applies to --source upstox")
-        if not 1 <= args.years <= MAX_DAYS_PER_REQUEST // 365:
-            parser.error(f"--years must be between 1 and {MAX_DAYS_PER_REQUEST // 365}")
+        if not 1 <= args.years <= data_sources.MAX_YEARS:
+            parser.error(f"--years must be between 1 and {data_sources.MAX_YEARS}")
 
-    known_names = {s["symbol"]: s["name"] for s in REAL_STOCKS}
-    if args.symbols:
-        stocks = [{"symbol": s.upper(), "name": known_names.get(s.upper())} for s in args.symbols]  # None keeps an existing name
-    else:
-        stocks = REAL_STOCKS
+    symbols = [s.upper() for s in args.symbols] or [s["symbol"] for s in REAL_STOCKS]
 
     Base.metadata.create_all(bind=engine)
     ensure_columns(engine)
 
-    adapter, cleanup = build_angel_one() if args.source == "angel_one" else build_upstox(args.years or 5)
-    failures = []
+    try:
+        adapter, close = data_sources.open_adapter(args.source, args.years)
+    except (data_sources.SourceNotConfigured, AngelOneAuthError) as err:
+        sys.exit(str(err))
+
     db = SessionLocal()
     try:
-        for entry in stocks:
-            try:
-                stock = import_real_stock(
-                    db, adapter, entry["symbol"], entry["name"], source=args.source, replace=not args.merge
-                )
-                db.commit()
-            except (StockNotFoundError, UpstoxError, ValueError) as err:
-                db.rollback()
-                failures.append(entry["symbol"])
-                print(f"  {entry['symbol']}: NOT IMPORTED -- {err}")
-                continue
-            count, first, last = (
-                db.query(func.count(PriceData.id), func.min(PriceData.timestamp), func.max(PriceData.timestamp))
-                .filter(PriceData.stock_id == stock.id)
-                .one()
-            )
-            print(f"  {stock.symbol}: {stock.name} -- {count} candles ({first.date()} to {last.date()}), current price {stock.current_price}")
+        outcomes = data_sources.import_symbols(db, adapter, symbols, source=args.source, merge=args.merge)
     finally:
-        cleanup()
+        close()
         db.close()
 
-    if failures:
-        sys.exit(f"{len(failures)} of {len(stocks)} stock(s) were not imported: {', '.join(failures)}")
+    for o in outcomes:
+        if o.ok:
+            print(f"  {o.symbol}: {o.name} -- {o.candles} candles ({o.first_date} to {o.last_date}), current price {o.current_price}")
+        else:
+            print(f"  {o.symbol}: NOT IMPORTED -- {o.error}")
+
+    failed = [o.symbol for o in outcomes if not o.ok]
+    if failed:
+        sys.exit(f"{len(failed)} of {len(outcomes)} stock(s) were not imported: {', '.join(failed)}")
 
 
 if __name__ == "__main__":

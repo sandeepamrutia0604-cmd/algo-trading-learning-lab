@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .api.analytics import router as analytics_router
 from .api.backtests import router as backtests_router
 from .api.costs import router as costs_router
+from .api.data_sources import router as data_sources_router
 from .api.health import router as health_router
 from .api.market import router as market_router
 from .api.orders import router as orders_router
@@ -80,6 +81,7 @@ app.include_router(strategies_router, prefix="/api")
 app.include_router(backtests_router, prefix="/api")
 app.include_router(risk_router, prefix="/api")
 app.include_router(costs_router, prefix="/api")
+app.include_router(data_sources_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"

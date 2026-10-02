@@ -45,7 +45,12 @@ LATEST_PRICE_LOOKBACK_DAYS = 14  # enough to span a long holiday weekend
 
 
 class UpstoxError(RuntimeError):
-    """The Upstox API (or its token) rejected a request. The message never contains the token."""
+    """The Upstox API (or its token) rejected a request. The message never contains the token.
+    `auth_failed` marks a rejected token (HTTP 401/403), which will fail every other request too."""
+
+    def __init__(self, message: str, *, auth_failed: bool = False):
+        super().__init__(message)
+        self.auth_failed = auth_failed
 
 
 # ---------- instrument file ----------
@@ -85,13 +90,14 @@ def load_instruments(
     return rows
 
 
-def build_instrument_map(rows: list[dict]) -> dict[str, str]:
-    """{trading symbol: instrument key}, preferring a symbol's EQ row over its BE row."""
+def build_instrument_map(rows: list[dict], field: str = "instrument_key") -> dict[str, str]:
+    """{trading symbol: row[field]} -- the instrument key by default, or e.g. the company
+    name -- preferring a symbol's EQ row over its BE row."""
     mapping: dict[str, str] = {}
     for series in reversed(SERIES_BY_PREFERENCE):  # BE first, so EQ overwrites it
         for row in rows:
             if row.get("segment") == EQUITY_SEGMENT and row.get("instrument_type") == series:
-                mapping[row["trading_symbol"]] = row["instrument_key"]
+                mapping[row["trading_symbol"]] = row.get(field, "")
     return mapping
 
 
@@ -117,6 +123,7 @@ class UpstoxMarketDataAdapter(MarketDataAdapter):
         self.instruments_cache_path = instruments_cache_path
         self.http = http or httpx.Client(base_url=BASE_URL, timeout=30.0)
         self._instrument_map: dict[str, str] | None = None
+        self._instrument_names: dict[str, str] = {}
         self._candle_cache: dict[str, tuple[datetime, list[Candle]]] = {}
         self._limiter = RateLimiter(MIN_REQUEST_INTERVAL)
 
@@ -124,10 +131,18 @@ class UpstoxMarketDataAdapter(MarketDataAdapter):
         if self._instrument_map is None:
             rows = load_instruments(self.http, self.instruments_cache_path)
             self._instrument_map = build_instrument_map(rows)
+            self._instrument_names = build_instrument_map(rows, "name")
         try:
             return self._instrument_map[symbol.strip().upper()]
         except KeyError:
             raise StockNotFoundError(f"Unknown Upstox NSE equity symbol: {symbol}") from None
+
+    def instrument_name(self, symbol: str) -> str | None:
+        """The company's name from Upstox's instrument file, tidied from ALL CAPS ("WIPRO LTD"
+        becomes "Wipro Ltd"); None for a symbol Upstox doesn't list."""
+        self._key_for(symbol)  # loads the instrument file
+        name = self._instrument_names.get(symbol.strip().upper())
+        return name.title() if name else None
 
     def resolve_instrument_key(self, symbol: str) -> str:
         """Public alias for _key_for, for callers (a smoke-test script) that just want the key."""
@@ -159,7 +174,7 @@ class UpstoxMarketDataAdapter(MarketDataAdapter):
             path, headers={"Accept": "application/json", "Authorization": f"Bearer {self._token}"}
         )
         if response.status_code != 200:
-            raise UpstoxError(self._error_message(response))
+            raise UpstoxError(self._error_message(response), auth_failed=response.status_code in (401, 403))
         body = response.json()
         if body.get("status") != "success":
             raise UpstoxError(f"Upstox did not return candles: {body.get('message') or body}")

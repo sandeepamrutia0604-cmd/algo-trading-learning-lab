@@ -224,6 +224,17 @@
 
               <div id="tab-import" class="tabpane" hidden>
                 <div class="controls">
+                  <label class="field">Import from
+                    <select id="im-source">
+                      <option value="file">A file (CSV)</option>
+                      <option value="upstox">Upstox</option>
+                      <option value="angel_one">Angel One</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="im-file-section">
+                <div class="controls">
                   <label class="field">Symbol <input id="im-symbol" type="text" maxlength="10" placeholder="RELIANCE" /></label>
                   <label class="field">Name (optional) <input id="im-name" type="text" maxlength="100" placeholder="Reliance Industries" /></label>
                   <label class="field">Data file <input id="im-file" type="file" accept=".csv,.tsv,.txt" /></label>
@@ -236,6 +247,22 @@
                   history by date; tick Replace to discard the old history first. The stock starts with its first ~60 days showing and
                   replays the rest as you advance the market. ALPHA, BETA, GAMMA and DELTA are simulated and can't be imported over.</p>
                 <p class="hint" id="im-result"></p>
+                </div>
+
+                <div id="im-broker-section" hidden>
+                  <p class="hint" id="im-broker-status"></p>
+                  <div class="controls">
+                    <label class="field">Symbols (separate with commas) <input id="im-symbols" type="text" style="min-width:280px" placeholder="SBIN, WIPRO, INFY" /></label>
+                    <label class="field" id="im-years-field">Years of history <input id="im-years" type="number" min="1" max="10" value="5" /></label>
+                    <label class="switch"><input type="checkbox" id="im-merge" /> Keep existing history (merge)</label>
+                    <button id="im-broker-apply" class="btn btn-primary">Import from broker</button>
+                  </div>
+                  <p class="hint">Use plain NSE trading symbols such as SBIN, WIPRO or M&amp;M. Each stock is fetched and stored in your database like any
+                    other, so it appears in every dropdown and chart and replays on the market clock (it starts with its first ~60 days showing).
+                    By default a stock you already have is <b>replaced</b> by the broker's history; tick merge to keep anything the broker doesn't return.
+                    Your broker credentials stay in your local .env file and are never typed into this page.</p>
+                  <div id="im-broker-results" class="import-results"></div>
+                </div>
               </div>
             </div>
           </div>
