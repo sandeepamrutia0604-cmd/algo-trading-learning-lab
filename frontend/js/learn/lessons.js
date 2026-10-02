@@ -5,7 +5,10 @@
  *   { list: ["item", ...] }                  { note: "Highlighted callout" }
  *   { example: { title, text } }             { terms: [["Term", "Definition"], ...] }
  *   { tryit: { label, hint, route, symbol } }   a button that opens the app ready for an experiment
- * Text may use **bold**. A module without `blocks` is listed as "coming soon".
+ * Text may use **bold** and *italic*. A module without `blocks` is listed as "coming soon".
+ *
+ * `quiz` (optional) is a list of { q, options: [...], answer: <index of the right option>, why }.
+ * Learners can retry a question until they get it right; `why` is shown once they do.
  */
 
 export const MODULES = [
@@ -77,6 +80,63 @@ export const MODULES = [
           route: "trade",
           symbol: "RELIANCE",
         },
+      },
+    ],
+    quiz: [
+      {
+        q: "What does owning a share of a company mean?",
+        options: [
+          "You have lent money to the company, and it must pay you back.",
+          "You own a small part of the company.",
+          "You are guaranteed a fixed return every year.",
+          "You can run the company's day-to-day operations.",
+        ],
+        answer: 1,
+        why: "A share is ownership, not a loan. There is no promised return, and owning a few shares gives you no say in daily operations.",
+      },
+      {
+        q: "What sets the price of a share on the exchange?",
+        options: [
+          "The company's management, each morning.",
+          "The exchange, once a week.",
+          "Buyers and sellers: more buyers than sellers pushes the price up.",
+          "The government.",
+        ],
+        answer: 2,
+        why: "The price is whatever buyers and sellers are willing to trade at. When demand to buy outweighs supply to sell, the price rises, and when it is the other way round, it falls.",
+      },
+      {
+        q: "Share X costs ₹2,000 and share Y costs ₹100. What can you conclude?",
+        options: [
+          "Nothing about which company is bigger, better or cheaper. The price per share alone doesn't say.",
+          "X is the better company.",
+          "Y is the cheaper business.",
+          "X will rise faster than Y.",
+        ],
+        answer: 0,
+        why: "A company can split its ownership into any number of shares, so the price per share says little by itself. Look at how a price changes over time, not at how big the number is.",
+      },
+      {
+        q: "A stock opens the day at ₹1,180 and closes at ₹1,167. How would you describe that day?",
+        options: [
+          "An up day, because the price is above ₹1,000.",
+          "A day with 1,167 shares traded.",
+          "A day when the low was ₹1,180.",
+          "A down day: it closed below where it opened.",
+        ],
+        answer: 3,
+        why: "Comparing the close with the open tells you the direction of the day. Closing lower than it opened makes it a down day. Volume is a separate number, and the low can't be above the close.",
+      },
+      {
+        q: "What does a day's volume tell you?",
+        options: [
+          "How volatile the price was.",
+          "How many shares changed hands that day.",
+          "What the price was at the start of the day.",
+          "How much money the company made.",
+        ],
+        answer: 1,
+        why: "Volume is the number of shares traded during the day. It says how active trading was, not how much the price moved or what the company earned.",
       },
     ],
   },

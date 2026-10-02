@@ -515,3 +515,28 @@ tr:last-child td { border-bottom: 0; }
   .learn { grid-template-columns: 1fr; }
   .lesson-tryit { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---------- learn: progress and quizzes ---------- */
+.learn-progress { margin: 10px 0 4px; }
+.learn-progress span { font-size: 12px; color: var(--muted); }
+.learn-bar { height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; margin-bottom: 6px; }
+.learn-bar i { display: block; height: 100%; background: var(--up); transition: width 0.3s ease; }
+.learn-item.done .num { background: var(--up); border-color: var(--up); color: #fff; }
+.quiz { margin-top: 26px; }
+.quiz-banner { background: var(--accent-soft); border-radius: 6px; padding: 8px 12px; margin: 0 0 14px; font-size: 13px; }
+.quiz-q { margin: 0 0 18px; }
+.quiz-text { margin: 0 0 8px; line-height: 1.55; }
+.quiz-options { display: flex; flex-direction: column; gap: 6px; }
+.quiz-option { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font: inherit; font-size: 13.5px; line-height: 1.5; cursor: pointer; }
+.quiz-option:hover:not(:disabled) { border-color: var(--accent); }
+.quiz-option:disabled { cursor: default; }
+.quiz-letter { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); }
+.quiz-option.correct { border-color: var(--up); background: color-mix(in srgb, var(--up) 14%, var(--panel2)); }
+.quiz-option.correct .quiz-letter { background: var(--up); border-color: var(--up); color: #fff; }
+.quiz-option.wrong { border-color: var(--down); background: color-mix(in srgb, var(--down) 12%, var(--panel2)); color: var(--muted); }
+.quiz-option.wrong .quiz-letter { background: var(--down); border-color: var(--down); color: #fff; }
+.quiz-feedback { margin-top: 8px; font-size: 13px; line-height: 1.55; }
+.quiz-feedback.good { color: var(--text); }
+.quiz-feedback.good b { color: var(--up); }
+.quiz-feedback.bad { color: var(--down); }
+.quiz-result { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border: 1px solid var(--up); background: color-mix(in srgb, var(--up) 10%, transparent); border-radius: 8px; padding: 12px 16px; line-height: 1.55; }

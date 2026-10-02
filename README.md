@@ -32,9 +32,11 @@ Screens (left navigation):
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
   indicator, a strategy, backtesting, risk management, overfitting, paper trading, live
   algorithmic trading), each with an experiment you can run in the simulator. Lessons are
-  being added one module at a time (Module 1 is live); the rest show as "Soon". Lesson text
-  is plain data in `frontend/js/learn/lessons.js`, rendered by `frontend/js/pages/learn.js`;
-  each lesson has its own link (`#/learn/3`).
+  being added one module at a time (Module 1 is live); the rest show as "Soon". Each lesson
+  ends with a quiz: wrong answers can be retried, the explanation appears once you get one
+  right, and finishing a quiz ticks the module off. Progress is kept in your browser
+  (localStorage), not the database. Lesson text is plain data in `frontend/js/learn/lessons.js`,
+  rendered by `frontend/js/pages/learn.js`; each lesson has its own link (`#/learn/3`).
 
 Strategy types (all long-only: one position at a time, signals never look ahead):
 - **MA Crossover** - fast SMA crosses above/below slow SMA. Best in trends; whipsaws in sideways markets.
@@ -250,6 +252,15 @@ to the synthetic ALPHA/BETA/GAMMA/DELTA.
 ```bash
 pytest
 ```
+
+The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
+
+```bash
+node --test frontend/js/learn/lessons.test.mjs
+```
+
+They check that every written lesson is well formed and that every quiz answer points at a real
+option, which matters as lessons are added.
 
 ## Project Structure
 
