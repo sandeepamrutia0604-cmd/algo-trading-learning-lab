@@ -85,7 +85,7 @@ def run_backtest(
 
     When `risk` is enabled, each BUY is sized from `risk.max_risk_per_trade_pct` and
     `risk.stop_loss_pct` instead of the fixed `quantity` (same formula as live auto-trading),
-    and a held position is stop-lossed out the first day its close drops to or below the
+    shrunk to fit `risk.max_allocation_pct` rather than skipped for exceeding it, and a held position is stop-lossed out the first day its close drops to or below the
     entry's stop price — overriding the strategy's own signal for that day, exactly like
     live auto-trading's own stop-loss check.
 
@@ -120,7 +120,13 @@ def run_backtest(
 
         if event is not None and event.side == "BUY" and held == 0:
             equity = cash + held * price
-            buy_qty = risk_math.position_size(equity, price, risk.max_risk_per_trade_pct, risk.stop_loss_pct, quantity) if risk.enabled else quantity
+            buy_qty = (
+                risk_math.position_size(
+                    equity, price, risk.max_risk_per_trade_pct, risk.stop_loss_pct, quantity, risk.max_allocation_pct
+                )
+                if risk.enabled
+                else quantity
+            )
             cost = price * buy_qty
             allowed = buy_qty > 0 and cost <= cash
             if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and cost > equity * risk.max_allocation_pct / 100 + 1e-9:

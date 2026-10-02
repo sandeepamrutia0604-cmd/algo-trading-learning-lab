@@ -27,14 +27,23 @@ def portfolio_value(db: Session) -> float:
     return portfolio.virtual_cash + market_value
 
 
-def position_size(db: Session, price: float, fallback_qty: int) -> int:
+def position_size(db: Session, price: float, fallback_qty: int, *, fit_allocation_cap: bool = False) -> int:
     """Risk-based share count for a BUY: (capital * max risk %) / (price * stop-loss %),
     the sizing formula from the plan's example. Falls back to `fallback_qty` (the strategy's
-    own configured quantity) when risk management is off or isn't fully configured."""
+    own configured quantity) when risk management is off or isn't fully configured.
+    `fit_allocation_cap` shrinks the result to the max-allocation-per-stock limit (as the
+    backtest engine does) instead of leaving a larger buy to be rejected by the cap."""
     settings = get_settings(db)
     if not settings.enabled:
         return fallback_qty
-    return risk_math.position_size(portfolio_value(db), price, settings.max_risk_per_trade_pct, settings.stop_loss_pct, fallback_qty)
+    return risk_math.position_size(
+        portfolio_value(db),
+        price,
+        settings.max_risk_per_trade_pct,
+        settings.stop_loss_pct,
+        fallback_qty,
+        settings.max_allocation_pct if fit_allocation_cap else 0.0,
+    )
 
 
 def check_buy_allowed(db: Session, stock: Stock, quantity: int, price: float) -> None:

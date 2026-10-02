@@ -218,7 +218,9 @@ def _execute_signal(db: Session, strategy: Strategy, stock: Stock, signal: Signa
     if signal.signal == "BUY":
         if held > 0:
             raise TradingError("this strategy is already holding shares")
-        quantity = risk_service.position_size(db, stock.current_price, strategy_quantity(strategy))
+        quantity = risk_service.position_size(
+            db, stock.current_price, strategy_quantity(strategy), fit_allocation_cap=True
+        )
         if quantity <= 0:
             raise TradingError("risk-based position sizing rounds down to zero shares at this price")
         return trading_service.execute_buy(db, stock.symbol, quantity, reason=reason, strategy_id=strategy.id)

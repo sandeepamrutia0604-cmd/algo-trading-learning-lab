@@ -153,13 +153,48 @@ def test_risk_managed_backtest_no_stop_loss_while_price_stays_above_the_stop():
     assert result.stopped_out == 0
 
 
-def test_risk_managed_backtest_blocks_a_buy_over_the_allocation_cap():
-    # Risk-sized buy would spend all 1,00,000 cash (100% allocation); cap it at 50%.
+def test_risk_managed_backtest_shrinks_a_risk_sized_buy_to_the_allocation_cap():
+    # The risk formula wants 1,000 shares (all 1,00,000 cash, 100% allocation); the cap is 50%.
     closes = [100, 100]
     dates = make_dates(len(closes))
     events = [SignalEvent(index=0, side="BUY", headline="", checks=[], values={})]
     risk = RiskConfig(enabled=True, max_risk_per_trade_pct=5, stop_loss_pct=5, max_allocation_pct=50)
     result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=100_000, risk=risk)
+
+    assert result.trades[0].quantity == 500
+    assert result.skipped_buys == 0
+
+
+def test_the_default_risk_settings_no_longer_skip_every_buy():
+    # 2% risk / 5% stop wants 40% of equity; the default 20% cap used to reject that outright.
+    closes = [100, 100]
+    dates = make_dates(len(closes))
+    events = [SignalEvent(index=0, side="BUY", headline="", checks=[], values={})]
+    risk = RiskConfig(enabled=True, max_risk_per_trade_pct=2, stop_loss_pct=5, max_allocation_pct=20)
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=100_000, risk=risk)
+
+    assert result.trades[0].quantity == 200  # 20% of 1,00,000 at 100 a share
+    assert result.skipped_buys == 0
+
+
+def test_a_buy_that_cannot_afford_even_one_share_under_the_cap_is_skipped():
+    closes = [30_000, 30_000]  # 20% of 1,00,000 is 20,000, below one share
+    dates = make_dates(len(closes))
+    events = [SignalEvent(index=0, side="BUY", headline="", checks=[], values={})]
+    risk = RiskConfig(enabled=True, max_risk_per_trade_pct=2, stop_loss_pct=5, max_allocation_pct=20)
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=100_000, risk=risk)
+
+    assert result.trades == []
+    assert result.skipped_buys == 1
+
+
+def test_a_fixed_quantity_over_the_cap_is_still_skipped_not_shrunk():
+    # Risk sizing isn't configured (no stop-loss), so quantity=100 is the user's explicit choice.
+    closes = [100, 100]
+    dates = make_dates(len(closes))
+    events = [SignalEvent(index=0, side="BUY", headline="", checks=[], values={})]
+    risk = RiskConfig(enabled=True, max_allocation_pct=5)
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=100, initial_capital=100_000, risk=risk)
 
     assert result.trades == []
     assert result.skipped_buys == 1

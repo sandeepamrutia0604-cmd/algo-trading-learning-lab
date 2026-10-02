@@ -74,13 +74,17 @@ the builder form, API, chart overlays and "Why" cards pick it up automatically.
 Risk management (Trade → Risk management tab, off by default): with it on, an auto-trade
 strategy's BUY is sized from your risk per trade and stop-loss (`capital × risk% ÷ (price × stop%)`,
 same formula as the plan's worked example) instead of its fixed quantity, and a stop-loss
-auto-sells its position if the price closes below the entry minus the stop-loss %. Max open
-positions and max allocation per stock apply to every BUY, manual or auto-trade. Turn it off
+auto-sells its position if the price closes below the entry minus the stop-loss %. That sized
+quantity is then shrunk to fit the max allocation per stock (2% risk with a 5% stop wants 40% of
+capital, so the default 20% cap would otherwise reject every buy). Max open
+positions and max allocation per stock still apply to every BUY, manual or auto-trade, and
+reject a manual or fixed-quantity order that exceeds them. Turn it off
 and the app behaves exactly as it did in Phase 4-6 (fixed quantity, no caps, no stop-loss).
 
 Backtests use these same saved risk settings — if risk management is on, a backtest sizes and
-stop-losses its trades exactly as live auto-trading would, and its allocation cap can skip a
-buy (counted in `skipped_buys` alongside cash-starved skips). `max_open_positions` is the one
+stop-losses its trades exactly as live auto-trading would. A buy is skipped (counted in
+`skipped_buys`) only if the cap leaves room for less than one share, if cash runs short, or if
+a fixed quantity exceeds the cap. `max_open_positions` is the one
 setting a backtest can't exercise, since it only ever trades one stock at a time. The shared
 formulas live in `backend/app/engine/risk_math.py`, used by both `risk_service.py` (against the
 real DB portfolio) and `engine/backtest.py` (against the backtest's own simulated capital), so

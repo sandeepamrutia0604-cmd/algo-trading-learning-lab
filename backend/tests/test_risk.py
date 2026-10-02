@@ -211,3 +211,22 @@ def test_auto_trade_buy_keeps_fixed_quantity_when_risk_disabled(db_session):
     append_price(db_session, "ALPHA", 9)
     events = strategy_service.run_auto_strategies(db_session)
     assert "BUY 7 ALPHA" in events[0]
+
+
+# ---------- sizing that fits the allocation cap ----------
+
+
+def test_position_size_can_fit_the_allocation_cap(db_session):
+    # 2% risk / 5% stop wants 400 shares at 100 (40% of 1,00,000); the default 20% cap allows 200.
+    enable_risk(db_session, max_risk_per_trade_pct=2, stop_loss_pct=5)
+    assert risk_service.position_size(db_session, price=100, fallback_qty=999) == 400
+    assert risk_service.position_size(db_session, price=100, fallback_qty=999, fit_allocation_cap=True) == 200
+
+
+def test_position_size_fitted_to_the_cap_passes_the_allocation_check(db_session):
+    enable_risk(db_session, max_risk_per_trade_pct=2, stop_loss_pct=5, max_open_positions=50)
+    alpha = db_session.query(Stock).filter(Stock.symbol == "ALPHA").first()
+    quantity = risk_service.position_size(db_session, alpha.current_price, 1, fit_allocation_cap=True)
+
+    assert quantity > 0
+    risk_service.check_buy_allowed(db_session, alpha, quantity, alpha.current_price)  # no raise
