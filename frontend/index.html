@@ -138,6 +138,7 @@
                 <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
                 <button data-tab="market">Market settings</button>
                 <button data-tab="risk">Risk management</button>
+                <button data-tab="import">Import data</button>
               </div>
 
               <div id="tab-positions" class="tabpane">
@@ -198,6 +199,21 @@
                   <button id="rk-apply" class="btn btn-primary">Save risk settings</button>
                 </div>
                 <p class="hint" id="rk-example"></p>
+              </div>
+
+              <div id="tab-import" class="tabpane" hidden>
+                <div class="controls">
+                  <label class="field">Symbol <input id="im-symbol" type="text" maxlength="10" placeholder="RELIANCE" /></label>
+                  <label class="field">Name (optional) <input id="im-name" type="text" maxlength="100" placeholder="Reliance Industries" /></label>
+                  <label class="field">Data file <input id="im-file" type="file" accept=".csv,.tsv,.txt" /></label>
+                  <label class="switch"><input type="checkbox" id="im-replace" /> Replace existing history</label>
+                  <button id="im-apply" class="btn btn-primary">Import</button>
+                </div>
+                <p class="hint">Add a stock from a file you downloaded yourself -- no broker login needed. The first row must name the
+                  columns (Date, Open, High, Low, Close, Volume). Tabs or commas, dates like 01 Oct 2026 or 2026-10-01, and
+                  numbers like 1,180.1 all work, in any row order. By default the file is merged into the stock's existing
+                  history by date; tick Replace to discard the old history first. ALPHA, BETA, GAMMA and DELTA are simulated and can't be imported over.</p>
+                <p class="hint" id="im-result"></p>
               </div>
             </div>
           </div>

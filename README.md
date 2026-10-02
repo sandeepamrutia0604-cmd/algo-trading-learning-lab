@@ -159,6 +159,27 @@ candle and LTP endpoints are throttled to stay under SmartAPI's published per-se
 limits (`angel_one.py`) — the adapter is a natural place for that caching since every caller
 goes through it rather than hitting the API directly.
 
+### Importing market data from a file (no credentials)
+
+If you'd rather not put broker credentials in `.env` at all, download daily candles yourself
+(a broker's chatbot table, a TradingView/Yahoo/NSE export) and import the file. In the app, use
+**Trade → Import data** (pick the file, enter the symbol, press Import). Or from the command line:
+
+```bash
+python scripts/import_csv.py RELIANCE path/to/reliance.csv --name "Reliance Industries"
+```
+
+The first row must name the columns (Date, Open, High, Low, Close, Volume; volume is optional).
+Tab, comma or semicolon delimiters, dates like `01 Oct 2026` / `2026-10-01` / `01/10/2026`
+(day first), thousands separators (`1,180.1`) and newest-first row order are all handled. A
+row that can't be read stops the import with its line number rather than being skipped.
+
+By default the file is **merged** into the stock's existing history by date, so a short file
+adds its days without losing the rest; `--replace` discards the old history first. Simulated
+stocks (ALPHA/BETA/GAMMA/DELTA) are refused. Imported stocks get `source="csv"`, so the
+simulator never touches them, and they work in charts, trading, strategies and backtests
+exactly like the Angel One ones. Like those, they're a snapshot: re-import to bring them up to date.
+
 ### What backtests still don't model
 
 Position sizing, available capital, stop-loss, max allocation, and no-look-ahead are all
@@ -186,6 +207,7 @@ backend/
     api/            Route handlers
     adapters/       MarketDataAdapter interface (base.py); dummy.py (today's default);
                     angel_one.py + angel_one_auth.py + scrip_master.py (real SmartAPI client);
+                    csv_candles.py (CSV/TSV candle parser for file imports);
                     get_market_data_adapter() picks one by MARKET_DATA_PROVIDER
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
                     PriceData, MarketConfig, Strategy, Signal, RiskSettings)
@@ -209,6 +231,7 @@ frontend/
 scripts/
   start.bat             Double-click launcher
   test_angel_one_adapter.py   Smoke-tests the real Angel One adapter against your own account
-  import_real_stocks.py       Imports real NSE stocks + history into the app's own database
+  import_real_stocks.py       Imports real NSE stocks + history from Angel One into the app's own database
+  import_csv.py               Imports a stock's candles from a CSV/TSV file (no credentials)
 data/               SQLite database file + cached Angel One scrip master (gitignored)
 ```

@@ -113,7 +113,7 @@ async function placeOrder(side, symbol, quantity) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market", "risk"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "market", "risk", "import"]) $(`tab-${pane}`).hidden = pane !== name;
 }
 
 function renderPositions() {
@@ -285,6 +285,29 @@ async function applyRiskSettings() {
   }
 }
 
+async function importData() {
+  const symbol = $("im-symbol").value.trim().toUpperCase();
+  const file = $("im-file").files[0];
+  const replace = $("im-replace").checked;
+  if (!symbol) return toast("Enter the stock's symbol, e.g. RELIANCE", true);
+  if (!file) return toast("Choose a data file first", true);
+  if (replace && !confirm(`Replace all existing history for ${symbol} with this file?`)) return;
+
+  try {
+    const body = { symbol, name: $("im-name").value.trim() || null, csv_text: await file.text(), replace };
+    const r = await api("/stocks/import", { method: "POST", body: JSON.stringify(body) });
+    const summary = `${r.symbol}: read ${r.candles_read} candles (${r.first_date} to ${r.last_date}); ${r.candles_stored} stored, current price ${money(r.current_price)}.`;
+    $("im-result").textContent = summary;
+    toast(r.created ? `Added ${r.symbol}` : `Updated ${r.symbol}`);
+    $("im-file").value = "";
+    store.symbol = r.symbol;
+    await hooks.refresh();
+  } catch (err) {
+    $("im-result").textContent = "";
+    toast(err.message, true);
+  }
+}
+
 /* ---------------- chart ---------------- */
 
 function chartOptions() {
@@ -376,6 +399,11 @@ export function initTrade() {
     if (e.target.value === "trending" && parseFloat($("m-trend").value) === 0) $("m-trend").value = 0.3;
   });
 
+  $("im-apply").addEventListener("click", importData);
+  $("im-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file && !$("im-symbol").value.trim()) $("im-symbol").value = file.name.replace(/\.[^.]*$/, "").replace(/[^A-Za-z0-9&-]/g, "").slice(0, 10).toUpperCase();
+  });
   $("ac-apply").addEventListener("click", applyStartingCapital);
   $("rk-apply").addEventListener("click", applyRiskSettings);
   for (const id of ["rk-risk", "rk-stop"]) $(id).addEventListener("input", riskExample);

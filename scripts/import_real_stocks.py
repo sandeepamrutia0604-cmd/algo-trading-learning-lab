@@ -28,7 +28,8 @@ from backend.app.services.real_stocks import REAL_STOCKS, import_all_real_stocks
 
 def main() -> None:
     args = sys.argv[1:]
-    stocks = [{"symbol": s.upper(), "name": s.upper()} for s in args] if args else REAL_STOCKS
+    known_names = {s["symbol"]: s["name"] for s in REAL_STOCKS}
+    stocks = [{"symbol": s.upper(), "name": known_names.get(s.upper(), s.upper())} for s in args] if args else REAL_STOCKS
 
     missing = [
         name

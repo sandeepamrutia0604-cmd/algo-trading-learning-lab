@@ -16,6 +16,24 @@ class StockOut(BaseModel):
     recent_closes: list[float] = []
 
 
+class StockImportRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=10, pattern=r"^[A-Za-z0-9&-]+$")
+    name: str | None = Field(default=None, max_length=100)
+    csv_text: str = Field(min_length=1, max_length=5_000_000)
+    replace: bool = False
+
+
+class StockImportOut(BaseModel):
+    symbol: str
+    name: str
+    created: bool
+    candles_read: int
+    candles_stored: int
+    first_date: dt.date
+    last_date: dt.date
+    current_price: float
+
+
 class OrderRequest(BaseModel):
     symbol: str
     quantity: int = Field(gt=0)
