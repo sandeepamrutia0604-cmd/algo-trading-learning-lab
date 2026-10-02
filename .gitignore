@@ -15,3 +15,4 @@ data/angel_one_scrip_master.json
 # OS
 .DS_Store
 Thumbs.db
+*.lnk
