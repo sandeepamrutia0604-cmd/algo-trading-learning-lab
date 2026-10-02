@@ -142,6 +142,7 @@ function renderMetrics(r) {
     ["Win rate", percent(r.win_rate_pct), ""],
     ["Max drawdown", percent(r.max_drawdown_pct), r.max_drawdown_pct > 0 ? "down" : ""],
   ];
+  if (r.costs_applied) tiles.push(["Charges paid", money(r.total_fees), "down"], ["Slippage cost", money(r.slippage_cost), "down"]);
   $("bt-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
 }
 
@@ -155,11 +156,12 @@ async function renderResults() {
   $("bt-sub").textContent =
     `${r.rule} · ${r.quantity} shares per trade · started with ${money(r.initial_capital)}` +
     (r.risk_managed ? " · sized and stop-lossed using your Risk management settings" : "") +
+    (r.costs_applied ? " · slippage, brokerage and taxes applied from your Trading costs settings" : "") +
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
     (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
   renderMetrics(r);
 
-  const { prices } = await loadChartData(r.symbol, []);
+  const { prices } = await loadChartData(r.symbol, [], { full: true });
   if (state.result !== r) return;
   const dates = prices.map((p) => p.date);
   const buyHold = prices.map((p) => (r.initial_capital / prices[0].close) * p.close);
@@ -211,7 +213,10 @@ function addToComparison() {
     toast(`You can compare up to ${MAX_COMPARE} strategies at a time. Remove one first.`, true);
     return;
   }
-  const label = `${state.result.type_label} on ${state.result.symbol}` + (state.result.risk_managed ? " (risk-managed)" : "");
+  const label =
+    `${state.result.type_label} on ${state.result.symbol}` +
+    (state.result.risk_managed ? " (risk-managed)" : "") +
+    (state.result.costs_applied ? " (with costs)" : "");
   state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label, result: state.result });
   renderComparison();
   toast("Added to comparison.");

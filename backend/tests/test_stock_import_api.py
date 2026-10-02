@@ -62,7 +62,14 @@ def test_importing_over_a_simulated_stock_is_a_400(client):
     assert "simulated" in response.json()["detail"]
 
 
-def test_an_invalid_symbol_is_rejected(client):
-    assert post(client, symbol="has space").status_code == 422
-    assert post(client, symbol="WAYTOOLONGSYMBOL").status_code == 422
+def test_an_invalid_symbol_is_a_400_with_a_readable_message(client):
+    for symbol in ("NIFTY 500", "WAYTOOLONGSYMBOL", "bad/slash"):
+        response = post(client, symbol=symbol)
+        assert response.status_code == 400
+        assert "isn't a valid symbol" in response.json()["detail"]
     assert post(client, symbol="").status_code == 422
+
+
+def test_symbols_with_an_ampersand_or_hyphen_are_fine(client):
+    assert post(client, symbol="m&m").json()["symbol"] == "M&M"
+    assert post(client, symbol="BAJAJ-AUTO").status_code == 200

@@ -11,6 +11,7 @@ synthetic candles, and instead the market clock replays their real candles one d
 scripts/import_real_stocks.py or scripts/import_csv.py to bring the data up to date.
 """
 
+import re
 from datetime import datetime, time
 
 from sqlalchemy.orm import Session
@@ -18,6 +19,8 @@ from sqlalchemy.orm import Session
 from ..adapters.base import Candle, MarketDataAdapter
 from ..models import PriceData, Stock
 from . import market_service
+
+SYMBOL_PATTERN = re.compile(r"^[A-Z0-9&-]{1,10}$")
 
 REAL_STOCKS = [
     {"symbol": "RELIANCE", "name": "Reliance Industries"},
@@ -38,7 +41,12 @@ def import_candles(
     way the stock's starting/current price are re-derived from its first and last candle.
     Doesn't commit.
     """
-    symbol = symbol.upper()
+    symbol = symbol.strip().upper()
+    if not SYMBOL_PATTERN.match(symbol):
+        raise ValueError(
+            f"'{symbol}' isn't a valid symbol: use 1 to 10 letters, digits, & or - with no spaces "
+            "(for example NIFTY500, M&M or BAJAJ-AUTO)."
+        )
     if not candles:
         raise ValueError(f"No candles to import for {symbol}")
 

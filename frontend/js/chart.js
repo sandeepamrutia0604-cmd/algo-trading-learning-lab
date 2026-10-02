@@ -5,10 +5,12 @@ export const SMA_COLORS = { fast: "#4c8dff", slow: "#f5a524" };
 
 const DEFAULT_VISIBLE_DAYS = 90;
 
-export async function loadChartData(symbol, smas) {
+/** `full` returns the whole stored history instead of only what the market clock has reached
+ *  -- for backtests, which replay all of it. */
+export async function loadChartData(symbol, smas, { full = false } = {}) {
   const query = smas.map((m) => `sma=${m.period}`).join("&");
   const [prices, indicators] = await Promise.all([
-    api(`/stocks/${symbol}/prices`),
+    api(`/stocks/${symbol}/prices${full ? "?full=true" : ""}`),
     smas.length ? api(`/stocks/${symbol}/indicators?${query}`) : { sma: {} },
   ]);
   return { prices, indicators };

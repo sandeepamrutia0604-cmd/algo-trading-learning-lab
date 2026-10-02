@@ -17,7 +17,7 @@ class StockOut(BaseModel):
 
 
 class StockImportRequest(BaseModel):
-    symbol: str = Field(min_length=1, max_length=10, pattern=r"^[A-Za-z0-9&-]+$")
+    symbol: str = Field(min_length=1, max_length=40)  # the format is checked, with a readable message, on import
     name: str | None = Field(default=None, max_length=100)
     csv_text: str = Field(min_length=1, max_length=5_000_000)
     replace: bool = False
@@ -51,6 +51,8 @@ class TradeOut(BaseModel):
     realized_pnl: float | None = None
     strategy_id: int | None = None
     source: str = "Manual"
+    fees: float = 0.0
+    market_price: float | None = None
 
     @classmethod
     def from_trade(cls, trade) -> "TradeOut":
@@ -68,6 +70,8 @@ class TradeOut(BaseModel):
             realized_pnl=trade.realized_pnl,
             strategy_id=trade.strategy_id,
             source=source,
+            fees=trade.fees or 0.0,
+            market_price=trade.market_price,
         )
 
 
@@ -249,6 +253,22 @@ class RiskSettingsUpdate(BaseModel):
     max_allocation_pct: float | None = Field(default=None, gt=0, le=100)
 
 
+class CostSettingsOut(BaseModel):
+    enabled: bool
+    slippage_pct: float
+    brokerage_pct: float
+    brokerage_cap: float
+    other_charges_pct: float
+
+
+class CostSettingsUpdate(BaseModel):
+    enabled: bool | None = None
+    slippage_pct: float | None = Field(default=None, ge=0, le=5)
+    brokerage_pct: float | None = Field(default=None, ge=0, le=5)
+    brokerage_cap: float | None = Field(default=None, ge=0, le=100_000)
+    other_charges_pct: float | None = Field(default=None, ge=0, le=5)
+
+
 class TradeStatsOut(BaseModel):
     total_trades: int
     winning_trades: int
@@ -321,6 +341,9 @@ class BacktestResultOut(BaseModel):
     skipped_buys: int
     stopped_out: int = 0
     risk_managed: bool = False
+    costs_applied: bool = False
+    total_fees: float = 0.0
+    slippage_cost: float = 0.0
     equity_curve: list[EquityPoint]
     trades: list[BacktestTradeOut]
     series: list[SeriesOut]

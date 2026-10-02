@@ -38,6 +38,9 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
         skipped_buys=result.skipped_buys,
         stopped_out=result.stopped_out,
         risk_managed=risk_managed,
+        costs_applied=result.costs_applied,
+        total_fees=round(result.total_fees, 2),
+        slippage_cost=round(result.slippage_cost, 2),
         equity_curve=[EquityPoint(date=p.date, value=round(p.value, 2)) for p in result.equity_curve],
         trades=[
             BacktestTradeOut(

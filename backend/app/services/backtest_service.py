@@ -7,7 +7,7 @@ from ..engine import rule_engine
 from ..engine.backtest import BacktestResult, RiskConfig, run_backtest
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
-from . import risk_service
+from . import cost_service, risk_service
 from .exceptions import InvalidStrategyError
 
 CUSTOM_TYPE = "custom"
@@ -72,5 +72,5 @@ def run(
         stop_loss_pct=settings.stop_loss_pct,
         max_allocation_pct=settings.max_allocation_pct,
     )
-    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital, risk)
+    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital, risk, cost_service.config(db))
     return defn, clean, dates, closes, result, settings.enabled

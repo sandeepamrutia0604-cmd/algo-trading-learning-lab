@@ -9,8 +9,10 @@ for the full phase-by-phase plan.
 is a real implementation — login (client code + PIN + TOTP), the historical candle API, the
 scrip-master symbol-to-token mapping, and an LTP quote endpoint, all against Angel One's real
 SmartAPI (see "Angel One market data" below for setup and how to import real NSE stocks into
-the app). Still to come: live WebSocket ticks instead of the current REST-poll-based price
-lookups. No real-money order execution ever — see Security and Safety Principles.
+the app), plus a market clock that replays imported real stocks day by day and an optional
+slippage/brokerage/tax simulation (see "Trading costs" below). Still to come: live WebSocket
+ticks instead of the current REST-poll-based price lookups. No real-money order execution
+ever — see Security and Safety Principles.
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
@@ -206,14 +208,37 @@ Things worth knowing:
 - Databases from before the clock existed pick one up on the next startup, without losing
   anything.
 
+### Trading costs: slippage, brokerage and taxes
+
+Trade → **Trading costs** tab (off by default). With it on, every paper trade, auto-trade and
+backtest pays what a real account would:
+
+- **Slippage** — you rarely get the exact quote. A BUY fills a little above it and a SELL a
+  little below, by a % of the price (default 0.05%).
+- **Brokerage** — a % of the trade value, optionally capped at a flat amount per order, the way
+  discount brokers price (default 0.03%, capped at ₹20).
+- **Taxes and levies** — one flat % of the trade value (default 0.1%). This is an educational
+  approximation, not an exact STT/GST/stamp-duty calculation; check your broker's contract
+  note for real numbers.
+
+How it's accounted: a trade's price is the fill price (the quote it was based on is kept as
+`market_price`), charges come out of cash and are recorded as the trade's `fees`, and a
+position's average price is its cost basis *including* the buy-side charges, so a sale's
+realized P&L is net of everything paid to get in and out. The order ticket previews the fill
+price, the charges and the cash left. Backtests use the same saved settings and report
+"Charges paid" and "Slippage cost" alongside the result; a strategy that looks profitable
+before costs often isn't after them, which is the point. The formulas live in
+`backend/app/engine/cost_math.py`, shared by `trading_service.py` and `engine/backtest.py` the
+same way the risk formulas are, so a backtest pays exactly what a live paper trade would.
+
 ### What backtests still don't model
 
-Position sizing, available capital, stop-loss, max allocation, and no-look-ahead are all
-accounted for (see above). Not yet modeled, by design — these are slated for Phase 13
-(Advanced Topics): brokerage/commission, taxes, slippage, and whether a fill at that exact
-historical price was realistically achievable. Corporate actions (splits, dividends, bonus
-issues) don't apply yet either, since ALPHA/BETA/GAMMA/DELTA are synthetic dummy stocks, not
-real listed companies — that becomes relevant once Phase 11/12 bring in real market data.
+Position sizing, available capital, stop-loss, max allocation, no-look-ahead, and (when switched
+on) slippage, brokerage and taxes are all accounted for (see above). Not yet modeled, by
+design — these are slated for Phase 13 (Advanced Topics): whether you could really have traded
+the size you wanted at that price (market impact and liquidity, partial fills), and corporate
+actions (splits, dividends, bonus issues), which matter for real listed stocks but don't apply
+to the synthetic ALPHA/BETA/GAMMA/DELTA.
 
 ## Test
 
@@ -240,10 +265,12 @@ backend/
     schemas.py      Pydantic request/response models
     services/       Trading logic, portfolio math, market/price history, seeding,
                     risk_service.py (position sizing, stop-loss, exposure caps),
+                    cost_service.py (saved slippage/brokerage/tax settings),
                     analytics_service.py (trade stats, drawdown, Sharpe, monthly returns),
                     real_stocks.py (imports a real symbol's history into Stock/PriceData)
     strategies/     One pure module per canned strategy type + registry.py
-    engine/         price_models.py, indicators.py, backtest.py, rule_engine.py
+    engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
+                    risk_math.py + cost_math.py (formulas shared by live trading and backtests)
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
   tests/

@@ -13,6 +13,21 @@ const MODEL_LABEL = { random_walk: "Random walk", trending: "Trending", volatile
 const roundTo = (n, digits) => Number(n.toFixed(digits));
 const dayChange = (s) => (s && s.previous_close ? ((s.current_price - s.previous_close) / s.previous_close) * 100 : 0);
 
+/* Mirrors backend/app/engine/cost_math.py, which is the source of truth, so the order ticket can
+   preview what an order will cost. A null config means trading costs are off. */
+const fillWith = (c, price, side) => {
+  if (!c || !c.slippage_pct) return price;
+  const move = c.slippage_pct / 100;
+  return Math.round(price * (side === "BUY" ? 1 + move : 1 - move) * 100) / 100;
+};
+const chargesWith = (c, value) => {
+  if (!c || value <= 0) return 0;
+  let brokerage = (value * c.brokerage_pct) / 100;
+  if (c.brokerage_cap) brokerage = Math.min(brokerage, c.brokerage_cap);
+  return Math.round((brokerage + (value * c.other_charges_pct) / 100) * 100) / 100;
+};
+const activeCosts = () => (store.costSettings && store.costSettings.enabled ? store.costSettings : null);
+
 /* ---------------- watchlist + detail ---------------- */
 
 function renderWatchlist() {
@@ -58,16 +73,27 @@ function ticketState() {
   const held = position ? position.quantity : 0;
   const p = store.portfolio;
   const price = stock.current_price;
-  const value = qty * price;
   const buy = store.side === "BUY";
-  const maxQty = buy ? Math.floor(p.cash / price) : held;
+  const costs = activeCosts();
+  const fill = fillWith(costs, price, store.side);
+  const value = qty * fill;
+  const fees = chargesWith(costs, value);
+  let maxQty = held;
+  if (buy) {
+    maxQty = Math.floor(p.cash / fill);
+    while (maxQty > 0 && maxQty * fill + chargesWith(costs, maxQty * fill) > p.cash) maxQty--;
+  }
   const positionValue = held * price;
-  const after = buy ? positionValue + value : positionValue - value;
+  const after = buy ? positionValue + qty * price : positionValue - qty * price;
   let warning = "";
   if (qty <= 0) warning = "Enter a quantity above 0.";
-  else if (buy && value > p.cash) warning = `Not enough cash: this order costs ${money(value)} but you have ${money(p.cash)}.`;
+  else if (buy && value + fees > p.cash) warning = `Not enough cash: this order costs ${money(value + fees)} but you have ${money(p.cash)}.`;
   else if (!buy && qty > held) warning = `You hold only ${held} ${stock.symbol}.`;
-  return { stock, qty, price, value, buy, maxQty, after, warning, cashAfter: buy ? p.cash - value : p.cash + value, pv: p.portfolio_value };
+  return {
+    stock, qty, price, fill, fees, costsOn: Boolean(costs), value, buy, maxQty, after, warning,
+    cashAfter: buy ? p.cash - value - fees : p.cash + value - fees,
+    pv: p.portfolio_value,
+  };
 }
 
 function renderTicket() {
@@ -85,6 +111,7 @@ function renderTicket() {
   const row = (label, value) => `<div class="sumrow"><span>${label}</span><span>${value}</span></div>`;
   $("o-summary").innerHTML =
     row("Market price", money(t.price)) +
+    (t.costsOn ? row("Est. fill price", money(t.fill)) + row("Est. charges", money(t.fees)) : "") +
     row("Order value", money(t.value)) +
     row(t.buy ? "Cash after" : "Cash after sale", money(t.cashAfter)) +
     row("Position after", `${money(t.after)} (${t.pv ? ((t.after / t.pv) * 100).toFixed(1) : "0.0"}% of portfolio)`);
@@ -113,7 +140,7 @@ async function placeOrder(side, symbol, quantity) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market", "risk", "import"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "market", "risk", "costs", "import"]) $(`tab-${pane}`).hidden = pane !== name;
 }
 
 function renderPositions() {
@@ -172,7 +199,8 @@ function renderTrades() {
         <td>${t.symbol}</td>
         <td class="side-${t.side.toLowerCase()}">${t.side}</td>
         <td class="num">${t.quantity}</td>
-        <td class="num">${money(t.price)}</td>
+        <td class="num"${t.market_price && t.market_price !== t.price ? ` title="Quoted at ${money(t.market_price)}, filled after slippage"` : ""}>${money(t.price)}</td>
+        <td class="num">${t.fees ? money(t.fees) : "-"}</td>
         <td class="num">${pnl}</td>
         <td class="muted">${t.source}</td>
       </tr>`;
@@ -285,8 +313,83 @@ async function applyRiskSettings() {
   }
 }
 
+function costForm() {
+  const num = (id) => parseFloat($(id).value) || 0;
+  return {
+    enabled: $("co-enabled").checked,
+    slippage_pct: num("co-slip"),
+    brokerage_pct: num("co-brok"),
+    brokerage_cap: num("co-cap"),
+    other_charges_pct: num("co-tax"),
+  };
+}
+
+function costExample() {
+  const example = $("co-example");
+  const c = costForm();
+  if (!c.enabled) {
+    example.textContent = "";
+    return;
+  }
+  const qty = 1000;
+  const quote = 100;
+  const buyFill = fillWith(c, quote, "BUY");
+  const sellFill = fillWith(c, quote, "SELL");
+  const buyValue = qty * buyFill;
+  const sellValue = qty * sellFill;
+  const buyFees = chargesWith(c, buyValue);
+  const sellFees = chargesWith(c, sellValue);
+  const roundTrip = buyValue + buyFees - (sellValue - sellFees);
+  const pct = (roundTrip / (qty * quote)) * 100;
+  example.textContent =
+    `Example: buying ${qty.toLocaleString("en-IN")} shares quoted at ${money(quote)} fills at ${money(buyFill)} with ${money(buyFees)} of charges; ` +
+    `selling straight back at the same quote fills at ${money(sellFill)} with ${money(sellFees)} of charges. ` +
+    `That round trip costs ${money(roundTrip)} (${pct.toFixed(2)}% of ${money(qty * quote)}) before the price has moved at all.`;
+}
+
+function renderCosts() {
+  const c = store.costSettings;
+  if (!c) return;
+  $("co-enabled").checked = c.enabled;
+  $("co-slip").value = c.slippage_pct;
+  $("co-brok").value = c.brokerage_pct;
+  $("co-cap").value = c.brokerage_cap;
+  $("co-tax").value = c.other_charges_pct;
+  costExample();
+}
+
+async function applyCostSettings() {
+  try {
+    store.costSettings = await api("/cost-settings", { method: "PATCH", body: JSON.stringify(costForm()) });
+    toast(store.costSettings.enabled ? "Trading costs are on." : "Trading costs are off.");
+    renderCosts();
+    renderTicket();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+const cleanSymbol = (text) => text.replace(/[^A-Za-z0-9&-]/g, "").slice(0, 10).toUpperCase();
+
+/* Fill in the symbol from the file itself when it names one (NSE downloads have a Symbol or
+   Index Name column), else from the filename -- never overwriting something already typed. */
+async function suggestSymbol() {
+  const file = $("im-file").files[0];
+  if (!file || $("im-symbol").value.trim()) return;
+  let suggestion = "";
+  try {
+    const lines = (await file.text()).split(/\r?\n/).filter((l) => l.trim());
+    const split = (line) => line.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map((c) => c.replace(/"/g, "").trim());
+    const column = split(lines[0] || "").findIndex((h) => ["symbol", "index name"].includes(h.toLowerCase()));
+    if (column >= 0 && lines[1]) suggestion = cleanSymbol(split(lines[1])[column] || "");
+  } catch (err) {
+    // an unreadable file is reported when it's imported; the filename is a fine fallback
+  }
+  $("im-symbol").value = suggestion || cleanSymbol(file.name.replace(/\.[^.]*$/, "").split("_")[0]);
+}
+
 async function importData() {
-  const symbol = $("im-symbol").value.trim().toUpperCase();
+  const symbol = $("im-symbol").value.replace(/\s+/g, "").toUpperCase();
   const file = $("im-file").files[0];
   const replace = $("im-replace").checked;
   if (!symbol) return toast("Enter the stock's symbol, e.g. RELIANCE", true);
@@ -364,6 +467,7 @@ export async function renderTrade() {
   renderTrades();
   renderSettings();
   renderRisk();
+  renderCosts();
   await renderChart();
 }
 
@@ -400,10 +504,9 @@ export function initTrade() {
   });
 
   $("im-apply").addEventListener("click", importData);
-  $("im-file").addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (file && !$("im-symbol").value.trim()) $("im-symbol").value = file.name.replace(/\.[^.]*$/, "").replace(/[^A-Za-z0-9&-]/g, "").slice(0, 10).toUpperCase();
-  });
+  $("im-file").addEventListener("change", suggestSymbol);
+  $("co-apply").addEventListener("click", applyCostSettings);
+  for (const id of ["co-enabled", "co-slip", "co-brok", "co-cap", "co-tax"]) $(id).addEventListener("input", costExample);
   $("ac-apply").addEventListener("click", applyStartingCapital);
   $("rk-apply").addEventListener("click", applyRiskSettings);
   for (const id of ["rk-risk", "rk-stop"]) $(id).addEventListener("input", riskExample);

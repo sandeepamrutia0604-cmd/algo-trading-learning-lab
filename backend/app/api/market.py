@@ -29,8 +29,13 @@ def _config_out(config: MarketConfig) -> MarketConfigOut:
 
 
 @router.get("/stocks/{symbol}/prices", response_model=list[CandleOut])
-def prices(symbol: str, limit: int | None = Query(default=None, ge=1, le=5000), db: Session = Depends(get_db)):
-    rows = market_service.get_prices(db, symbol, limit)
+def prices(
+    symbol: str,
+    limit: int | None = Query(default=None, ge=1, le=5000),
+    full: bool = Query(default=False, description="Ignore the market clock and return the whole stored history"),
+    db: Session = Depends(get_db),
+):
+    rows = market_service.get_prices(db, symbol, limit, full=full)
     return [
         CandleOut(
             date=r.timestamp.date(), open=r.open, high=r.high, low=r.low, close=r.close, volume=r.volume

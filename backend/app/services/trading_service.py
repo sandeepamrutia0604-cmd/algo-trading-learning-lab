@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 
 from ..models import Position, Stock, Trade
 from ..models.portfolio import Portfolio
-from . import risk_service
+from ..engine import cost_math
+from . import cost_service, risk_service
 from .exceptions import (
     InsufficientFundsError,
     InsufficientSharesError,
@@ -34,18 +35,27 @@ def execute_buy(
 
     stock = get_stock_by_symbol(db, symbol)
     portfolio = get_portfolio(db)
-    cost = stock.current_price * quantity
+    costs = cost_service.config(db)
+    market_price = stock.current_price
+    fill = cost_math.fill_price(market_price, "BUY", costs)
+    value = fill * quantity
+    fees = cost_math.charges(value, costs)
+    cost = value + fees
 
     if cost > portfolio.virtual_cash:
         raise InsufficientFundsError(
-            f"Buying {quantity} {stock.symbol} costs ₹{cost:,.2f}, "
-            f"but only ₹{portfolio.virtual_cash:,.2f} cash is available"
+            f"Buying {quantity} {stock.symbol} costs ₹{cost:,.2f}"
+            + (f" (including ₹{fees:,.2f} of charges)" if fees else "")
+            + f", but only ₹{portfolio.virtual_cash:,.2f} cash is available"
         )
-    risk_service.check_buy_allowed(db, stock, quantity, stock.current_price)
+    risk_service.check_buy_allowed(db, stock, quantity, market_price)
 
+    # A position's average price is its cost basis per share, buy-side charges included, so a
+    # later sale's realized P&L comes out net of everything paid to get in and out.
+    unit_cost = fill if not fees else cost / quantity
     position = db.query(Position).filter(Position.stock_id == stock.id).first()
     if position is None:
-        position = Position(stock_id=stock.id, quantity=quantity, average_price=stock.current_price)
+        position = Position(stock_id=stock.id, quantity=quantity, average_price=unit_cost)
         db.add(position)
     else:
         total_cost = position.quantity * position.average_price + cost
@@ -58,7 +68,9 @@ def execute_buy(
         stock_id=stock.id,
         side="BUY",
         quantity=quantity,
-        price=stock.current_price,
+        price=fill,
+        market_price=market_price,
+        fees=fees,
         reason=reason,
         strategy_id=strategy_id,
         market_date=latest_market_date(db),
@@ -85,10 +97,14 @@ def execute_sell(
             f"Cannot sell {quantity} {stock.symbol} — only {held} held"
         )
 
-    proceeds = stock.current_price * quantity
-    realized = (stock.current_price - position.average_price) * quantity
+    costs = cost_service.config(db)
+    market_price = stock.current_price
+    fill = cost_math.fill_price(market_price, "SELL", costs)
+    proceeds = fill * quantity
+    fees = cost_math.charges(proceeds, costs)
+    realized = (fill - position.average_price) * quantity - fees
 
-    portfolio.virtual_cash += proceeds
+    portfolio.virtual_cash += proceeds - fees
     portfolio.realized_pnl += realized
 
     position.quantity -= quantity
@@ -99,7 +115,9 @@ def execute_sell(
         stock_id=stock.id,
         side="SELL",
         quantity=quantity,
-        price=stock.current_price,
+        price=fill,
+        market_price=market_price,
+        fees=fees,
         reason=reason,
         strategy_id=strategy_id,
         market_date=latest_market_date(db),

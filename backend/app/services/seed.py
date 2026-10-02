@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from ..models import Portfolio, PriceData, RiskSettings, Stock
+from ..models import CostSettings, Portfolio, PriceData, RiskSettings, Stock
 from . import market_service
 
 DUMMY_STOCKS = [
@@ -16,6 +16,8 @@ def ensure_seed_data(db: Session, with_history: bool = True) -> None:
         db.add(Portfolio())
     if db.query(RiskSettings).first() is None:
         db.add(RiskSettings())
+    if db.query(CostSettings).first() is None:
+        db.add(CostSettings())
 
     existing_symbols = {s.symbol for s in db.query(Stock).all()}
     for stock in DUMMY_STOCKS:

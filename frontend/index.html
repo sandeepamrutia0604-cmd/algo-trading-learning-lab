@@ -138,6 +138,7 @@
                 <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
                 <button data-tab="market">Market settings</button>
                 <button data-tab="risk">Risk management</button>
+                <button data-tab="costs">Trading costs</button>
                 <button data-tab="import">Import data</button>
               </div>
 
@@ -151,7 +152,7 @@
 
               <div id="tab-trades" class="tabpane" hidden>
                 <table id="trades-table">
-                  <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Realized P&amp;L</th><th>Source</th></tr></thead>
+                  <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Fees</th><th class="num">Realized P&amp;L</th><th>Source</th></tr></thead>
                   <tbody></tbody>
                 </table>
                 <p id="trades-empty" class="empty" hidden>No trades yet.</p>
@@ -201,6 +202,24 @@
                   <button id="rk-apply" class="btn btn-primary">Save risk settings</button>
                 </div>
                 <p class="hint" id="rk-example"></p>
+              </div>
+
+              <div id="tab-costs" class="tabpane" hidden>
+                <label class="switch"><input type="checkbox" id="co-enabled" /> Simulate trading costs</label>
+                <p class="hint">Off: orders fill at the quoted price and cost nothing. On: every paper trade, auto-trade and backtest
+                  pays slippage (a BUY fills a little above the quote, a SELL a little below) plus brokerage and taxes, so results
+                  look like what a real account would have kept. Realized P&amp;L is net of all of it.</p>
+                <div class="controls">
+                  <label class="field">Slippage (% of price) <input id="co-slip" type="number" step="0.01" min="0" max="5" /></label>
+                  <label class="field">Brokerage (% of trade value) <input id="co-brok" type="number" step="0.01" min="0" max="5" /></label>
+                  <label class="field">Brokerage cap per order (₹, 0 = none) <input id="co-cap" type="number" step="1" min="0" max="100000" /></label>
+                  <label class="field">Taxes and levies (% of trade value) <input id="co-tax" type="number" step="0.01" min="0" max="5" /></label>
+                  <button id="co-apply" class="btn btn-primary">Save trading costs</button>
+                </div>
+                <p class="hint" id="co-example"></p>
+                <p class="hint">The defaults are typical of a discount broker (0.03% brokerage capped at ₹20 an order) with taxes and levies
+                  approximated as one flat percentage -- an educational estimate, not an exact statement of STT, GST or stamp duty.
+                  Check your own broker's charges for real numbers.</p>
               </div>
 
               <div id="tab-import" class="tabpane" hidden>

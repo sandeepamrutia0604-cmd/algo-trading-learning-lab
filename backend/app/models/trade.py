@@ -15,7 +15,7 @@ class Trade(Base):
     stock_id: Mapped[int] = mapped_column(ForeignKey("stocks.id"))
     side: Mapped[str] = mapped_column(String(4))  # "BUY" or "SELL"
     quantity: Mapped[int] = mapped_column(Integer)
-    price: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float)  # the fill price, after any slippage
     timestamp: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
@@ -23,6 +23,10 @@ class Trade(Base):
     market_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     realized_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
     strategy_id: Mapped[int | None] = mapped_column(ForeignKey("strategies.id"), nullable=True)
+    # Brokerage + taxes paid on this order, and the quoted price before slippage (NULL on
+    # trades from before trading costs existed).
+    fees: Mapped[float] = mapped_column(Float, default=0.0)
+    market_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     stock: Mapped[Stock] = relationship()
     strategy: Mapped[Strategy | None] = relationship()

@@ -86,11 +86,12 @@ def get_equity_curve(db: Session) -> list[dict]:
         while next_trade < len(trades) and trades[next_trade].market_date <= day:
             trade = trades[next_trade]
             amount = trade.quantity * trade.price
+            fees = trade.fees or 0.0
             if trade.side == "BUY":
-                cash -= amount
+                cash -= amount + fees
                 holdings[trade.stock_id] = holdings.get(trade.stock_id, 0) + trade.quantity
             else:
-                cash += amount
+                cash += amount - fees
                 holdings[trade.stock_id] = holdings.get(trade.stock_id, 0) - trade.quantity
             next_trade += 1
         value = cash + sum(qty * last_close.get(sid, 0.0) for sid, qty in holdings.items())

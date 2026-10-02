@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..strategies.base import StrategyDef
-from . import risk_math
+from . import cost_math, risk_math
+from .cost_math import CostConfig
 
 
 @dataclass
@@ -32,6 +33,8 @@ class BacktestTrade:
     pnl: float | None = None
     pnl_pct: float | None = None
     stopped_out: bool = False
+    entry_fees: float = 0.0
+    exit_fees: float = 0.0
 
     @property
     def is_open(self) -> bool:
@@ -56,15 +59,24 @@ class BacktestResult:
     max_drawdown_pct: float
     skipped_buys: int
     stopped_out: int = 0
+    costs_applied: bool = False
+    total_fees: float = 0.0
+    slippage_cost: float = 0.0
     equity_curve: list[EquityPoint] = field(default_factory=list)
     trades: list[BacktestTrade] = field(default_factory=list)
 
 
-def _close_trade(trade: BacktestTrade, day: date, price: float, *, stopped_out: bool = False) -> None:
+def _close_trade(
+    trade: BacktestTrade, day: date, price: float, *, stopped_out: bool = False, exit_fees: float = 0.0
+) -> None:
     trade.exit_date = day
     trade.exit_price = price
-    trade.pnl = (price - trade.entry_price) * trade.quantity
-    trade.pnl_pct = (price - trade.entry_price) / trade.entry_price * 100
+    trade.exit_fees = exit_fees
+    trade.pnl = (price - trade.entry_price) * trade.quantity - trade.entry_fees - exit_fees
+    if trade.entry_fees or exit_fees:
+        trade.pnl_pct = trade.pnl / (trade.entry_price * trade.quantity + trade.entry_fees) * 100
+    else:
+        trade.pnl_pct = (price - trade.entry_price) / trade.entry_price * 100
     trade.stopped_out = stopped_out
 
 
@@ -76,6 +88,7 @@ def run_backtest(
     quantity: int,
     initial_capital: float,
     risk: RiskConfig | None = None,
+    costs: CostConfig | None = None,
 ) -> BacktestResult:
     """Process `dates`/`closes` chronologically, buying/selling on each signal at that day's
     close, marking to market every day. A BUY is skipped if it would cost more than the cash
@@ -94,6 +107,7 @@ def run_backtest(
     """
     events_by_index = {e.index: e for e in defn.generate(closes, params)}
     risk = risk if risk is not None else RiskConfig()
+    costs = costs if costs is not None else CostConfig()
 
     cash = initial_capital
     held = 0
@@ -101,6 +115,8 @@ def run_backtest(
     equity_curve: list[EquityPoint] = []
     skipped_buys = 0
     stopped_out = 0
+    total_fees = 0.0
+    slippage_cost = 0.0
     peak = initial_capital
     max_drawdown_pct = 0.0
 
@@ -112,8 +128,13 @@ def run_backtest(
             open_trade = trades[-1]
             stop_price = risk_math.stop_loss_price(open_trade.entry_price, risk.stop_loss_pct)
             if price <= stop_price:
-                cash += price * held
-                _close_trade(open_trade, day, price, stopped_out=True)
+                fill = cost_math.fill_price(price, "SELL", costs)
+                proceeds = fill * held
+                fees = cost_math.charges(proceeds, costs)
+                cash += proceeds - fees
+                total_fees += fees
+                slippage_cost += (price - fill) * held
+                _close_trade(open_trade, day, fill, stopped_out=True, exit_fees=fees)
                 held = 0
                 stopped_out += 1
                 event = None  # the strategy's own signal (if any) is superseded for today
@@ -127,20 +148,29 @@ def run_backtest(
                 if risk.enabled
                 else quantity
             )
-            cost = price * buy_qty
-            allowed = buy_qty > 0 and cost <= cash
-            if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and cost > equity * risk.max_allocation_pct / 100 + 1e-9:
+            fill = cost_math.fill_price(price, "BUY", costs)
+            cost = fill * buy_qty
+            fees = cost_math.charges(cost, costs)
+            allowed = buy_qty > 0 and cost + fees <= cash
+            if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and price * buy_qty > equity * risk.max_allocation_pct / 100 + 1e-9:
                 allowed = False
             if allowed:
-                cash -= cost
+                cash -= cost + fees
                 held = buy_qty
-                trades.append(BacktestTrade(entry_date=day, entry_price=price, quantity=buy_qty))
+                total_fees += fees
+                slippage_cost += (fill - price) * buy_qty
+                trades.append(BacktestTrade(entry_date=day, entry_price=fill, quantity=buy_qty, entry_fees=fees))
             else:
                 skipped_buys += 1
         elif event is not None and event.side == "SELL" and held > 0:
             open_trade = trades[-1]
-            cash += price * held
-            _close_trade(open_trade, day, price)
+            fill = cost_math.fill_price(price, "SELL", costs)
+            proceeds = fill * held
+            fees = cost_math.charges(proceeds, costs)
+            cash += proceeds - fees
+            total_fees += fees
+            slippage_cost += (price - fill) * held
+            _close_trade(open_trade, day, fill, exit_fees=fees)
             held = 0
 
         equity = cash + held * price
@@ -165,6 +195,9 @@ def run_backtest(
         max_drawdown_pct=max_drawdown_pct,
         skipped_buys=skipped_buys,
         stopped_out=stopped_out,
+        costs_applied=costs.enabled,
+        total_fees=total_fees,
+        slippage_cost=slippage_cost,
         equity_curve=equity_curve,
         trades=trades,
     )
