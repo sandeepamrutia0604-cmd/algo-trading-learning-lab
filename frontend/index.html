@@ -25,7 +25,7 @@
         <a href="#/backtests" data-route="backtests">Backtests</a>
         <a href="#/performance" data-route="performance">Performance</a>
         <a href="#/journal" data-route="journal">Journal</a>
-        <a href="#/learn" data-route="learn">Learn <em>Soon</em></a>
+        <a href="#/learn" data-route="learn">Learn</a>
       </nav>
       <div class="side-foot">
         <span id="status" class="status-pill">Checking...</span>
@@ -476,14 +476,15 @@
           </div>
         </section>
 
-        <!-- ============ COMING SOON ============ -->
-        <section id="page-soon" class="page" hidden>
-          <div class="panel soon">
-            <span class="chip" id="soon-phase"></span>
-            <h2 id="soon-title"></h2>
-            <p id="soon-blurb"></p>
-            <ul id="soon-list"></ul>
-            <a class="link" href="#/trade">Back to the trade screen</a>
+        <!-- ============ LEARN ============ -->
+        <section id="page-learn" class="page" hidden>
+          <div class="learn">
+            <aside class="panel learn-list">
+              <h3>Learning modules</h3>
+              <ol id="learn-modules"></ol>
+              <p class="hint">Short lessons that build on each other, each with an experiment you can run in this simulator. Educational only, not investment advice.</p>
+            </aside>
+            <article class="panel lesson" id="learn-lesson"></article>
           </div>
         </section>
       </main>

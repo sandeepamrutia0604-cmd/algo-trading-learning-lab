@@ -4,7 +4,7 @@ import { initTheme } from "./theme.js";
 import { checkHealth, initTopbar, renderTopbar } from "./topbar.js";
 import { renderHome } from "./pages/home.js";
 import { initTrade, renderTrade } from "./pages/trade.js";
-import { renderSoon } from "./pages/soon.js";
+import { initLearn, renderLearn } from "./pages/learn.js";
 import { initStrategies, renderStrategies } from "./pages/strategies.js";
 import { initBacktests, renderBacktests } from "./pages/backtests.js";
 import { renderPerformance } from "./pages/performance.js";
@@ -18,10 +18,11 @@ const PAGE_OF = {
   backtests: "backtests",
   performance: "performance",
   journal: "journal",
+  learn: "learn",
 };
 
 function currentRoute() {
-  const route = location.hash.replace(/^#\//, "");
+  const route = location.hash.replace(/^#\//, "").split("/")[0];
   return ROUTES.includes(route) ? route : "home";
 }
 
@@ -33,14 +34,14 @@ async function renderActive() {
   else if (route === "backtests") await renderBacktests();
   else if (route === "performance") await renderPerformance();
   else if (route === "journal") await renderJournal();
+  else if (route === "learn") renderLearn();
 }
 
 function showRoute() {
   const route = currentRoute();
-  const page = PAGE_OF[route] || "soon";
-  for (const name of ["home", "trade", "strategies", "backtests", "performance", "journal", "soon"]) $(`page-${name}`).hidden = name !== page;
+  const page = PAGE_OF[route];
+  for (const name of ["home", "trade", "strategies", "backtests", "performance", "journal", "learn"]) $(`page-${name}`).hidden = name !== page;
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.route === route));
-  if (page === "soon") renderSoon(route);
   return refresh();
 }
 
@@ -67,6 +68,7 @@ async function boot() {
   initTrade();
   initStrategies();
   initBacktests();
+  initLearn();
   window.addEventListener("hashchange", showRoute);
   checkHealth();
   try {

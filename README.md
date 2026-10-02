@@ -29,7 +29,12 @@ Screens (left navigation):
   weigh it against other runs on the same stock. Nothing here touches your real paper portfolio.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
-- **Learn** - placeholder for a later phase.
+- **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
+  indicator, a strategy, backtesting, risk management, overfitting, paper trading, live
+  algorithmic trading), each with an experiment you can run in the simulator. Lessons are
+  being added one module at a time (Module 1 is live); the rest show as "Soon". Lesson text
+  is plain data in `frontend/js/learn/lessons.js`, rendered by `frontend/js/pages/learn.js`;
+  each lesson has its own link (`#/learn/3`).
 
 Strategy types (all long-only: one position at a time, signals never look ahead):
 - **MA Crossover** - fast SMA crosses above/below slow SMA. Best in trends; whipsaws in sideways markets.
