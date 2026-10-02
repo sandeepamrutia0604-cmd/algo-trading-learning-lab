@@ -1,10 +1,10 @@
-"""Import real NSE stocks and their historical candles -- from a MarketDataAdapter (Angel One,
-see adapters/angel_one.py) or from a CSV file (adapters/csv_candles.py) -- into this app's own
+"""Import real NSE stocks and their historical candles -- from a MarketDataAdapter (Angel One
+or Upstox, see adapters/angel_one.py and adapters/upstox.py) or from a CSV file (adapters/csv_candles.py) -- into this app's own
 Stock/PriceData tables.
 
 Once imported, a real stock behaves exactly like one of the simulated ALPHA/BETA/... stocks
 to every other part of the app (chart, trade ticket, strategies, backtests) -- none of that
-code changes. The one difference is Stock.source ("angel_one" or "csv", never "simulated"):
+code changes. The one difference is Stock.source ("angel_one", "upstox" or "csv", never "simulated"):
 market_service's simulator skips these stocks so it never overwrites real history with
 synthetic candles, and instead the market clock replays their real candles one day at a time
 (only candles up to the clock are visible). Nothing here refreshes automatically; re-run
@@ -95,14 +95,26 @@ def import_candles(
     return stock
 
 
-def import_real_stock(db: Session, adapter: MarketDataAdapter, symbol: str, name: str) -> Stock:
+def import_real_stock(
+    db: Session, adapter: MarketDataAdapter, symbol: str, name: str, *, source: str = "angel_one", replace: bool = True
+) -> Stock:
+    """Fetch a stock's candles from `adapter` and store them. `source` labels where they came
+    from ("angel_one", "upstox"); replace=False merges into existing history by date instead of
+    discarding it, so a provider that returns less history never shrinks what's already there."""
     candles = adapter.get_historical_candles(symbol)
-    return import_candles(db, symbol, name, candles, source="angel_one", replace=True)
+    return import_candles(db, symbol, name, candles, source=source, replace=replace)
 
 
 def import_all_real_stocks(
-    db: Session, adapter: MarketDataAdapter, stocks: list[dict] = REAL_STOCKS
+    db: Session,
+    adapter: MarketDataAdapter,
+    stocks: list[dict] = REAL_STOCKS,
+    *,
+    source: str = "angel_one",
+    replace: bool = True,
 ) -> list[Stock]:
-    imported = [import_real_stock(db, adapter, entry["symbol"], entry["name"]) for entry in stocks]
+    imported = [
+        import_real_stock(db, adapter, entry["symbol"], entry["name"], source=source, replace=replace) for entry in stocks
+    ]
     db.commit()
     return imported

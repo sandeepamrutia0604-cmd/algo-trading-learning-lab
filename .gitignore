@@ -11,6 +11,7 @@ __pycache__/
 data/*.db
 data/*.sqlite3
 data/angel_one_scrip_master.json
+data/upstox_nse_instruments.json
 
 # OS
 .DS_Store

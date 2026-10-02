@@ -8,7 +8,6 @@ order-placement endpoints are simply never called from this codebase. See the Ph
 in the project plan and the README's Security and Safety Principles.
 """
 
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -17,6 +16,7 @@ import httpx
 from ..services.exceptions import StockNotFoundError
 from .angel_one_auth import BASE_URL, AngelOneAuth, unwrap
 from .base import Candle, MarketDataAdapter
+from .rate_limiter import RateLimiter
 from .scrip_master import DEFAULT_CACHE_PATH, build_token_map, load_scrip_master
 
 HISTORICAL_PATH = "/rest/secure/angelbroking/historical/v1/getCandleData"
@@ -30,18 +30,6 @@ LTP_MIN_INTERVAL = 0.11
 
 CANDLE_CACHE_TTL = timedelta(seconds=60)
 DEFAULT_HISTORY_DAYS = 400
-
-
-class _RateLimiter:
-    def __init__(self, min_interval_seconds: float):
-        self.min_interval = min_interval_seconds
-        self._last_call = 0.0
-
-    def wait(self) -> None:
-        elapsed = time.monotonic() - self._last_call
-        if elapsed < self.min_interval:
-            time.sleep(self.min_interval - elapsed)
-        self._last_call = time.monotonic()
 
 
 class AngelOneMarketDataAdapter(MarketDataAdapter):
@@ -62,8 +50,8 @@ class AngelOneMarketDataAdapter(MarketDataAdapter):
         self.scrip_master_cache_path = scrip_master_cache_path
         self._token_map: dict[str, str] | None = None
         self._candle_cache: dict[str, tuple[datetime, list[Candle]]] = {}
-        self._candle_limiter = _RateLimiter(CANDLE_MIN_INTERVAL)
-        self._ltp_limiter = _RateLimiter(LTP_MIN_INTERVAL)
+        self._candle_limiter = RateLimiter(CANDLE_MIN_INTERVAL)
+        self._ltp_limiter = RateLimiter(LTP_MIN_INTERVAL)
 
     def _token_for(self, symbol: str) -> str:
         if self._token_map is None:

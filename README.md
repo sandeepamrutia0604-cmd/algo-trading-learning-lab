@@ -172,6 +172,40 @@ candle and LTP endpoints are throttled to stay under SmartAPI's published per-se
 limits (`angel_one.py`) — the adapter is a natural place for that caching since every caller
 goes through it rather than hitting the API directly.
 
+### Upstox market data (a simpler token)
+
+`UpstoxMarketDataAdapter` reads real NSE daily candles with an Upstox **Analytics Token**: a free,
+read-only token that lasts a year and needs no static IP for market data. It can't place orders,
+and this project never tries to. Compared with Angel One it needs one value instead of four (no
+client code, PIN or TOTP), and it can return up to 10 years of daily history in one request.
+
+Setup:
+1. On Upstox's Developer Apps page, open the **Analytics** tab and click Generate Token.
+2. Put it in your own `.env` as `UPSTOX_ANALYTICS_TOKEN=...` -- never in `.env.example` (which
+   git tracks), never in chat, never committed.
+3. Test it directly: `python scripts/test_upstox_adapter.py RELIANCE`
+4. Import stocks into the database, the same way as for Angel One:
+   ```bash
+   python scripts/import_real_stocks.py --source upstox                       # the default list, 5 years
+   python scripts/import_real_stocks.py --source upstox --years 8 RELIANCE TCS
+   python scripts/import_real_stocks.py --source upstox --merge INFY           # keep older history
+   ```
+
+The candles are written to the same `Stock`/`PriceData` tables as every other stock (marked
+`source="upstox"`), so they survive restarts, replay on the market clock, and work in charts,
+trading and backtests. By default an import *replaces* a stock's stored history with what Upstox
+returns; `--merge` merges by date instead, which keeps anything Upstox didn't return (for
+example years you imported from a CSV). Each stock is imported on its own, so one unknown
+symbol is reported without stopping the rest.
+
+How it works: Upstox identifies a stock by an instrument key such as `NSE_EQ|INE002A01018`, not
+its symbol. Its public daily instrument file maps each symbol to a key; the adapter caches the
+~2,900 cash-equity rows to `data/upstox_nse_instruments.json` for 24 hours (gitignored). Candles
+come from `GET /v3/historical-candle/{key}/days/1/{to}/{from}` with the token as a bearer
+header. Both the file layout and the endpoint were checked against Upstox's docs and its real
+instrument file. `MARKET_DATA_PROVIDER=upstox` also works, like `angel_one`, but the import
+above is the usual route.
+
 ### Importing market data from a file (no credentials)
 
 If you'd rather not put broker credentials in `.env` at all, download daily candles yourself
@@ -274,6 +308,7 @@ backend/
     api/            Route handlers
     adapters/       MarketDataAdapter interface (base.py); dummy.py (today's default);
                     angel_one.py + angel_one_auth.py + scrip_master.py (real SmartAPI client);
+                    upstox.py (Upstox Analytics Token client); rate_limiter.py (shared throttle);
                     csv_candles.py (CSV/TSV candle parser for file imports);
                     get_market_data_adapter() picks one by MARKET_DATA_PROVIDER
     models/         SQLAlchemy models (Stock, Portfolio, Position, Trade,
@@ -300,7 +335,8 @@ frontend/
 scripts/
   start.bat             Double-click launcher
   test_angel_one_adapter.py   Smoke-tests the real Angel One adapter against your own account
-  import_real_stocks.py       Imports real NSE stocks + history from Angel One into the app's own database
+  test_upstox_adapter.py      Smoke-tests the Upstox adapter with your own Analytics Token
+  import_real_stocks.py       Imports real NSE stocks + history (--source angel_one or upstox) into the app's database
   import_csv.py               Imports a stock's candles from a CSV/TSV file (no credentials)
 data/               SQLite database file + cached Angel One scrip master (gitignored)
 ```
