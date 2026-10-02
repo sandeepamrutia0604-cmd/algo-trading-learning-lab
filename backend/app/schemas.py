@@ -32,6 +32,7 @@ class StockImportOut(BaseModel):
     first_date: dt.date
     last_date: dt.date
     current_price: float
+    market_date: dt.date | None = None
 
 
 class OrderRequest(BaseModel):
@@ -129,6 +130,7 @@ class AdvanceRequest(BaseModel):
 class MarketStatusOut(BaseModel):
     date: dt.date | None
     events: list[str] = []
+    reached_end: bool = False
 
 
 class IndicatorPoint(BaseModel):

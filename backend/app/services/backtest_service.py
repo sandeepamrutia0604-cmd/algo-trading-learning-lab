@@ -59,7 +59,7 @@ def run(
     else:
         defn = _definition(type_key)
         clean = _normalize(defn, params)
-    candles = get_market_data_adapter(db).get_historical_candles(symbol)
+    candles = get_market_data_adapter(db, full_history=True).get_historical_candles(symbol)
     if len(candles) < 2:
         raise InvalidStrategyError("Not enough price history to run a backtest")
 

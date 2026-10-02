@@ -38,4 +38,5 @@ def ensure_seed_data(db: Session, with_history: bool = True) -> None:
             db, market_service.DEFAULT_HISTORY_DAYS, seed=market_service.DEFAULT_SEED
         )
 
+    market_service.ensure_clock(db)
     db.commit()

@@ -296,7 +296,7 @@ async function importData() {
   try {
     const body = { symbol, name: $("im-name").value.trim() || null, csv_text: await file.text(), replace };
     const r = await api("/stocks/import", { method: "POST", body: JSON.stringify(body) });
-    const summary = `${r.symbol}: read ${r.candles_read} candles (${r.first_date} to ${r.last_date}); ${r.candles_stored} stored, current price ${money(r.current_price)}.`;
+    const summary = `${r.symbol}: read ${r.candles_read} candles (${r.first_date} to ${r.last_date}); ${r.candles_stored} stored. Market date ${r.market_date}, price ${money(r.current_price)} -- later candles are revealed as the market advances.`;
     $("im-result").textContent = summary;
     toast(r.created ? `Added ${r.symbol}` : `Updated ${r.symbol}`);
     $("im-file").value = "";

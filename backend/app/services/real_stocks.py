@@ -5,9 +5,10 @@ Stock/PriceData tables.
 Once imported, a real stock behaves exactly like one of the simulated ALPHA/BETA/... stocks
 to every other part of the app (chart, trade ticket, strategies, backtests) -- none of that
 code changes. The one difference is Stock.source ("angel_one" or "csv", never "simulated"):
-market_service's simulator (generate_all/advance/reset_market) skips these stocks so it never
-overwrites real history with synthetic candles. Nothing here refreshes automatically; re-run
-scripts/import_real_stocks.py or scripts/import_csv.py to bring prices up to date.
+market_service's simulator skips these stocks so it never overwrites real history with
+synthetic candles, and instead the market clock replays their real candles one day at a time
+(only candles up to the clock are visible). Nothing here refreshes automatically; re-run
+scripts/import_real_stocks.py or scripts/import_csv.py to bring the data up to date.
 """
 
 from datetime import datetime, time
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..adapters.base import Candle, MarketDataAdapter
 from ..models import PriceData, Stock
+from . import market_service
 
 REAL_STOCKS = [
     {"symbol": "RELIANCE", "name": "Reliance Industries"},
@@ -77,9 +79,11 @@ def import_candles(
         )
     db.flush()
 
-    ordered = db.query(PriceData).filter(PriceData.stock_id == stock.id).order_by(PriceData.timestamp)
-    stock.starting_price = ordered.first().close
-    stock.current_price = ordered.order_by(None).order_by(PriceData.timestamp.desc()).first().close
+    stock.starting_price = (
+        db.query(PriceData).filter(PriceData.stock_id == stock.id).order_by(PriceData.timestamp).first().close
+    )
+    # The price is the newest candle the market clock has reached, not the newest imported one.
+    market_service.ensure_visible(db, stock)
     return stock
 
 

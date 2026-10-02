@@ -182,7 +182,29 @@ By default the file is **merged** into the stock's existing history by date, so 
 adds its days without losing the rest; `--replace` discards the old history first. Simulated
 stocks (ALPHA/BETA/GAMMA/DELTA) are refused. Imported stocks get `source="csv"`, so the
 simulator never touches them, and they work in charts, trading, strategies and backtests
-exactly like the Angel One ones. Like those, they're a snapshot: re-import to bring them up to date.
+exactly like the Angel One ones. Like those, the data is a snapshot: re-import to bring it up to date.
+
+### How imported stocks replay (the market clock)
+
+The app keeps one **market clock** (`Portfolio.market_date`), the simulated "today", and every
+stock only shows candles up to it. An imported stock's whole real history is stored, but only
+its first ~60 days are showing when the market starts; each **+1 day / +5 days / Play** moves the
+clock forward one business day, revealing that day's real candle (chart, price, watchlist,
+sparklines, portfolio value and equity curve all follow). The simulated stocks generate their
+next day on the same clock, so everything shares one calendar. When the real data runs out,
+the clock stops (Play stops itself with a message) and **Reset** replays it from the start.
+
+Things worth knowing:
+- Charts, signals, auto-trading and the equity curve see only what has "happened" by the clock,
+  so a strategy can't trade on candles from its own future. **Backtests are the exception**:
+  they analyse the stock's whole stored history regardless of the clock.
+- Importing a stock whose history is entirely after the clock moves the clock up to where it
+  has warm-up history showing (and extends the simulated stocks to match); history that is
+  already in the past just appears. The clock never moves backwards except on Reset.
+- If the real data ends before the clock, nothing is being replayed, so advancing carries on
+  for the simulated stocks (the real stock's price simply holds at its last candle).
+- Databases from before the clock existed pick one up on the next startup, without losing
+  anything.
 
 ### What backtests still don't model
 

@@ -176,7 +176,9 @@
                   <button id="m-regen" class="btn">Regenerate history</button>
                 </div>
                 <p id="m-model-desc" class="hint"></p>
-                <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles.</p>
+                <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles. These settings
+                  apply to the simulated stocks (ALPHA, BETA, GAMMA, DELTA); imported real stocks replay their real history instead, one day per
+                  advance, and stop when it runs out (Reset replays it from the start).</p>
               </div>
 
               <div id="tab-risk" class="tabpane" hidden>
@@ -212,7 +214,8 @@
                 <p class="hint">Add a stock from a file you downloaded yourself -- no broker login needed. The first row must name the
                   columns (Date, Open, High, Low, Close, Volume). Tabs or commas, dates like 01 Oct 2026 or 2026-10-01, and
                   numbers like 1,180.1 all work, in any row order. By default the file is merged into the stock's existing
-                  history by date; tick Replace to discard the old history first. ALPHA, BETA, GAMMA and DELTA are simulated and can't be imported over.</p>
+                  history by date; tick Replace to discard the old history first. The stock starts with its first ~60 days showing and
+                  replays the rest as you advance the market. ALPHA, BETA, GAMMA and DELTA are simulated and can't be imported over.</p>
                 <p class="hint" id="im-result"></p>
               </div>
             </div>

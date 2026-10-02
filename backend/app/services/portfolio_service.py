@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from ..models import Position, PriceData, Trade
-from .market_service import recent_closes
+from .market_service import recent_closes, visible_before
 from .trading_service import get_portfolio
 
 
@@ -61,11 +61,11 @@ def get_equity_curve(db: Session) -> list[dict]:
     """Portfolio value per market day, replaying dated trades over the price history."""
     starting_capital = get_portfolio(db).starting_capital
     closes_by_date: dict = {}
-    for stock_id, timestamp, close in (
-        db.query(PriceData.stock_id, PriceData.timestamp, PriceData.close)
-        .order_by(PriceData.timestamp)
-        .all()
-    ):
+    price_query = db.query(PriceData.stock_id, PriceData.timestamp, PriceData.close)
+    bound = visible_before(db)
+    if bound is not None:
+        price_query = price_query.filter(PriceData.timestamp < bound)
+    for stock_id, timestamp, close in price_query.order_by(PriceData.timestamp).all():
         closes_by_date.setdefault(timestamp.date(), {})[stock_id] = close
 
     trades = (

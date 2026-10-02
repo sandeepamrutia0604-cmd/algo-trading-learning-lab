@@ -6,7 +6,7 @@ ADDED_COLUMNS = {
     "trades": {"market_date": "DATE", "realized_pnl": "FLOAT", "strategy_id": "INTEGER"},
     "strategies": {"rules": "JSON"},
     "stocks": {"source": "VARCHAR(20) DEFAULT 'simulated'"},
-    "portfolio": {"starting_capital": "FLOAT DEFAULT 100000.0"},
+    "portfolio": {"starting_capital": "FLOAT DEFAULT 100000.0", "market_date": "DATE"},
 }
 
 

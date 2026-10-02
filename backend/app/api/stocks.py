@@ -51,4 +51,5 @@ def import_stock(body: StockImportRequest, db: Session = Depends(get_db)):
         first_date=candles[0].date,
         last_date=candles[-1].date,
         current_price=stock.current_price,
+        market_date=market_service.latest_market_date(db),
     )

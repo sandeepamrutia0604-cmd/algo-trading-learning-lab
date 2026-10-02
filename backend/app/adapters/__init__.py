@@ -27,10 +27,13 @@ def _get_angel_one_adapter() -> AngelOneMarketDataAdapter:
     return _angel_one_adapter
 
 
-def get_market_data_adapter(db: Session) -> MarketDataAdapter:
+def get_market_data_adapter(db: Session, *, full_history: bool = False) -> MarketDataAdapter:
     """The adapter the strategy engine/backtester/auto-trader should use for historical
     candles, chosen by MARKET_DATA_PROVIDER (.env). Defaults to the dummy simulator;
-    "angel_one" logs into the real SmartAPI account configured in .env."""
+    "angel_one" logs into the real SmartAPI account configured in .env.
+
+    `full_history` (backtests) asks for the whole stored series instead of only the candles
+    the market clock has reached; the Angel One adapter has no clock and ignores it."""
     if settings.market_data_provider == "angel_one":
         return _get_angel_one_adapter()
-    return DummyMarketDataAdapter(db)
+    return DummyMarketDataAdapter(db, full_history=full_history)

@@ -46,6 +46,7 @@ async function advance(days) {
   try {
     const result = await api("/market/advance", { method: "POST", body: JSON.stringify({ days }) });
     await hooks.refresh();
+    if (result.reached_end) stopPlaying();
     if (result.events && result.events.length) toast(result.events.slice(-3).join("  |  "));
   } catch (err) {
     stopPlaying();

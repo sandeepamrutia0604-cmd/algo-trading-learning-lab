@@ -25,6 +25,7 @@ def test_import_creates_a_stock_that_the_rest_of_the_api_serves(client):
         "first_date": "2025-01-01",
         "last_date": "2025-01-03",
         "current_price": 1015.0,
+        "market_date": "2025-01-03",
     }
     assert "NEWCO" in [s["symbol"] for s in client.get("/api/stocks").json()]
     prices = client.get("/api/stocks/NEWCO/prices").json()

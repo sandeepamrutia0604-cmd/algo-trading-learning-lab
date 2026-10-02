@@ -53,22 +53,36 @@ def set_config(symbol: str, body: MarketConfigIn, db: Session = Depends(get_db))
     return _config_out(config)
 
 
+def _status(db: Session, events: list[str] | None = None) -> MarketStatusOut:
+    return MarketStatusOut(
+        date=market_service.latest_market_date(db),
+        events=events or [],
+        reached_end=market_service.at_end_of_real_data(db),
+    )
+
+
 @router.get("/market/status", response_model=MarketStatusOut)
 def status(db: Session = Depends(get_db)):
-    return MarketStatusOut(date=market_service.latest_market_date(db))
+    return _status(db)
 
 
 @router.post("/market/generate", response_model=MarketStatusOut)
 def generate(body: GenerateRequest, db: Session = Depends(get_db)):
     market_service.generate_all(db, body.days, body.seed)
     strategy_service.clear_unexecuted_signals(db)
-    return MarketStatusOut(date=market_service.latest_market_date(db))
+    return _status(db)
 
 
 @router.post("/market/advance", response_model=MarketStatusOut)
 def advance(body: AdvanceRequest, db: Session = Depends(get_db)):
     events = strategy_service.advance_market(db, body.days)
-    return MarketStatusOut(date=market_service.latest_market_date(db), events=events)
+    result = _status(db, events)
+    if result.reached_end:
+        result.events = [
+            *result.events,
+            f"Reached the end of the real market data ({result.date:%d %b %Y}). Reset to replay it from the start.",
+        ]
+    return result
 
 
 @router.get("/stocks/{symbol}/indicators", response_model=IndicatorsOut)
