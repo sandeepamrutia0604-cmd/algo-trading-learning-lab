@@ -65,6 +65,55 @@ function attachZoomAutoscale(el, prices) {
   });
 }
 
+const compactVolume = (v) => (v >= 1e7 ? `${(v / 1e7).toFixed(2)} Cr` : v >= 1e5 ? `${(v / 1e5).toFixed(2)} L` : Math.round(v).toLocaleString("en-IN"));
+
+/**
+ * A horizontal crosshair line with a value tag on the right-hand axis, following the mouse in
+ * the price, volume and indicator panels. (The vertical line is Plotly's own x spike, which
+ * knows how to skip weekends; Plotly has no equivalent for a free-moving horizontal line.)
+ * Reads the live axis ranges on every move, so it stays right after zooming.
+ */
+function attachCrosshair(el) {
+  if (el._crosshair) {
+    // Plotly may have rebuilt the container's contents; put the overlay back if so.
+    if (!el._crosshair.line.isConnected) el.append(el._crosshair.line, el._crosshair.tag);
+    return;
+  }
+  const line = document.createElement("div");
+  const tag = document.createElement("div");
+  line.className = "crosshair-h";
+  tag.className = "crosshair-tag";
+  el.append(line, tag);
+  el._crosshair = { line, tag };
+
+  const hide = () => {
+    line.style.display = "none";
+    tag.style.display = "none";
+  };
+  el.addEventListener("mouseleave", hide);
+  el.addEventListener("mousemove", (ev) => {
+    const layout = el._fullLayout;
+    if (!layout || !layout.xaxis) return hide();
+    const box = el.getBoundingClientRect();
+    const x = ev.clientX - box.left;
+    const y = ev.clientY - box.top;
+    const xa = layout.xaxis;
+    if (x < xa._offset || x > xa._offset + xa._length) return hide();
+
+    for (const name of ["yaxis", "yaxis2", "yaxis3"]) {
+      const ya = layout[name];
+      if (!ya || !ya.range || y < ya._offset || y > ya._offset + ya._length) continue;
+      const share = (ya._offset + ya._length - y) / ya._length;
+      const value = ya.range[0] + share * (ya.range[1] - ya.range[0]);
+      line.style.cssText = `display:block;left:${xa._offset}px;width:${xa._length}px;top:${y}px`;
+      tag.style.cssText = `display:block;left:${xa._offset + xa._length + 2}px;top:${y}px`;
+      tag.textContent = name === "yaxis" ? money(value) : name === "yaxis2" ? compactVolume(value) : value.toFixed(1);
+      return;
+    }
+    hide();
+  });
+}
+
 function signalTrace(side, list, c) {
   const buy = side === "BUY";
   return {
@@ -184,6 +233,12 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
       rangebreaks: [{ bounds: ["sat", "mon"] }],
       gridcolor: c.line,
       linecolor: c.line,
+      showspikes: true,
+      spikemode: "across",
+      spikesnap: "cursor",
+      spikecolor: c.muted,
+      spikethickness: 1,
+      spikedash: "dot",
       ...(xRange ? { range: xRange } : {}),
     },
     yaxis: { domain: domains.price, side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false, range: [priceLow, priceHigh], fixedrange: true },
@@ -195,6 +250,7 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
   }
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true, scrollZoom: true });
   attachZoomAutoscale(el, prices);
+  attachCrosshair(el);
 }
 
 /** A value-over-time line against a reference line (flat starting capital or a buy-and-hold curve). */
