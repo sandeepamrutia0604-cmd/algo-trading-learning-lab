@@ -500,6 +500,11 @@ export function renderOptimise() {
 
 export function initOptimise() {
   $("op-mode").addEventListener("change", renderView);
+  $("op-wf-switch").addEventListener("click", () => {
+    $("op-mode").value = "split";
+    renderView();
+    $("op-mode").scrollIntoView({ block: "nearest" });
+  });
   for (const id of ["op-wf-folds", "op-wf-ratio", "op-wf-from", "op-wf-to"]) $(id).addEventListener("input", updateWfHint);
   $("op-type").addEventListener("change", () => fillAxisSelects({ resetRanges: true }));
   $("op-x").addEventListener("change", () => {
