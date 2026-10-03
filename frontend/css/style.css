@@ -552,3 +552,10 @@ tr:last-child td { border-bottom: 0; }
 .chart { position: relative; }
 .crosshair-h { position: absolute; display: none; height: 0; border-top: 1px dotted var(--muted); pointer-events: none; z-index: 5; }
 .crosshair-tag { position: absolute; display: none; transform: translateY(-50%); padding: 1px 5px; border-radius: 3px; background: var(--muted); color: var(--bg); font-size: 11px; font-weight: 600; line-height: 1.4; white-space: nowrap; pointer-events: none; z-index: 6; }
+
+/* ---------- Home: continue learning ---------- */
+.learn-card { grid-column: span 12; }
+.learn-card h3 .muted { font-weight: 400; font-size: 12px; margin-left: 8px; }
+.learn-card .learn-bar { margin: 10px 0 12px; }
+.learn-card-body { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.learn-card-body p { margin: 0; font-size: 14px; line-height: 1.5; }

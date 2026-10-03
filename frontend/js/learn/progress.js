@@ -40,4 +40,8 @@ export function recordResult(progress, moduleId, firstTry, total, now = new Date
 
 export const isDone = (progress, moduleId) => Boolean(progress[moduleId]?.done);
 
+/** The first module (in order) the learner hasn't completed, or undefined when all are done.
+ *  Pass only modules that are written; "coming soon" ones can't be continued. */
+export const nextModule = (progress, modules) => modules.find((m) => !isDone(progress, m.id));
+
 export const completedCount = (progress, modules) => modules.filter((m) => isDone(progress, m.id)).length;

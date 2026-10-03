@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MODULES, isReady } from "./lessons.js";
-import { completedCount, isDone, loadProgress, recordResult, saveProgress } from "./progress.js";
+import { completedCount, isDone, loadProgress, nextModule, recordResult, saveProgress } from "./progress.js";
 
 const KNOWN_BLOCKS = ["h", "p", "list", "note", "example", "terms", "tryit"];
 const APP_ROUTES = ["home", "trade", "strategies", "backtests", "performance", "journal"];
@@ -138,4 +138,24 @@ test("blocked storage doesn't crash the lessons", () => {
   };
   assert.deepEqual(loadProgress(blocked), {});
   assert.doesNotThrow(() => saveProgress({ 1: { done: true } }, blocked));
+});
+
+test("the next module to continue is the first one not yet completed", () => {
+  const written = MODULES.filter(isReady);
+  assert.equal(nextModule({}, written).id, 1);
+  const some = recordResult(recordResult({}, 1, 4, 4), 2, 4, 4);
+  assert.equal(nextModule(some, written).id, 3);
+  // skipping ahead doesn't hide the gap: module 2 is still next
+  assert.equal(nextModule(recordResult(recordResult({}, 1, 4, 4), 3, 4, 4), written).id, 2);
+});
+
+test("there is nothing to continue once every written module is done", () => {
+  const written = MODULES.filter(isReady);
+  const all = written.reduce((progress, m) => recordResult(progress, m.id, 1, 1), {});
+  assert.equal(nextModule(all, written), undefined);
+  assert.equal(nextModule({}, []), undefined);
+});
+
+test("every module is written, so there are no 'coming soon' leftovers", () => {
+  assert.equal(MODULES.filter(isReady).length, MODULES.length);
 });

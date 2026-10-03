@@ -1,6 +1,8 @@
 import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline } from "../util.js";
 import { hooks, store } from "../store.js";
 import { drawEquityChart } from "../chart.js";
+import { MODULES, isReady } from "../learn/lessons.js";
+import { completedCount, loadProgress, nextModule } from "../learn/progress.js";
 
 function renderHero() {
   const p = store.portfolio;
@@ -53,6 +55,27 @@ function renderChecklist() {
     .join("");
 }
 
+function renderLearnCard() {
+  const written = MODULES.filter(isReady);
+  const progress = loadProgress();
+  const done = completedCount(progress, written);
+  const next = nextModule(progress, written);
+  const bar = `<div class="learn-bar"><i style="width:${written.length ? (done / written.length) * 100 : 0}%"></i></div>`;
+  let body;
+  if (!written.length) {
+    body = `<p class="muted">Lessons are on their way.</p>`;
+  } else if (!next) {
+    body = `<p>You've completed all ${written.length} modules. You can revisit any lesson, or retake a quiz, from the Learn page.</p>
+      <a class="btn" href="#/learn">Open Learn</a>`;
+  } else {
+    const started = done > 0;
+    body = `<p><span class="muted">${started ? "Up next" : "Start here"}</span><br>
+        <b>Module ${next.id}: ${next.title}</b> <span class="muted">&middot; ${next.minutes} min</span></p>
+      <a class="btn btn-primary" href="#/learn/${next.id}">${started ? "Continue learning" : "Start learning"}</a>`;
+  }
+  $("h-learn").innerHTML = `<h3>Learn <span class="muted">${done} of ${written.length} modules</span></h3>${bar}<div class="learn-card-body">${body}</div>`;
+}
+
 function renderWatchlist() {
   $("h-watch").innerHTML = store.stocks
     .map((s) => {
@@ -98,6 +121,7 @@ function renderRecent() {
 export async function renderHome() {
   renderHero();
   renderChecklist();
+  renderLearnCard();
   renderWatchlist();
   renderRecent();
   await renderEquity();

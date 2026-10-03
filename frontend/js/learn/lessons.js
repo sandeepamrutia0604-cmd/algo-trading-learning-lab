@@ -1123,7 +1123,138 @@ export const MODULES = [
       },
     ],
   },
-  { id: 10, title: "What is live algorithmic trading?", minutes: 6, summary: "What changes when real money and real brokers are involved." },
+  {
+    id: 10,
+    title: "What is live algorithmic trading?",
+    minutes: 6,
+    summary: "What changes when real money and real brokers are involved.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "**Live algorithmic trading** means a program places real orders, with real money, through a real broker, on its own. It is the step *after* everything in this course: you have an idea (Module 5), you backtested it with costs (Module 6), you managed its risk (Module 7), you checked you hadn't overfitted (Module 8), and you paper traded it (Module 9).",
+      },
+      {
+        note: "This lab never places real orders. It only ever paper trades. The Upstox and Angel One connections here are **read-only market data** sources. This module explains what going live involves so you understand it, and none of it is a recommendation to trade with real money or investment advice.",
+      },
+
+      { h: "What changes when it's real" },
+      {
+        terms: [
+          ["Real money, real emotions", "Losses hurt, and the temptation to switch the program off after a bad week, or to override it, is strong. A strategy only works if you actually let it run."],
+          ["Real fills", "Orders can fill partly, fill late, or fill at worse prices than you saw, especially in thinly traded stocks or fast markets. The gap between the price you wanted and the price you got is slippage, and it is rarely kind."],
+          ["Real costs", "Brokerage, taxes and other charges come out of your actual balance, every trade."],
+          ["Live data", "A live feed is different from a clean historical file: it can arrive late, have gaps, or contain a bad tick. Historical prices may also be adjusted for splits and bonuses, while live ones are not."],
+        ],
+      },
+
+      { h: "What can go wrong with the software" },
+      {
+        p: "Once a program can place orders, ordinary bugs become expensive. Things professional traders plan for:",
+      },
+      {
+        list: [
+          "**Connection failures**: the internet drops, or the broker's API is down, in the middle of a trade. Is the order placed? Do you know?",
+          "**Duplicate or runaway orders**: a bug or a retry sends the same order twice, or hundreds of times.",
+          "**Wrong size**: a unit mistake (shares versus rupees) buys far more than intended.",
+          "**Expired access**: broker tokens and logins expire. A strategy that can't log in can't exit a position either.",
+          "**Surprises**: halted stocks, circuit limits, a market holiday, a corporate action such as a split.",
+        ],
+      },
+      {
+        p: "That is why live systems have **safety limits** written into the code: a maximum order size, a maximum number of orders per day, a daily loss limit, and a **kill switch**, a way to stop everything instantly. The risk rules from Module 7 become a safety net for the software as well as for the strategy.",
+      },
+
+      { h: "Credentials and security" },
+      {
+        p: "A broker API key or token can move real money, so treat it like a bank password. Keep it only in a private local file or a secrets manager. Never paste it into chat, code, screenshots or a public repository, and use read-only keys wherever you can. This lab follows that rule: credentials live in a local .env file that is never committed.",
+      },
+
+      { h: "Rules and regulation" },
+      {
+        p: "Automated trading through a broker is regulated, and the rules differ by country and change over time. In India, for example, the market regulator and brokers have requirements around API access, such as registered or approved strategies and fixed IP addresses for order APIs. Check your broker's and the regulator's **current** rules, and understand how your trading profits are taxed, before you go anywhere near live trading.",
+      },
+
+      { h: "If you ever go live: a sensible checklist" },
+      {
+        list: [
+          "The strategy was backtested **with costs** and tested out-of-sample.",
+          "It was paper traded long enough, across different market conditions.",
+          "Risk management is on, and the safety limits and a kill switch exist.",
+          "You can see and monitor what the program is doing, and get alerts when something goes wrong.",
+          "You start with a very small amount you can truly afford to lose, and scale up slowly, if at all.",
+          "Your credentials are safe, and you know the rules and the tax treatment.",
+        ],
+      },
+      {
+        note: "Most strategies that look good on paper do not become profitable live. That is normal, and it is why this course spends nine modules on testing and risk before this one. Learning to be sceptical of your own results is the most valuable skill here.",
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Live trading", "Trading with real money through a real broker."],
+          ["Broker API", "A programming interface a broker offers so a program can fetch data and place orders."],
+          ["Kill switch", "A way to stop all trading instantly."],
+          ["Safety limits", "Hard caps in the software on order size, order count and daily loss."],
+          ["Latency", "The delay between a decision and the order reaching the market."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Review your results like a pre-live check",
+          hint: "Practical experiment: open the Performance page and look at your max drawdown, win rate and the per-strategy table. If these were real rupees, would you be comfortable sitting through that drawdown? That question is the first one to answer before any real money is involved.",
+          route: "performance",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "Which of these is a difference between paper trading and live trading?",
+        options: [
+          "Strategies use different rules.",
+          "Live trading doesn't use indicators.",
+          "Paper trading is always more expensive.",
+          "Live orders can fill at worse prices, partly, or late, and real money is at stake.",
+        ],
+        answer: 3,
+        why: "The strategy logic can be identical, but live trading adds real fills, real costs and real emotions. That is exactly what paper trading can't fully recreate.",
+      },
+      {
+        q: "What is a kill switch?",
+        options: [
+          "A button that doubles your position.",
+          "A way to stop all automated trading immediately.",
+          "A type of stop-loss order.",
+          "A broker fee.",
+        ],
+        answer: 1,
+        why: "A kill switch halts the program at once. Live systems need one because a bug or a bad market can otherwise keep sending orders faster than a person can react.",
+      },
+      {
+        q: "Where should a broker API key or token be kept?",
+        options: [
+          "In a private local file or secrets manager, never in chat, public code or screenshots.",
+          "In the strategy's source code, so it is easy to find.",
+          "In a public GitHub repository, so it is backed up.",
+          "In a message to a friend, in case you lose it.",
+        ],
+        answer: 0,
+        why: "A key can move real money, so it is as sensitive as a bank password. Keep it private, use read-only keys where possible, and never commit or share it.",
+      },
+      {
+        q: "Your strategy paper-traded well for a few weeks. What's the sensible approach to going live?",
+        options: [
+          "Put in all your savings to make the most of it.",
+          "Skip safety limits, because it already works.",
+          "Start very small with money you can afford to lose, keep risk limits and monitoring on, and scale up slowly if at all.",
+          "Turn off risk management so it can earn more.",
+        ],
+        answer: 2,
+        why: "A few good weeks are weak evidence, and live trading adds new risks. Starting small, with limits and monitoring in place, keeps a surprise from becoming a disaster.",
+      },
+    ],
+  },
 ];
 
 export const isReady = (module) => Array.isArray(module.blocks) && module.blocks.length > 0;
