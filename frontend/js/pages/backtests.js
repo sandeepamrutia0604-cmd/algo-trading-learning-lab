@@ -6,7 +6,7 @@ import * as rb from "../rulebuilder.js";
 const MAX_COMPARE = 6;
 const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
 
-const state = { result: null, running: false, compareList: [], ranges: {} };
+const state = { result: null, request: null, running: false, compareList: [], ranges: {}, saved: [] };
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
 const isCustom = () => $("bt-type").value === "custom";
@@ -164,7 +164,9 @@ async function runBacktest() {
     const result = await api("/backtests/run", { method: "POST", body: JSON.stringify(body) });
     await historyRange(result.symbol).catch(() => {}); // so the results can tell a partial period from the whole history
     state.result = result;
+    state.request = body;
     await renderResults();
+    return result;
   } catch (err) {
     toast(err.message, true);
   } finally {
@@ -273,7 +275,15 @@ function addToComparison() {
     (isPartial(state.result) ? ` (${state.result.period_start} to ${state.result.period_end})` : "") +
     (state.result.risk_managed ? " (risk-managed)" : "") +
     (state.result.costs_applied ? " (with costs)" : "");
-  state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label, result: state.result });
+  pushComparison(label, state.result);
+}
+
+function pushComparison(label, result) {
+  if (state.compareList.length >= MAX_COMPARE) {
+    toast(`You can compare up to ${MAX_COMPARE} strategies at a time. Remove one first.`, true);
+    return;
+  }
+  state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label, result });
   renderComparison();
   toast("Added to comparison.");
 }
@@ -322,11 +332,141 @@ function renderComparison() {
   }
 }
 
+/* ---------------- saved backtests ---------------- */
+
+const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+// The server stores UTC without a zone marker; say so, or the browser reads it as local time.
+const savedOn = (iso) => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+async function loadSavedList() {
+  try {
+    state.saved = await api("/backtests/saved");
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  renderSaved();
+}
+
+function renderSaved() {
+  const rows = state.saved;
+  $("bt-saved-n").textContent = rows.length ? `(${rows.length})` : "";
+  $("bt-saved-empty").hidden = rows.length > 0;
+  $("bt-saved-table").hidden = rows.length === 0;
+  const body = document.querySelector("#bt-saved-table tbody");
+  body.innerHTML = rows
+    .map(
+      (r) => `<tr>
+        <td class="name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}${r.costs_applied ? ' <span class="chip">costs</span>' : ""}${r.risk_managed ? ' <span class="chip">risk</span>' : ""}</td>
+        <td class="muted">${r.period_start} to ${r.period_end}</td>
+        <td class="num ${pnlClass(r.total_return_pct)}">${signedPercent(r.total_return_pct)}</td>
+        <td class="num">${money(r.final_capital)}</td>
+        <td class="num">${r.total_trades}</td>
+        <td class="num">${percent(r.win_rate_pct)}</td>
+        <td class="num ${r.max_drawdown_pct > 0 ? "down" : ""}">${percent(r.max_drawdown_pct)}</td>
+        <td class="muted">${savedOn(r.created_at)}</td>
+        <td class="num"><div class="row-actions">
+          <button class="btn" data-saved-load="${r.id}">Load</button>
+          <button class="btn" data-saved-compare="${r.id}">Compare</button>
+          <button class="btn btn-sell" data-saved-delete="${r.id}">Delete</button>
+        </div></td>
+      </tr>`,
+    )
+    .join("");
+  body.querySelectorAll("[data-saved-load]").forEach((b) => b.addEventListener("click", () => loadSavedRun(Number(b.dataset.savedLoad))));
+  body.querySelectorAll("[data-saved-compare]").forEach((b) => b.addEventListener("click", () => compareSavedRun(Number(b.dataset.savedCompare))));
+  body.querySelectorAll("[data-saved-delete]").forEach((b) => b.addEventListener("click", () => deleteSavedRun(Number(b.dataset.savedDelete))));
+}
+
+async function saveRun() {
+  if (!state.result || !state.request) return;
+  const button = $("bt-save");
+  button.disabled = true;
+  try {
+    const saved = await api("/backtests/saved", { method: "POST", body: JSON.stringify({ name: $("bt-save-name").value.trim() || null, request: state.request }) });
+    toast(`Saved "${saved.name}"`);
+    $("bt-save-name").value = "";
+    await loadSavedList();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+/** Put a saved run's settings back in the builder and run it again. */
+async function loadSavedRun(id) {
+  let saved;
+  try {
+    saved = await api(`/backtests/saved/${id}`);
+  } catch (err) {
+    toast(err.message, true);
+    return loadSavedList();
+  }
+  const req = saved.request;
+  if (!store.stocks.some((s) => s.symbol === req.symbol)) {
+    return toast(`${req.symbol} no longer exists, so this run can't be repeated. You can still compare the saved result.`, true);
+  }
+
+  $("bt-type").value = req.type;
+  applyBuilderDefaults();
+  if (req.type === "custom") {
+    renderCustomRules(req.rules);
+  } else {
+    for (const [name, value] of Object.entries(req.params || {})) {
+      const input = $("bt-params").querySelector(`input[data-param="${name}"]`);
+      if (input) input.value = value;
+    }
+    renderRule();
+  }
+  $("bt-symbol").value = req.symbol;
+  $("bt-qty").value = req.quantity;
+  $("bt-capital").value = req.initial_capital;
+  await refreshRange(); // sets the date limits for this stock; then put the saved dates back
+  $("bt-from").value = req.start_date || "";
+  $("bt-to").value = req.end_date || "";
+  $("bt-save-name").value = saved.name;
+
+  const result = await runBacktest();
+  if (!result) return;
+  const was = saved.result;
+  const same = Math.abs(result.final_capital - was.final_capital) < 0.005 && result.total_trades === was.total_trades;
+  toast(
+    same
+      ? `Loaded "${saved.name}". Same numbers as when you saved it.`
+      : `Loaded "${saved.name}", but it gives different numbers now (${signedPercent(result.total_return_pct)} vs ${signedPercent(was.total_return_pct)} when saved). The stock's data, or your risk or cost settings, have changed since.`,
+    !same,
+  );
+  $("bt-results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function compareSavedRun(id) {
+  try {
+    const saved = await api(`/backtests/saved/${id}`);
+    pushComparison(saved.name, saved.result);
+  } catch (err) {
+    toast(err.message, true);
+    loadSavedList();
+  }
+}
+
+async function deleteSavedRun(id) {
+  const row = state.saved.find((r) => r.id === id);
+  if (!confirm(`Delete the saved backtest "${row ? row.name : id}"?`)) return;
+  try {
+    await api(`/backtests/saved/${id}`, { method: "DELETE" });
+  } catch (err) {
+    toast(err.message, true);
+  }
+  await loadSavedList();
+}
+
 /* ---------------- public API ---------------- */
 
 export async function renderBacktests() {
   renderBuilder();
   refreshRange();
+  loadSavedList();
   await renderResults();
   renderComparison();
 }
@@ -351,6 +491,7 @@ export function initBacktests() {
   $("bt-exit-logic").addEventListener("change", updateCustomPreview);
 
   $("bt-add-compare").addEventListener("click", addToComparison);
+  $("bt-save").addEventListener("click", saveRun);
   $("bt-clear-compare").addEventListener("click", () => {
     state.compareList = [];
     renderComparison();

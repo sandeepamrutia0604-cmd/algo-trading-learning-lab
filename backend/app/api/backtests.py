@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -8,15 +8,18 @@ from ..schemas import (
     BacktestTradeOut,
     EquityPoint,
     IndicatorPoint,
+    SaveBacktestRequest,
+    SavedBacktestDetailOut,
+    SavedBacktestOut,
     SeriesOut,
 )
-from ..services import backtest_service
+from ..services import backtest_service, saved_backtests
+from ..services.saved_backtests import SavedBacktestNotFoundError
 
 router = APIRouter()
 
 
-@router.post("/backtests/run", response_model=BacktestResultOut)
-def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
+def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
     defn, params, dates, closes, result, risk_managed = backtest_service.run(
         db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules,
         start_date=body.start_date, end_date=body.end_date,
@@ -74,3 +77,44 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
             for s in defn.chart_series(closes, params)
         ],
     )
+
+
+@router.post("/backtests/run", response_model=BacktestResultOut)
+def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
+    return _run(body, db)
+
+
+# ---------- saved backtests ----------
+
+
+def _not_found(err: SavedBacktestNotFoundError) -> HTTPException:
+    return HTTPException(status_code=404, detail=str(err))
+
+
+@router.get("/backtests/saved", response_model=list[SavedBacktestOut])
+def list_saved(db: Session = Depends(get_db)):
+    return saved_backtests.list_all(db)
+
+
+@router.post("/backtests/saved", response_model=SavedBacktestOut)
+def save_backtest(body: SaveBacktestRequest, db: Session = Depends(get_db)):
+    """Run `body.request` again and keep it, so what is stored is what the server computed."""
+    return saved_backtests.save(db, body.name, body.request, _run(body.request, db))
+
+
+@router.get("/backtests/saved/{saved_id}", response_model=SavedBacktestDetailOut)
+def get_saved(saved_id: int, db: Session = Depends(get_db)):
+    try:
+        row = saved_backtests.get(db, saved_id)
+    except SavedBacktestNotFoundError as err:
+        raise _not_found(err) from None
+    return SavedBacktestDetailOut.model_validate({**{c: getattr(row, c) for c in SavedBacktestOut.model_fields}, "request": row.request, "result": row.result})
+
+
+@router.delete("/backtests/saved/{saved_id}")
+def delete_saved(saved_id: int, db: Session = Depends(get_db)):
+    try:
+        saved_backtests.delete(db, saved_id)
+    except SavedBacktestNotFoundError as err:
+        raise _not_found(err) from None
+    return {"deleted": saved_id}

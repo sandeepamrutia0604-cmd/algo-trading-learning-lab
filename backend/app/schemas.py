@@ -402,3 +402,31 @@ class BacktestResultOut(BaseModel):
     equity_curve: list[EquityPoint]
     trades: list[BacktestTradeOut]
     series: list[SeriesOut]
+
+
+class SaveBacktestRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    request: BacktestRequest  # run again on the server and stored, so what is saved is what it computed
+
+
+class SavedBacktestOut(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    symbol: str
+    type_label: str
+    period_start: dt.date
+    period_end: dt.date
+    initial_capital: float
+    final_capital: float
+    total_return_pct: float
+    total_trades: int
+    win_rate_pct: float
+    max_drawdown_pct: float
+    risk_managed: bool
+    costs_applied: bool
+
+
+class SavedBacktestDetailOut(SavedBacktestOut):
+    request: BacktestRequest
+    result: BacktestResultOut

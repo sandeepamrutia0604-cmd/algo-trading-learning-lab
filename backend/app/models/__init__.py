@@ -4,6 +4,7 @@ from .portfolio import Portfolio
 from .position import Position
 from .price_data import PriceData
 from .risk_settings import RiskSettings
+from .saved_backtest import SavedBacktest
 from .signal import Signal
 from .stock import Stock
 from .strategy import Strategy
@@ -20,4 +21,5 @@ __all__ = [
     "Signal",
     "RiskSettings",
     "CostSettings",
+    "SavedBacktest",
 ]

@@ -441,7 +441,11 @@
                       <h2 id="bt-title"></h2>
                       <div class="muted small" id="bt-sub"></div>
                     </div>
-                    <button id="bt-add-compare" class="btn">+ Add to comparison</button>
+                    <div class="sd-actions">
+                      <input id="bt-save-name" type="text" maxlength="120" placeholder="Name (optional)" />
+                      <button id="bt-save" class="btn btn-primary">Save this run</button>
+                      <button id="bt-add-compare" class="btn">+ Add to comparison</button>
+                    </div>
                   </div>
                   <div class="metrics-grid" id="bt-metrics"></div>
                 </div>
@@ -483,6 +487,18 @@
                     </table>
                   </div>
                 </div>
+              </div>
+
+              <div class="panel" id="bt-saved-panel">
+                <h3>Saved backtests <span class="muted" id="bt-saved-n"></span></h3>
+                <p class="hint">Runs you chose to keep, stored in your database so they survive a restart. <b>Load</b> puts a run's settings
+                  back in the builder and runs it again (and tells you if the numbers have changed since, for instance because you re-imported
+                  the stock or changed your risk or cost settings). <b>Compare</b> adds the saved result to the comparison without re-running it.</p>
+                <p id="bt-saved-empty" class="empty">Nothing saved yet. Run a backtest and press "Save this run".</p>
+                <table id="bt-saved-table" hidden>
+                  <thead><tr><th>Name</th><th>Period</th><th class="num">Return</th><th class="num">Final</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th>Saved</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
               </div>
             </div>
           </div>

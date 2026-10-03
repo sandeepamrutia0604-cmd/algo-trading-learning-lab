@@ -28,8 +28,14 @@ Screens (left navigation):
   buy-and-hold, and every simulated trade. Optional From/To dates (or the First half / Second
   half buttons) restrict the period that is traded, so you can tune on one stretch and test on
   another; the days before From still warm the indicators up. Add a result to the strategy
-  comparison table to weigh it against other runs on the same stock. Nothing here touches your
-  real paper portfolio.
+  comparison table to weigh it against other runs on the same stock. "Save this run" keeps a
+  backtest in the database (up to 200) so it survives a restart: the **Saved backtests** table
+  lists them, **Load** puts the settings back in the builder and re-runs (warning you if the
+  numbers differ now, e.g. after a re-import or a change to your risk or cost settings),
+  **Compare** adds the stored result without re-running, and **Delete** removes it. Saving
+  re-runs the request on the server, so a saved result is always one the server computed
+  (`/api/backtests/saved`, `services/saved_backtests.py`). Nothing here touches your real paper
+  portfolio, and Reset leaves saved backtests alone.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
