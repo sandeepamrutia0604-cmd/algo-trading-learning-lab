@@ -882,8 +882,247 @@ export const MODULES = [
       },
     ],
   },
-  { id: 8, title: "What is overfitting?", minutes: 6, summary: "Why a strategy that looks perfect on past data can fail on new data." },
-  { id: 9, title: "What is paper trading?", minutes: 5, summary: "Practising with market data and virtual money." },
+  {
+    id: 8,
+    title: "What is overfitting?",
+    minutes: 6,
+    summary: "Why a strategy that looks perfect on past data can fail on new data.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "Imagine a student who memorises last year's exam paper, answers and all. They'd score full marks on that paper, and fail a new one. They learned the *specific* questions, not the subject.",
+      },
+      {
+        p: "**Overfitting** is the same mistake in trading. If you keep adjusting a strategy until it looks perfect on a stretch of history, you may be tuning it to that history's quirks and coincidences, which are **noise**, instead of to a pattern that will repeat. The backtest looks wonderful, and then the strategy meets prices it hasn't seen and falls apart.",
+      },
+
+      { h: "How it happens" },
+      {
+        p: "Every strategy has settings: the fast and slow averages in a crossover, the RSI levels, the stop-loss. Prices contain a lot of random wiggle, and if you try enough combinations, some will match the wiggles of the past by sheer luck.",
+      },
+      {
+        example: {
+          title: "Searching until something works",
+          text: "You test 200 combinations of fast and slow moving averages on one stock. The best pair, 17 and 43, returns +40% over three years. It looks like you found something. But with 200 tries, a lucky winner was almost guaranteed even if every combination was worthless. Run 17/43 on the following year, or on a different stock, and it returns −3%. You didn't discover a pattern. You discovered which random combination fitted the past best.",
+        },
+      },
+      {
+        note: "The more settings you tune and the more variations you try, the more likely a great-looking result is luck. Trying many ideas isn't wrong, but you must test the winner on data it was *not* chosen from.",
+      },
+
+      { h: "Warning signs" },
+      {
+        list: [
+          "**A suspiciously smooth, steep equity curve.** Real strategies have rough patches. A curve that only goes up usually means the settings were bent to fit.",
+          "**Fragile settings.** If 20/50 works but 19/50 and 21/50 lose money, the result depends on an exact coincidence and probably isn't real. A genuine edge usually survives small changes to the settings.",
+          "**Too many rules.** Every extra condition and filter is another knob to fit the past with.",
+          "**It only works on one stock or one period.** A pattern that appears nowhere else is more likely luck.",
+        ],
+      },
+
+      { h: "How to protect yourself" },
+      {
+        terms: [
+          ["Out-of-sample test", "Build the strategy on one stretch of history, then test it, once, on a later stretch it has never seen. If it only works on the first, it was overfitted."],
+          ["Test on other stocks", "Run the same settings on stocks you didn't use to choose them. A real edge tends to show up at least a little elsewhere."],
+          ["Keep it simple", "Fewer settings and rules leave less room to fit noise."],
+          ["Check robustness", "Nudge the settings up and down. A good strategy degrades gently. An overfitted one collapses."],
+          ["Include costs", "Switch on trading costs. Many overfitted strategies trade constantly and only look good before charges."],
+        ],
+      },
+      {
+        note: "This lab doesn't yet have a date-range picker for backtests, so the easiest out-of-sample check here is to run your chosen settings on other stocks and compare.",
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Overfitting", "Tuning a strategy so closely to past data that it fits noise instead of a real pattern."],
+          ["Noise", "Random price movement that carries no repeatable pattern."],
+          ["In-sample", "The data you used to build and tune the strategy."],
+          ["Out-of-sample", "Fresh data the strategy has never seen. The honest test."],
+          ["Robust", "Still works reasonably when settings or data change a little."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Hunt for the best settings, then test them elsewhere",
+          hint: "Practical experiment: on RELIANCE, run MA Crossover with a few different fast and slow values (for example 10/30, 20/50, 5/20) and note which looks best. Then run that best pair on TCS and INFY. Does it still win? Also nudge the best pair by one or two days and see whether the result holds.",
+          route: "backtests",
+          symbol: "RELIANCE",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "What is overfitting?",
+        options: [
+          "Tuning a strategy so closely to past data that it fits noise and fails on new data.",
+          "Buying too many shares of one stock.",
+          "Trading too rarely.",
+          "A backtest that runs out of history.",
+        ],
+        answer: 0,
+        why: "Overfitting means the strategy has learned the quirks and coincidences of the past rather than a repeatable pattern, so it looks great in the backtest and disappoints on fresh data.",
+      },
+      {
+        q: "You try 200 settings and the best returns +40%. Why should you be cautious?",
+        options: [
+          "Because +40% is illegal.",
+          "Because the best of 200 tries is likely to look good by luck, even if all of them are worthless.",
+          "Because more settings always means a better strategy.",
+          "Because costs are not included in tests.",
+        ],
+        answer: 1,
+        why: "With enough attempts, some will fit the past by chance. The winner has to be tested on data it was not chosen from before you believe it.",
+      },
+      {
+        q: "A strategy works with a 20/50 crossover but loses money with 19/50 and 21/50. What does this suggest?",
+        options: [
+          "That 20/50 is a perfect setting.",
+          "That the exchange data is wrong.",
+          "That you should trade it with more money.",
+          "That the result is fragile and may be a coincidence, so be sceptical.",
+        ],
+        answer: 3,
+        why: "A real edge usually survives small changes to its settings. If a one-day nudge turns it from profit to loss, the good result probably came from an exact coincidence in the data.",
+      },
+      {
+        q: "What is an out-of-sample test?",
+        options: [
+          "Testing with fewer shares.",
+          "Testing without any indicators.",
+          "Testing on data the strategy has never seen, such as a later period or other stocks.",
+          "Testing only on the days the market went up.",
+        ],
+        answer: 2,
+        why: "Out-of-sample means fresh data that played no part in choosing the settings. It is the honest test of whether the strategy found a pattern or just memorised the past.",
+      },
+    ],
+  },
+
+  {
+    id: 9,
+    title: "What is paper trading?",
+    minutes: 5,
+    summary: "Practising with market data and virtual money.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "**Paper trading** means trading with *virtual* money: you place orders, hold positions and track profit and loss exactly as you would with a real account, but nothing real is at stake. The name comes from the days when people wrote practice trades down on paper.",
+      },
+      {
+        p: "Everything in this lab is paper trading. It is the step between \"I have an idea\" (a backtest) and \"I'll risk real money\".",
+      },
+
+      { h: "Why do it?" },
+      {
+        list: [
+          "**Learn the mechanics** of orders, positions, costs and P&L without paying for mistakes.",
+          "**Test a strategy going forward**, not just on history. Backtests can be overfitted, but a strategy that keeps working on days it hasn't seen is a much better sign.",
+          "**Find the bugs.** Rules that looked fine on paper sometimes behave oddly: they trade too often, or size positions strangely. Better to find out for free.",
+          "**Build a track record** and some confidence, based on evidence.",
+        ],
+      },
+
+      { h: "How this lab does it" },
+      {
+        p: "You start with virtual cash (₹1,00,000 unless you changed it). Stocks imported from real data replay their real NSE history **one day at a time** as you press +1 day, +5 days or Play, so you see each day without knowing what comes next. Strategies with **auto-trade** switched on check every new day and place paper trades at that day's close. The Home page keeps a **practice checklist** that ticks itself off as you trade, and the Journal records every signal.",
+      },
+      {
+        note: "Be clear about what this is: the lab replays *past* real prices, not a live feed of today's market. It is paper trading on replayed history. Connecting to live prices is something a future version could add.",
+      },
+
+      { h: "What paper trading can't teach you" },
+      {
+        terms: [
+          ["Emotions", "Watching real money fall feels very different. Fear and greed make people break their own rules. A paper account can't recreate that."],
+          ["Real fills", "In real markets orders can fill partly, fill late, or fill at worse prices when few people are trading. The lab approximates this with slippage, but it is only an approximation."],
+          ["Liquidity", "Small practice orders never move the price. Large real orders can."],
+          ["Discipline over time", "It is easy to follow rules when nothing is at stake."],
+        ],
+      },
+      {
+        p: "So paper trading proves a strategy's logic works, not that *you* will stick to it with real money. That gap is why the next step, if you ever take it, should start very small.",
+      },
+
+      { h: "Doing it well" },
+      {
+        list: [
+          "**Write the plan first**: which strategy, which stock, how much risk per trade.",
+          "**Turn on trading costs and risk management**, so your practice looks like the real thing.",
+          "**Give it enough time.** A lucky week proves nothing. Look at many trades across different market conditions, not just a handful.",
+          "**Keep notes.** Use the Journal to see why each trade happened and to review the mistakes.",
+          "**Judge by the whole picture**: return, drawdown and win rate, compared with buy & hold, as in Module 6.",
+        ],
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Paper trading", "Practising with virtual money instead of real money."],
+          ["Virtual cash", "The pretend balance your paper account starts with."],
+          ["Forward test", "Trading a strategy on new days it hasn't seen, as opposed to backtesting old ones."],
+          ["Track record", "The recorded results of your trades over time."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Work through the practice checklist",
+          hint: "Practical experiment: on the Home page, the Practice checklist lists four goals, such as making your first BUY and holding two different stocks. Pick a real stock like INFY, buy some, press Play for a few weeks of market days, and watch the checklist and your portfolio update.",
+          route: "home",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "What is paper trading?",
+        options: [
+          "Trading only on printed charts.",
+          "Practising trading with virtual money, so mistakes cost nothing.",
+          "Trading with a small amount of real money.",
+          "Filing your trades for tax.",
+        ],
+        answer: 1,
+        why: "Paper trading uses virtual money, so you can practise orders, positions and strategies without any real financial risk.",
+      },
+      {
+        q: "Which of these can paper trading NOT teach you well?",
+        options: [
+          "How to place a buy order.",
+          "How P&L is calculated.",
+          "How you'll react when real money is falling.",
+          "How a strategy's rules behave day by day.",
+        ],
+        answer: 2,
+        why: "Fear and greed only show up when real money is at stake. Paper trading is excellent for mechanics and logic, but it can't reproduce the emotional pressure.",
+      },
+      {
+        q: "In this lab, where do real-stock prices come from when you press Play?",
+        options: [
+          "A live feed of today's market.",
+          "Random numbers.",
+          "The broker's order book.",
+          "Real historical NSE prices, replayed one day at a time.",
+        ],
+        answer: 3,
+        why: "Imported stocks replay their real past prices day by day on the market clock. It's realistic data, but it isn't live. Only the simulated practice stocks use generated prices.",
+      },
+      {
+        q: "A strategy makes money in your paper account for one week. What's the right conclusion?",
+        options: [
+          "It's too early to tell. You need many trades across different conditions.",
+          "It's proven, so go live now.",
+          "It will win every week from now on.",
+          "Paper trading results never matter.",
+        ],
+        answer: 0,
+        why: "A single week is a tiny sample, and luck easily explains it. Judge a strategy over many trades and different market conditions, including how deep the losses went.",
+      },
+    ],
+  },
   { id: 10, title: "What is live algorithmic trading?", minutes: 6, summary: "What changes when real money and real brokers are involved." },
 ];
 
