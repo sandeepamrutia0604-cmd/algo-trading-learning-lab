@@ -7,7 +7,8 @@ const MAX_AXIS_VALUES = 40;
 const NICE_STEPS = [1, 2, 5, 10, 20, 25, 50, 100];
 const METRIC_LABEL = { return: "total return", risk_adjusted: "return per unit of drawdown" };
 
-const state = { result: null, runId: 0, drawn: "", running: false, history: {} };
+const state = { result: null, wf: null, runId: 0, wfRunId: 0, drawn: "", wfDrawn: "", running: false, history: {} };
+const isWalk = () => $("op-mode").value === "walk";
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
 const specOf = (name) => typeOf($("op-type").value)?.params.find((p) => p.name === name);
@@ -102,6 +103,7 @@ async function historyDates(symbol) {
 
 async function applySplit(kind) {
   const dates = await historyDates($("op-symbol").value).catch(() => []);
+  updateWfHint(); // the walk-forward hint depends on how much history there is
   if (!dates.length) return;
   const set = (id, value) => ($(id).value = value || "");
   for (const id of ["op-train-from", "op-train-to", "op-test-from", "op-test-to"]) {
@@ -139,49 +141,77 @@ function renderBuilder() {
 
 /* ---------------- running ---------------- */
 
-function buildRequest() {
-  const type = typeOf($("op-type").value);
+/** What both methods share: the stock, strategy, swept settings, score and account. */
+function buildBase() {
   const axis = (prefix, name) => ({ param: name, low: num(`${prefix}-low`), high: num(`${prefix}-high`), step: num(`${prefix}-step`) });
   const request = {
     symbol: $("op-symbol").value,
-    type: type.key,
+    type: typeOf($("op-type").value).key,
     x: axis("op-x", $("op-x").value),
     metric: $("op-metric").value,
     quantity: parseInt($("op-qty").value, 10),
     initial_capital: parseFloat($("op-capital").value),
   };
   if ($("op-y").value) request.y = axis("op-y", $("op-y").value);
-  for (const [field, id] of [["train_start", "op-train-from"], ["train_end", "op-train-to"], ["test_start", "op-test-from"], ["test_end", "op-test-to"]]) {
-    if ($(id).value) request[field] = $(id).value;
-  }
   return request;
 }
 
-async function runOptimisation() {
-  if (state.running) return;
-  const request = buildRequest();
-  if (!(request.quantity >= 1)) return toast("Shares per BUY must be at least 1", true);
-  if (!(request.initial_capital > 0)) return toast("Initial capital must be greater than zero", true);
+function checkBase(request) {
+  if (!(request.quantity >= 1)) return "Shares per BUY must be at least 1";
+  if (!(request.initial_capital > 0)) return "Initial capital must be greater than zero";
   for (const axis of [request.x, request.y].filter(Boolean)) {
-    if (![axis.low, axis.high, axis.step].every(Number.isFinite)) return toast("Fill in From, To and Step for each setting", true);
+    if (![axis.low, axis.high, axis.step].every(Number.isFinite)) return "Fill in From, To and Step for each setting";
   }
-  if (request.test_end && !request.test_start) return toast("A test period needs a From date", true);
+  return null;
+}
 
+const runLabel = () => (isWalk() ? "Run walk-forward" : "Run optimisation");
+
+async function post(path, request, onResult) {
   state.running = true;
   $("op-run").disabled = true;
   $("op-run").textContent = "Running...";
   try {
-    const result = await api("/backtests/optimise", { method: "POST", body: JSON.stringify(request) });
-    state.result = result;
-    state.runId += 1;
-    renderResults();
+    onResult(await api(path, { method: "POST", body: JSON.stringify(request) }));
   } catch (err) {
     toast(err.message, true);
   } finally {
     state.running = false;
     $("op-run").disabled = false;
-    $("op-run").textContent = "Run optimisation";
+    $("op-run").textContent = runLabel();
   }
+}
+
+async function runOptimisation() {
+  if (state.running) return;
+  const request = buildBase();
+  const problem = checkBase(request);
+  if (problem) return toast(problem, true);
+
+  if (isWalk()) {
+    const folds = parseInt($("op-wf-folds").value, 10);
+    const ratio = num("op-wf-ratio");
+    if (!(folds >= 2 && folds <= 10)) return toast("Use between 2 and 10 folds", true);
+    if (!(ratio >= 1)) return toast("The train : test ratio must be 1 or more", true);
+    Object.assign(request, { folds, train_ratio: ratio, mode: $("op-wf-kind").value });
+    if ($("op-wf-from").value) request.start_date = $("op-wf-from").value;
+    if ($("op-wf-to").value) request.end_date = $("op-wf-to").value;
+    return post("/backtests/walk-forward", request, (result) => {
+      state.wf = result;
+      state.wfRunId += 1;
+      renderView();
+    });
+  }
+
+  for (const [field, id] of [["train_start", "op-train-from"], ["train_end", "op-train-to"], ["test_start", "op-test-from"], ["test_end", "op-test-to"]]) {
+    if ($(id).value) request[field] = $(id).value;
+  }
+  if (request.test_end && !request.test_start) return toast("A test period needs a From date", true);
+  return post("/backtests/optimise", request, (result) => {
+    state.result = result;
+    state.runId += 1;
+    renderView();
+  });
 }
 
 /* ---------------- results ---------------- */
@@ -293,8 +323,6 @@ function renderTopTable(r) {
 
 function renderResults() {
   const r = state.result;
-  $("op-empty").hidden = Boolean(r);
-  $("op-results").hidden = !r;
   if (!r) return;
 
   $("op-title").textContent = `${r.type_label} on ${r.symbol}: ${r.x.label}${r.y ? ` × ${r.y.label}` : ""}`;
@@ -319,14 +347,160 @@ function renderResults() {
   if (r.test) heatmap($("op-heat-test"), r, r.test, `Unseen test: ${r.test.start} to ${r.test.end} (buy & hold ${signedPercent(r.test.buy_hold_pct)})`);
 }
 
+/* ---------------- walk-forward results ---------------- */
+
+const fold = (r, f) => settingsText(r, f.params[r.x.name], r.y ? f.params[r.y.name] : null);
+
+function wfVerdict(r) {
+  const s = r.summary;
+  const n = s.folds;
+  const share = s.profitable_folds / n;
+  const settings = s.distinct_settings === 1 ? "the same settings every time" : `${s.distinct_settings} different sets of settings across the ${n} folds`;
+  const facts = `Chained over ${n} windows it had never seen (${s.tested_from} to ${s.tested_to}), the strategy returned <b>${signedPercent(s.oos_return_pct)}</b>, against ${signedPercent(s.oos_buy_hold_pct)} for buying and holding. ${s.profitable_folds} of ${n} windows were profitable, and it chose ${settings}.`;
+  if (s.oos_return_pct <= 0 || share < 0.4) {
+    return { cls: "bad", html: `<b>Did not hold up.</b> ${facts} Picking the best settings on past data did not carry over to the days after: the typical sign that the optimiser was fitting noise.` };
+  }
+  if (s.oos_return_pct > s.oos_buy_hold_pct && share >= 0.6) {
+    return { cls: "good", html: `<b>Held up.</b> ${facts} It beat holding the stock and kept working window after window, which is the pattern a real edge shows. Still only one stock and one stretch of history, so treat it as encouraging rather than proven.` };
+  }
+  const trail = s.oos_return_pct < s.oos_buy_hold_pct ? " It made money but trailed simply holding the stock." : " It beat holding the stock, but not consistently.";
+  return { cls: "mixed", html: `<b>Mixed.</b> ${facts}${trail}` };
+}
+
+function renderWfMetrics(r) {
+  const s = r.summary;
+  const tiles = [
+    ["Out-of-sample return (chained)", signedPercent(s.oos_return_pct), pnlClass(s.oos_return_pct)],
+    ["Buy & hold, same windows", signedPercent(s.oos_buy_hold_pct), pnlClass(s.oos_buy_hold_pct)],
+    ["Profitable windows", `${s.profitable_folds} of ${s.folds}`, ""],
+    ["Beat buy & hold", `${s.beat_buy_hold_folds} of ${s.folds}`, ""],
+    ["Walk-forward efficiency", s.efficiency_pct == null ? "n/a" : `${s.efficiency_pct.toFixed(0)}%`, ""],
+    ["Different settings chosen", `${s.distinct_settings} of ${s.folds} folds`, ""],
+    ["Max drawdown (out-of-sample)", percent(s.oos_max_drawdown_pct), s.oos_max_drawdown_pct > 0 ? "down" : ""],
+  ];
+  $("op-wf-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
+  $("op-wf-eff").textContent =
+    s.efficiency_pct == null
+      ? `Average training return was ${signedPercent(s.avg_train_return_pct)}, so there is no efficiency figure: nothing to carry over.`
+      : `Walk-forward efficiency is the average test return (${signedPercent(s.avg_test_return_pct)}) as a share of the average training return (${signedPercent(s.avg_train_return_pct)}): how much of what the optimiser found survived on unseen data. Roughly half or more is encouraging; near zero or negative means the training results were mostly noise.`;
+}
+
+function renderWfTable(r) {
+  document.querySelector("#op-wf-table tbody").innerHTML = r.folds
+    .map(
+      (f) => `<tr>
+        <td>${f.index}</td>
+        <td class="muted">${f.train_start} to ${f.train_end}</td>
+        <td class="muted">${f.test_start} to ${f.test_end}</td>
+        <td>${fold(r, f)}</td>
+        <td class="num ${pnlClass(f.train.return_pct)}">${signedPercent(f.train.return_pct)}</td>
+        <td class="num ${pnlClass(f.test.return_pct)}">${signedPercent(f.test.return_pct)}</td>
+        <td class="num ${pnlClass(f.test_buy_hold_pct)}">${signedPercent(f.test_buy_hold_pct)}</td>
+        <td class="num">${f.test_rank} of ${f.test_valid}</td>
+      </tr>`,
+    )
+    .join("");
+}
+
+function drawWfEquity(r) {
+  const c = themeColors();
+  const e = r.equity;
+  const lines = r.folds.slice(1).map((f) => ({ type: "line", xref: "x", yref: "paper", x0: f.test_start, x1: f.test_start, y0: 0, y1: 1, line: { color: c.muted, width: 1, dash: "dot" } }));
+  Plotly.react(
+    $("op-wf-equity"),
+    [
+      { type: "scatter", mode: "lines", name: "Buy & hold", x: e.dates, y: e.buy_hold, line: { color: c.muted, width: 1.4, dash: "dot" }, hovertemplate: "Buy & hold: ₹%{y:,.2f}<extra></extra>" },
+      { type: "scatter", mode: "lines", name: "Strategy", x: e.dates, y: e.strategy, line: { color: c.accent, width: 2 }, hovertemplate: "Strategy: ₹%{y:,.2f}<extra></extra>" },
+    ],
+    {
+      margin: { l: 8, r: 58, t: 6, b: 24 },
+      showlegend: false,
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { color: c.muted, size: 11 },
+      hovermode: "x",
+      shapes: lines,
+      xaxis: { gridcolor: "rgba(0,0,0,0)", rangebreaks: [{ bounds: ["sat", "mon"] }], linecolor: c.line },
+      yaxis: { side: "right", gridcolor: c.line, tickprefix: "₹", tickformat: ",.0f", zeroline: false },
+    },
+    { displayModeBar: false, responsive: true },
+  );
+}
+
+function renderWalkForward() {
+  const r = state.wf;
+  if (!r) return;
+  $("op-wf-title").textContent = `Walk-forward: ${r.type_label} on ${r.symbol}, ${r.x.label}${r.y ? ` × ${r.y.label}` : ""}`;
+  $("op-wf-sub").textContent =
+    `${r.summary.folds} folds · ${r.mode} training window (${r.train_ratio}:1 train to test) · ${r.combinations} combinations per fold · scored by ${METRIC_LABEL[r.metric]}` +
+    (r.uses_risk ? " · with your Risk management settings" : "") +
+    (r.uses_costs ? " · with trading costs" : "");
+  const v = wfVerdict(r);
+  $("op-wf-verdict").className = `op-verdict ${v.cls}`;
+  $("op-wf-verdict").innerHTML = v.html;
+  renderWfMetrics(r);
+  renderWfTable(r);
+  if (typeof Plotly === "undefined") return;
+  const key = `${state.wfRunId}|${currentTheme()}`;
+  if (state.wfDrawn === key) return;
+  state.wfDrawn = key;
+  drawWfEquity(r);
+}
+
+/* ---------------- choosing the method ---------------- */
+
+function updateWfHint() {
+  const dates = state.history[$("op-symbol").value] || [];
+  const from = $("op-wf-from").value;
+  const to = $("op-wf-to").value;
+  const n = dates.filter((d) => (!from || d >= from) && (!to || d <= to)).length;
+  const folds = parseInt($("op-wf-folds").value, 10);
+  const ratio = num("op-wf-ratio");
+  const hint = $("op-wf-hint");
+  if (!n || !(folds >= 2) || !(ratio >= 1)) {
+    hint.textContent = "Each fold optimises on a training window, then trades the winner on the window right after it.";
+    return;
+  }
+  const test = Math.floor(n / (ratio + folds));
+  const months = (days) => `${(days / 21).toFixed(1)} months`;
+  hint.textContent =
+    test < 20
+      ? `Only ${n} trading days are in range: ${folds} folds at ${ratio}:1 would leave test windows of ${test} days (at least 20 are needed). Use fewer folds, a smaller ratio, or more history.`
+      : `${n.toLocaleString("en-IN")} trading days in range: each test window is about ${test} days (${months(test)}) and each training window about ${Math.round(ratio * test)} days (${months(ratio * test)}). The most recent data is always used.`;
+  hint.classList.toggle("over", test < 20);
+}
+
+/** Show the controls and results that belong to the chosen method. */
+function renderView() {
+  const walk = isWalk();
+  $("op-split-box").hidden = walk;
+  $("op-wf-box").hidden = !walk;
+  if (!state.running) $("op-run").textContent = runLabel();
+  const current = walk ? state.wf : state.result;
+  $("op-empty").hidden = Boolean(current);
+  $("op-empty").querySelector("p").textContent = walk
+    ? 'Choose a strategy, a stock and one or two settings, then press "Run walk-forward". It splits the history into folds, optimises on a training window in each, and trades the winner on the window right after it, which it has never seen. The windows are then chained into one out-of-sample record.'
+    : 'Choose a strategy, a stock and one or two settings to sweep, then press "Run optimisation". The default 70% / 30% split trains on the first 70% of the stored history and tests on the last 30%.';
+  $("op-results").hidden = walk || !state.result;
+  $("op-wf-results").hidden = !walk || !state.wf;
+  if (walk) {
+    updateWfHint();
+    renderWalkForward();
+  } else {
+    renderResults();
+  }
+}
+
 /* ---------------- public API ---------------- */
 
 export function renderOptimise() {
   renderBuilder();
-  renderResults();
+  renderView();
 }
 
 export function initOptimise() {
+  $("op-mode").addEventListener("change", renderView);
+  for (const id of ["op-wf-folds", "op-wf-ratio", "op-wf-from", "op-wf-to"]) $(id).addEventListener("input", updateWfHint);
   $("op-type").addEventListener("change", () => fillAxisSelects({ resetRanges: true }));
   $("op-x").addEventListener("change", () => {
     fillAxisSelects({ resetRanges: false });

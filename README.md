@@ -49,6 +49,18 @@ Screens (left navigation):
   test period is traded with indicators warmed up on the days before it, and the training run
   never sees test data. Nothing is saved or traded (`POST /api/backtests/optimise`,
   `services/optimizer_service.py`). Scores are total return, or return per unit of drawdown.
+
+  A **Method** switch adds **walk-forward** testing, which repeats the exercise over several
+  windows that move through time (2 to 10 folds). In each fold the settings are optimised on a
+  training window and the winner trades the window right after it, which it has never seen; the
+  training window is either rolling (the same length every fold, a chosen multiple of the test
+  window) or anchored (everything since the start). Every test window has the same length, they
+  follow one another with no gaps, and the last ends on the final day, so the most recent data
+  is always used. The page chains the test windows into one out-of-sample equity curve against
+  buy-and-hold over the same windows, with a fold-by-fold table (what was chosen, training versus
+  test return, rank among all settings), the share of windows that were profitable, how many
+  different settings were chosen, the walk-forward efficiency (the share of the average training
+  return that survived on unseen data) and a verdict (`POST /api/backtests/walk-forward`).
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an

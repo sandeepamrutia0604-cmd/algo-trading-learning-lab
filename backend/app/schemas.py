@@ -497,3 +497,72 @@ class OptimiseOut(BaseModel):
     valid: int
     uses_risk: bool
     uses_costs: bool
+
+
+class WalkForwardRequest(BaseModel):
+    symbol: str
+    type: str
+    params: dict[str, float] = {}
+    x: AxisRange
+    y: AxisRange | None = None
+    metric: Literal["return", "risk_adjusted"] = "return"
+    quantity: int = Field(default=10, ge=1, le=100000)
+    initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
+    folds: int = Field(default=5, ge=2, le=10)
+    train_ratio: float = Field(default=3.0, ge=1.0, le=10.0)  # training days per test day
+    mode: Literal["rolling", "anchored"] = "rolling"
+    start_date: dt.date | None = None
+    end_date: dt.date | None = None
+
+
+class WalkForwardFoldOut(BaseModel):
+    index: int
+    train_start: dt.date
+    train_end: dt.date
+    test_start: dt.date
+    test_end: dt.date
+    params: dict
+    train: GridCellOut
+    test: GridCellOut
+    test_buy_hold_pct: float
+    test_rank: int
+    test_valid: int
+    test_median_score: float
+
+
+class WalkForwardSummaryOut(BaseModel):
+    folds: int
+    avg_train_return_pct: float
+    avg_test_return_pct: float
+    efficiency_pct: float | None = None  # average test return as a share of average training return
+    oos_return_pct: float  # the test windows chained end to end
+    oos_buy_hold_pct: float
+    oos_max_drawdown_pct: float
+    profitable_folds: int
+    beat_buy_hold_folds: int
+    distinct_settings: int
+    tested_from: dt.date
+    tested_to: dt.date
+
+
+class WalkForwardEquityOut(BaseModel):
+    dates: list[dt.date]
+    strategy: list[float]
+    buy_hold: list[float]
+
+
+class WalkForwardOut(BaseModel):
+    symbol: str
+    type: str
+    type_label: str
+    metric: str
+    mode: str
+    train_ratio: float
+    x: GridAxisOut
+    y: GridAxisOut | None = None
+    folds: list[WalkForwardFoldOut]
+    summary: WalkForwardSummaryOut
+    equity: WalkForwardEquityOut
+    combinations: int
+    uses_risk: bool
+    uses_costs: bool

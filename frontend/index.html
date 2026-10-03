@@ -515,6 +515,13 @@
                 <b>test</b> period it has never seen. Picking the best of many settings on the same data you score them on is how overfitting happens;
                 the test period is how you find out.</p>
 
+              <label class="field">Method
+                <select id="op-mode">
+                  <option value="split">Train / test split (one test)</option>
+                  <option value="walk">Walk-forward (several tests, moving through time)</option>
+                </select>
+              </label>
+
               <label class="field">Strategy type
                 <select id="op-type"></select>
               </label>
@@ -556,7 +563,27 @@
                 <label class="field">Initial capital <input id="op-capital" type="number" min="1" step="1000" value="100000" /></label>
               </div>
 
-              <div class="op-axis">
+              <div class="op-axis" id="op-wf-box" hidden>
+                <b class="small">Walk-forward windows</b>
+                <div class="param-grid">
+                  <label class="field">Folds <input id="op-wf-folds" type="number" min="2" max="10" value="5" /></label>
+                  <label class="field">Train : test <input id="op-wf-ratio" type="number" min="1" max="10" step="0.5" value="3" /></label>
+                </div>
+                <label class="field">Training window
+                  <select id="op-wf-kind">
+                    <option value="rolling">Rolling (same length every fold)</option>
+                    <option value="anchored">Anchored (grows from the start)</option>
+                  </select>
+                </label>
+                <b class="small">History to use (optional)</b>
+                <div class="param-grid">
+                  <label class="field">From <input id="op-wf-from" type="date" /></label>
+                  <label class="field">To <input id="op-wf-to" type="date" /></label>
+                </div>
+                <p class="hint" id="op-wf-hint"></p>
+              </div>
+
+              <div class="op-axis" id="op-split-box">
                 <b class="small">Training period</b>
                 <div class="param-grid">
                   <label class="field">From <input id="op-train-from" type="date" /></label>
@@ -583,6 +610,36 @@
               <div class="panel" id="op-empty">
                 <p class="empty">Choose a strategy, a stock and one or two settings to sweep, then press "Run optimisation". The default 70% / 30% split trains on the first
                   70% of the stored history and tests on the last 30%.</p>
+              </div>
+
+              <div id="op-wf-results" hidden>
+                <div class="panel">
+                  <h2 id="op-wf-title"></h2>
+                  <div class="muted small" id="op-wf-sub"></div>
+                  <div class="op-verdict" id="op-wf-verdict"></div>
+                  <div class="metrics-grid" id="op-wf-metrics"></div>
+                  <p class="hint" id="op-wf-eff"></p>
+                </div>
+
+                <div class="panel">
+                  <div class="sd-head">
+                    <h3>Out-of-sample equity: every test window chained together</h3>
+                    <div class="legend"><span style="color:var(--accent)">&#9632; strategy</span><span class="muted">&#9632; buy &amp; hold</span></div>
+                  </div>
+                  <div id="op-wf-equity" class="chart small"></div>
+                  <p class="hint">Only days the chosen settings had never seen. The dotted lines mark where each fold's test window begins, and at each one the settings
+                    were re-optimised on the training window just before it. Both lines start at your initial capital.</p>
+                </div>
+
+                <div class="panel">
+                  <h3>Fold by fold</h3>
+                  <table id="op-wf-table">
+                    <thead><tr><th>#</th><th>Trained on</th><th>Tested on (unseen)</th><th>Chosen settings</th><th class="num">Training return</th><th class="num">Test return</th><th class="num">Buy &amp; hold</th><th class="num">Test rank</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                  <p class="hint">If the chosen settings jump around from fold to fold, and the test returns are far below the training returns, the optimiser is
+                    mostly chasing noise. A robust strategy keeps choosing similar settings and keeps working on the windows after them.</p>
+                </div>
               </div>
 
               <div id="op-results" hidden>

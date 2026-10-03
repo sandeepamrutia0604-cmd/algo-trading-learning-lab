@@ -931,7 +931,7 @@ export const MODULES = [
         ],
       },
       {
-        note: "The Optimise page does this for you: it tries every combination of one or two settings on a training period, then runs the winner on a test period it has never seen, and shows both grids side by side. You can also do it by hand on the Backtests page with the From and To dates, or the First half and Second half buttons. Days before your From date still warm the indicators up, so a test period isn't wasted waiting for a slow average to form.",
+        note: "The Optimise page does this for you: it tries every combination of one or two settings on a training period, then runs the winner on a test period it has never seen, and shows both grids side by side. Its Walk-forward method repeats that over several windows that move through time and chains the unseen windows into one record, which is a much tougher test than a single split. You can also do it by hand on the Backtests page with the From and To dates, or the First half and Second half buttons. Days before your From date still warm the indicators up, so a test period isn't wasted waiting for a slow average to form.",
       },
 
       { h: "Key terms" },

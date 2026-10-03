@@ -14,6 +14,8 @@ from ..schemas import (
     SavedBacktestDetailOut,
     SavedBacktestOut,
     SeriesOut,
+    WalkForwardOut,
+    WalkForwardRequest,
 )
 from ..services import backtest_service, optimizer_service, saved_backtests
 from ..services.optimizer_service import AxisRequest
@@ -106,6 +108,29 @@ def optimise(body: OptimiseRequest, db: Session = Depends(get_db)):
         body.train_end,
         body.test_start,
         body.test_end,
+    )
+
+
+@router.post("/backtests/walk-forward", response_model=WalkForwardOut)
+def walk_forward(body: WalkForwardRequest, db: Session = Depends(get_db)):
+    """Optimise on a window, trade the winner on the window after it, and slide forward; the test
+    windows are chained into one out-of-sample record (see services/optimizer_service.py)."""
+    axis = lambda a: AxisRequest(a.param, a.low, a.high, a.step)  # noqa: E731
+    return optimizer_service.walk_forward(
+        db,
+        body.symbol,
+        body.type,
+        body.params,
+        axis(body.x),
+        axis(body.y) if body.y else None,
+        body.quantity,
+        body.initial_capital,
+        body.metric,
+        body.folds,
+        body.train_ratio,
+        body.mode,
+        body.start_date,
+        body.end_date,
     )
 
 
