@@ -617,8 +617,271 @@ export const MODULES = [
       },
     ],
   },
-  { id: 6, title: "What is backtesting?", minutes: 7, summary: "Replaying a strategy over history, and why trading costs matter." },
-  { id: 7, title: "What is risk management?", minutes: 6, summary: "Position sizing, stop-losses and limits that protect your capital." },
+  {
+    id: 6,
+    title: "What is backtesting?",
+    minutes: 7,
+    summary: "Replaying a strategy over history, and why trading costs matter.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "Before you trust a strategy with money, even paper money, you want to know how it would have done. **Backtesting** answers that by replaying the strategy over past price history, day by day, exactly as if it had been running then: it sees only the prices up to that day, makes its BUY and SELL decisions, and a pretend account keeps score.",
+      },
+      {
+        p: "Done properly, it's a fast and free experiment. You can test five years of trading in a few seconds instead of waiting five years.",
+      },
+
+      { h: "What a backtest tells you" },
+      {
+        p: "On the Backtests page you choose a strategy and a stock, set the starting capital and press Run. You get:",
+      },
+      {
+        terms: [
+          ["Final capital / Total return", "What the account ended with, and the percentage gain or loss."],
+          ["Total trades, Winning, Losing", "How many completed trades there were, and how many made or lost money."],
+          ["Win rate", "The percentage of trades that made money. A low win rate can still be profitable if the wins are much bigger than the losses."],
+          ["Max drawdown", "The biggest fall from a peak in your account value to a later low. It measures the worst pain you would have sat through."],
+          ["Equity curve", "A chart of the account value over time, drawn next to a **buy & hold** line."],
+        ],
+      },
+
+      { h: "Always compare with buy and hold" },
+      {
+        p: "The simplest strategy of all is to buy the stock on day one and do nothing. A trading strategy has to beat that to be worth the trouble. The equity chart draws the **buy & hold** line for exactly this reason.",
+      },
+      {
+        example: {
+          title: "Made money, but still lost",
+          text: "A crossover strategy turns ₹1,00,000 into ₹1,04,000 over three years: +4%. That sounds fine until you see that simply holding the stock would have grown the same money to ₹1,30,000. The strategy made money and still did far worse than doing nothing, and it took effort and risk to get there.",
+        },
+      },
+
+      { h: "Why costs matter" },
+      {
+        p: "Every trade costs something: slippage, brokerage and taxes (you met them in Module 2). With the app's default costs switched on, a round trip, getting in and out again, costs roughly **0.35%** of the money traded. That looks small until a strategy trades often.",
+      },
+      {
+        example: {
+          title: "Death by a thousand cuts",
+          text: "Suppose a strategy puts all its money into each trade and makes 40 round trips in a year. At about 0.35% each, it pays roughly **14%** of the account in costs, so it has to earn more than 14% before it makes a single rupee. Switch on **Trading costs** on the Trade page, then run the same backtest again, and watch a frequent trader's result shrink.",
+        },
+      },
+      {
+        note: "A backtest without costs is flattering. Always run it with costs on before you believe the result.",
+      },
+
+      { h: "What a backtest can't tell you" },
+      {
+        list: [
+          "**The future.** History shows what *would have* happened, and markets change.",
+          "**Everything about the strategy's odds.** One stock over one stretch of years is a small sample. A strategy can look brilliant simply because it suited that period.",
+          "**Whether you've fooled yourself.** If you keep adjusting the settings until the backtest looks good, you may only be fitting the past. That trap is called overfitting, and it is the subject of Module 8.",
+        ],
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Backtest", "Replaying a strategy over past data to see how it would have done."],
+          ["Buy & hold", "Buying once and holding. The benchmark a strategy must beat."],
+          ["Max drawdown", "The largest peak-to-low fall in account value."],
+          ["Win rate", "The share of trades that made money."],
+          ["Equity curve", "Account value over time."],
+        ],
+      },
+      {
+        example: {
+          title: "Reading a drawdown",
+          text: "An account grows from ₹1,00,000 to a peak of ₹1,20,000, then slides to ₹90,000 before recovering. The fall from the peak is ₹30,000, which is 30,000 ÷ 1,20,000 = **25%**. That is the max drawdown, even if the account later ends higher.",
+        },
+      },
+
+      {
+        tryit: {
+          label: "Run a backtest on RELIANCE",
+          hint: "Practical experiment: keep MA Crossover with the default 20 and 50 and press Run backtest. Compare the strategy's equity line with the Buy & hold line, and check the max drawdown. Then try a different strategy type on the same stock and see which one suited this period.",
+          route: "backtests",
+          symbol: "RELIANCE",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "What does a backtest do?",
+        options: [
+          "Predicts tomorrow's price.",
+          "Places real orders with your broker.",
+          "Waits for a signal in the live market.",
+          "Replays a strategy over past prices to see how it would have performed.",
+        ],
+        answer: 3,
+        why: "A backtest runs the strategy's rules over historical data, day by day, with a pretend account. It reports what would have happened and doesn't predict what will.",
+      },
+      {
+        q: "Why is the buy & hold line drawn beside a strategy's equity curve?",
+        options: [
+          "It's the benchmark: a strategy should beat simply buying and doing nothing.",
+          "It shows the broker's fees.",
+          "It marks the days the market was closed.",
+          "It predicts the next signal.",
+        ],
+        answer: 0,
+        why: "Buy & hold is the effortless alternative. A strategy that earns less than that, however profitable it looks on its own, wasn't worth running.",
+      },
+      {
+        q: "An account rises to ₹1,20,000, falls to ₹90,000, then recovers. What is the max drawdown?",
+        options: [
+          "10%",
+          "30%",
+          "25%",
+          "75%",
+        ],
+        answer: 2,
+        why: "The fall from the peak is ₹30,000, and ₹30,000 out of the ₹1,20,000 peak is 25%. Drawdown is measured against the peak, not the starting capital.",
+      },
+      {
+        q: "Why do trading costs hurt a strategy that trades very often more than one that trades rarely?",
+        options: [
+          "Costs only apply to losing trades.",
+          "Each round trip pays costs, so many trades add up to a large share of the account.",
+          "Brokers charge more for fast strategies.",
+          "They don't. Costs are the same either way.",
+        ],
+        answer: 1,
+        why: "Every trade pays slippage, brokerage and taxes. A strategy that trades 40 times a year pays that bill 40 times, and it has to earn more than the total just to break even.",
+      },
+    ],
+  },
+
+  {
+    id: 7,
+    title: "What is risk management?",
+    minutes: 6,
+    summary: "Position sizing, stop-losses and limits that protect your capital.",
+    blocks: [
+      { h: "The idea" },
+      {
+        p: "No strategy wins every time. **Risk management** is the set of rules that decides how much you can lose when it is wrong, so that a bad run hurts but doesn't end the game. Traders often say: *first survive, then profit*.",
+      },
+      {
+        p: "The reason is arithmetic. Losses are harder to recover than they look:",
+      },
+      {
+        terms: [
+          ["Lose 10%", "You need to gain about 11% to get back to even."],
+          ["Lose 20%", "You need to gain 25%."],
+          ["Lose 50%", "You need to gain **100%**: the account has to double."],
+        ],
+      },
+      {
+        p: "The deeper the hole, the harder the climb. Keeping losses small is worth more than chasing big wins.",
+      },
+
+      { h: "Position sizing: how many shares?" },
+      {
+        p: "The most important risk decision is how much to put into one trade. A popular method is to decide how much of your account you're willing to lose if the trade goes wrong (say **2%**), and how far the price can fall before you give up on the trade (a **stop-loss**, say **5%** below your entry). The share count follows from those two choices:",
+      },
+      {
+        example: {
+          title: "The sizing formula",
+          text: "shares = (account × risk %) ÷ (price × stop-loss %). With a ₹10,00,000 account, 2% risk, a stock at ₹500 and a 5% stop: you risk ₹20,000, and each share risks ₹25 (5% of ₹500), so you can buy **800 shares**. If the stop-loss triggers, you lose 800 × ₹25 = ₹20,000, which is exactly 2% of the account.",
+        },
+      },
+
+      { h: "Stop-loss" },
+      {
+        p: "A **stop-loss** is a predefined exit: if the price falls a set percentage below your entry, you sell and accept the loss rather than hoping. In this lab, with risk management on, an auto-trade strategy's position is closed on the first day its closing price falls to or below the stop. It is a promise to yourself, enforced by the program, which is exactly why algorithms are good at it: they don't hesitate.",
+      },
+      {
+        note: "A stop-loss limits losses but does not guarantee them. In this lab it checks closing prices, and in real markets a stock can gap down overnight and open far below your stop, so you can exit at a worse price than planned.",
+      },
+
+      { h: "Limits that spread the risk" },
+      {
+        p: "Two more limits stop one mistake from sinking the whole account:",
+      },
+      {
+        list: [
+          "**Max allocation per stock** (20% by default): no single stock can be more than that share of your portfolio. In the example above, 800 shares would be ₹4,00,000, which is 40% of the account, so the lab shrinks the order to **400 shares** (₹2,00,000, the 20% cap). The worst loss at the stop is then ₹10,000, or 1%.",
+          "**Max open positions** (5 by default): you can hold only that many stocks at once, so you can't spread yourself too thin or take on too many bets at the same time.",
+        ],
+      },
+      {
+        p: "Spreading money across several stocks is called **diversification**. If one company has a bad year, the others cushion the blow.",
+      },
+
+      { h: "Using it in this lab" },
+      {
+        p: "Open the **Risk management** tab on the Trade page, tick *Enable risk management* and press Save. From then on, position sizing, the stop-loss and both limits apply to auto-trading, every manual BUY is checked against the limits, and backtests use the same rules. So you can compare a strategy with and without risk management, side by side.",
+      },
+
+      { h: "Key terms" },
+      {
+        terms: [
+          ["Risk per trade", "The share of your account you accept losing on one trade."],
+          ["Position sizing", "Deciding how many shares to buy, based on risk."],
+          ["Stop-loss", "A predefined exit price that cuts a losing trade."],
+          ["Allocation", "The share of your portfolio in one stock."],
+          ["Diversification", "Spreading money over several stocks so one doesn't dominate."],
+        ],
+      },
+
+      {
+        tryit: {
+          label: "Try the risk limits on TCS",
+          hint: "Practical experiment: open the Risk management tab, enable it and save, and read the worked example under the settings. Then try to buy more TCS than 20% of your portfolio is worth, and read why the order is refused.",
+          route: "trade",
+          symbol: "TCS",
+        },
+      },
+    ],
+    quiz: [
+      {
+        q: "After losing 50% of an account, how much must you gain to get back to where you started?",
+        options: [
+          "50%",
+          "100%",
+          "25%",
+          "75%",
+        ],
+        answer: 1,
+        why: "If ₹1,00,000 falls to ₹50,000, you need ₹50,000 more, which is 100% of what you have left. Big losses are very hard to recover from.",
+      },
+      {
+        q: "Account ₹1,00,000, risk 2% per trade, stop-loss 5%, share price ₹100. Before any allocation cap, how many shares does the sizing formula give?",
+        options: [
+          "200",
+          "100",
+          "400",
+          "2,000",
+        ],
+        answer: 2,
+        why: "You risk ₹2,000 (2% of ₹1,00,000). Each share risks ₹5 (5% of ₹100). ₹2,000 ÷ ₹5 = 400 shares, which is ₹40,000, so an allocation cap might then shrink it.",
+      },
+      {
+        q: "What is the purpose of a stop-loss?",
+        options: [
+          "To cut a losing trade at a set point instead of hoping it recovers.",
+          "To guarantee you never lose money.",
+          "To buy more when the price falls.",
+          "To lower your brokerage.",
+        ],
+        answer: 0,
+        why: "A stop-loss is a predefined exit that limits how much one trade can lose. It doesn't guarantee the exit price, since a stock can gap down past it, but it stops a small loss growing into a large one.",
+      },
+      {
+        q: "Why limit the maximum allocation per stock (20% by default)?",
+        options: [
+          "To reduce the number of trades.",
+          "To save on charges.",
+          "To make strategies trade faster.",
+          "So that one bad stock can't sink the whole portfolio.",
+        ],
+        answer: 3,
+        why: "If most of your money is in one company and it falls sharply, your whole account suffers. A cap on each stock's share, together with a limit on open positions, spreads the risk.",
+      },
+    ],
+  },
   { id: 8, title: "What is overfitting?", minutes: 6, summary: "Why a strategy that looks perfect on past data can fail on new data." },
   { id: 9, title: "What is paper trading?", minutes: 5, summary: "Practising with market data and virtual money." },
   { id: 10, title: "What is live algorithmic trading?", minutes: 6, summary: "What changes when real money and real brokers are involved." },

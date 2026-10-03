@@ -32,7 +32,7 @@ Screens (left navigation):
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
   indicator, a strategy, backtesting, risk management, overfitting, paper trading, live
   algorithmic trading), each with an experiment you can run in the simulator. Lessons are
-  being added one module at a time (Modules 1 to 5 are live); the rest show as "Soon". Each lesson
+  being added one module at a time (Modules 1 to 7 are live); the rest show as "Soon". Each lesson
   ends with a quiz: wrong answers can be retried, the explanation appears once you get one
   right, and finishing a quiz ticks the module off. Progress is kept in your browser
   (localStorage), not the database. Lesson text is plain data in `frontend/js/learn/lessons.js`,
