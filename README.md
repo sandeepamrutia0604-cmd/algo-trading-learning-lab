@@ -36,6 +36,18 @@ Screens (left navigation):
   re-runs the request on the server, so a saved result is always one the server computed
   (`/api/backtests/saved`, `services/saved_backtests.py`). Nothing here touches your real paper
   portfolio, and Reset leaves saved backtests alone.
+
+  Under a result, **Monte Carlo** shows how much of it was luck. It takes the run's closed
+  trades, reduces each to its return on the account at the moment it opened (exact, since trades
+  never overlap), and re-plays them 100 to 5,000 times: **resampling** them with replacement (so
+  the total changes too) or **shuffling** their order (the total is identical, since compounding
+  ignores order, but the drawdown is not). You get the spread of final returns and maximum
+  drawdowns (5th to 95th percentile and histograms), the chance of ending in a loss, the share of
+  runs with a drawdown of 20% or more, a fan chart of the account after each trade against your
+  actual trades, and where your backtest sits among the simulations. Drawdown is measured
+  between closed trades, and both methods assume future trades resemble past ones and are
+  independent, so read it as a sense of scale rather than a forecast. It needs at least 5 closed
+  trades and stores nothing (`POST /api/backtests/monte-carlo`, `engine/monte_carlo.py`).
 - **Optimise** - parameter optimisation with a built-in honesty check. Pick a strategy, a stock
   and one or two of its settings (say the fast and slow averages), give each a From / To / Step,
   and press Run: every combination (up to 400) is backtested on a **training** period, then the

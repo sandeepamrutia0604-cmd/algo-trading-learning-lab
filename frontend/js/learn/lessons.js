@@ -678,6 +678,9 @@ export const MODULES = [
           "**Whether you've fooled yourself.** If you keep adjusting the settings until the backtest looks good, you may only be fitting the past. That trap is called overfitting, and it is the subject of Module 8.",
         ],
       },
+      {
+        note: "A single backtest is one path, and luck shapes it. Under any result on the Backtests page, **Monte Carlo** re-plays the same trades thousands of times, resampled or in a different order, and shows the spread of returns and drawdowns that could just as easily have happened. A backtest that looks good only in the middle of that spread, or whose drawdown was far rougher in many reshuffles, was partly luck.",
+      },
 
       { h: "Key terms" },
       {

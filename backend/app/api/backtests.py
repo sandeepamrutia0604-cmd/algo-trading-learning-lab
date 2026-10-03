@@ -8,6 +8,8 @@ from ..schemas import (
     BacktestTradeOut,
     EquityPoint,
     IndicatorPoint,
+    MonteCarloOut,
+    MonteCarloRequest,
     OptimiseOut,
     OptimiseRequest,
     SaveBacktestRequest,
@@ -17,7 +19,7 @@ from ..schemas import (
     WalkForwardOut,
     WalkForwardRequest,
 )
-from ..services import backtest_service, optimizer_service, saved_backtests
+from ..services import backtest_service, monte_carlo_service, optimizer_service, saved_backtests
 from ..services.optimizer_service import AxisRequest
 from ..services.saved_backtests import SavedBacktestNotFoundError
 
@@ -109,6 +111,13 @@ def optimise(body: OptimiseRequest, db: Session = Depends(get_db)):
         body.test_start,
         body.test_end,
     )
+
+
+@router.post("/backtests/monte-carlo", response_model=MonteCarloOut)
+def monte_carlo(body: MonteCarloRequest, db: Session = Depends(get_db)):
+    """Run the backtest, then re-play its closed trades many times in other orders (or resampled)
+    to show how much of the result was luck (see engine/monte_carlo.py). Stores nothing."""
+    return monte_carlo_service.analyse(db, body.request, body.simulations, body.method, body.seed)
 
 
 @router.post("/backtests/walk-forward", response_model=WalkForwardOut)

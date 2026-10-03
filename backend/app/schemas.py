@@ -566,3 +566,63 @@ class WalkForwardOut(BaseModel):
     combinations: int
     uses_risk: bool
     uses_costs: bool
+
+
+class MonteCarloRequest(BaseModel):
+    request: BacktestRequest  # the backtest whose trades are re-played
+    simulations: int = Field(default=1000, ge=100, le=5000)
+    method: Literal["shuffle", "bootstrap"] = "bootstrap"
+    seed: int | None = None  # for a repeatable run; omit for a fresh one each time
+
+
+class McHistogramOut(BaseModel):
+    edges: list[float]
+    counts: list[int]
+
+
+class McDistributionOut(BaseModel):
+    mean: float
+    min: float
+    max: float
+    percentiles: dict[str, float]  # "5", "25", "50", "75", "95"
+    histogram: McHistogramOut
+
+
+class McOriginalOut(BaseModel):
+    return_pct: float
+    max_drawdown_pct: float
+
+
+class McExceedOut(BaseModel):
+    threshold: int
+    pct: float
+
+
+class McFanOut(BaseModel):
+    trade_numbers: list[int]
+    bands: dict[str, list[float]]  # account value at each kept trade number, per percentile
+    original: list[float]
+
+
+class MonteCarloOut(BaseModel):
+    symbol: str
+    type_label: str
+    method: str
+    simulations: int
+    trade_count: int
+    initial_capital: float
+    period_start: dt.date
+    period_end: dt.date
+    original: McOriginalOut  # the actual trades in their actual order, between closed trades
+    backtest_return_pct: float  # the backtest itself, marked to market daily
+    backtest_max_drawdown_pct: float
+    final_return: McDistributionOut
+    max_drawdown: McDistributionOut
+    probability_of_loss_pct: float
+    drawdown_exceeds_pct: list[McExceedOut]
+    original_drawdown_worse_than_pct: float
+    original_return_better_than_pct: float
+    fan: McFanOut
+    open_trade_excluded: bool
+    uses_risk: bool
+    uses_costs: bool

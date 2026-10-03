@@ -474,6 +474,43 @@
                   <p id="bt-trades-empty" class="empty" hidden>No completed trades in this run.</p>
                 </div>
 
+                <div class="panel" id="mc-panel">
+                  <h3>Monte Carlo: how much of this result was luck?</h3>
+                  <p class="hint">A backtest is one path through history. Monte Carlo re-plays this run's closed trades thousands of times, resampled or in a new order,
+                    to show how wide the spread of outcomes could have been. It measures the luck inside this backtest; it does not predict the future.</p>
+                  <div class="mc-controls">
+                    <label class="field">Simulations
+                      <select id="mc-sims">
+                        <option value="500">500</option>
+                        <option value="1000" selected>1,000</option>
+                        <option value="2000">2,000</option>
+                        <option value="5000">5,000</option>
+                      </select>
+                    </label>
+                    <label class="field">Method
+                      <select id="mc-method">
+                        <option value="bootstrap">Resample the trades (the total changes too)</option>
+                        <option value="shuffle">Shuffle the order (same total, different drawdown)</option>
+                      </select>
+                    </label>
+                    <button id="mc-run" class="btn btn-primary">Run Monte Carlo</button>
+                  </div>
+                  <div id="mc-results" hidden>
+                    <div class="op-verdict" id="mc-verdict"></div>
+                    <div class="metrics-grid" id="mc-metrics"></div>
+                    <div class="sd-head" style="margin-top:12px">
+                      <h3>Account value after each trade</h3>
+                      <div class="legend"><span style="color:var(--accent)">&#9632; your actual trades</span><span class="muted">&#9632; 5%&ndash;95% and 25%&ndash;75% of simulations</span></div>
+                    </div>
+                    <div id="mc-fan" class="chart small"></div>
+                    <div class="heat-grid">
+                      <div id="mc-return-wrap"><div class="muted small">Final return across simulations</div><div id="mc-hist-return" class="mc-hist"></div></div>
+                      <div><div class="muted small">Maximum drawdown across simulations (between closed trades)</div><div id="mc-hist-dd" class="mc-hist"></div></div>
+                    </div>
+                    <p class="hint" id="mc-note"></p>
+                  </div>
+                </div>
+
                 <div class="panel">
                   <div class="sd-head">
                     <h3>Strategy comparison</h3>

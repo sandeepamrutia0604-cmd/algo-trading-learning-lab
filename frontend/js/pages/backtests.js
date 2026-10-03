@@ -2,6 +2,7 @@ import { $, api, money, percent, pnlClass, signedPercent, toast } from "../util.
 import { store } from "../store.js";
 import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
 import * as rb from "../rulebuilder.js";
+import { initMonteCarlo, showMonteCarlo } from "./montecarlo.js";
 
 const MAX_COMPARE = 6;
 const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
@@ -206,6 +207,7 @@ async function renderResults() {
   $("bt-empty").hidden = Boolean(r);
   $("bt-results").hidden = !r;
   if (!r) return;
+  showMonteCarlo(r); // a different result clears any earlier Monte Carlo analysis
 
   $("bt-title").textContent = `${r.type_label} on ${r.symbol}`;
   $("bt-sub").textContent =
@@ -492,6 +494,7 @@ export function initBacktests() {
 
   $("bt-add-compare").addEventListener("click", addToComparison);
   $("bt-save").addEventListener("click", saveRun);
+  initMonteCarlo(() => state.request);
   $("bt-clear-compare").addEventListener("click", () => {
     state.compareList = [];
     renderComparison();
