@@ -139,6 +139,7 @@
                 <button data-tab="positions" class="on">Positions <em id="tab-pos-n">0</em></button>
                 <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
                 <button data-tab="market">Market settings</button>
+                <button data-tab="practice">New practice stock</button>
                 <button data-tab="risk">Risk management</button>
                 <button data-tab="costs">Trading costs</button>
                 <button data-tab="import">Import data</button>
@@ -180,8 +181,33 @@
                 </div>
                 <p id="m-model-desc" class="hint"></p>
                 <p class="hint">Changing a model affects newly generated days (Advance or Regenerate), not past candles. These settings
-                  apply to the simulated stocks (ALPHA, BETA, GAMMA, DELTA); imported real stocks replay their real history instead, one day per
+                  apply to the simulated stocks (ALPHA, BETA, GAMMA, DELTA and any practice stocks you create); imported real stocks replay their real history instead, one day per
                   advance, and stop when it runs out (Reset replays it from the start).</p>
+              </div>
+
+              <div id="tab-practice" class="tabpane" hidden>
+                <div class="controls">
+                  <label class="field">Symbol <input id="ps-symbol" type="text" maxlength="10" placeholder="ZETA" /></label>
+                  <label class="field">Name (optional) <input id="ps-name" type="text" maxlength="100" placeholder="Zeta Pharma" /></label>
+                  <label class="field">Starting price (&#8377;) <input id="ps-price" type="number" step="0.01" min="0.01" value="100" /></label>
+                  <label class="field">Model
+                    <select id="ps-model">
+                      <option value="random_walk">Random walk</option>
+                      <option value="trending">Trending</option>
+                      <option value="volatile">Volatile</option>
+                      <option value="sideways">Sideways</option>
+                    </select>
+                  </label>
+                  <label class="field">Volatility (% / day) <input id="ps-vol" type="number" step="0.1" min="0.1" max="20" value="2" /></label>
+                  <label class="field">Trend (% / day) <input id="ps-trend" type="number" step="0.05" min="-5" max="5" value="0" /></label>
+                  <button id="ps-create" class="btn btn-primary">Create stock</button>
+                </div>
+                <p id="ps-model-desc" class="hint"></p>
+                <p class="hint">Makes up a company whose prices the simulator generates, like ALPHA, BETA, GAMMA and DELTA. It gets the same
+                  history as they do, up to today's market date, and then advances, regenerates and resets with them. Reset keeps the
+                  behaviour you chose here. Use it to test how a strategy copes with a market you design: a steady uptrend, a choppy
+                  sideways range, a wild swinger.</p>
+                <div id="ps-list" class="practice-list"></div>
               </div>
 
               <div id="tab-risk" class="tabpane" hidden>

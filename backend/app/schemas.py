@@ -14,6 +14,17 @@ class StockOut(BaseModel):
     current_price: float
     previous_close: float | None = None
     recent_closes: list[float] = []
+    source: str = "simulated"
+    removable: bool = False  # a practice stock you created, which can be deleted
+
+
+class PracticeStockRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=40)  # the format is checked, with a readable message, on create
+    name: str | None = Field(default=None, max_length=100)
+    starting_price: float = Field(gt=0, le=10_000_000)
+    model: MarketModel = "random_walk"
+    volatility: float = Field(default=0.02, gt=0, le=0.2)
+    trend: float = Field(default=0.0, ge=-0.05, le=0.05)
 
 
 class StockImportRequest(BaseModel):

@@ -209,6 +209,19 @@ header. Both the file layout and the endpoint were checked against Upstox's docs
 instrument file. `MARKET_DATA_PROVIDER=upstox` also works, like `angel_one`, but the import
 above is the usual route.
 
+### Making your own practice stock: Trade, then New practice stock
+
+The **New practice stock** tab creates a made-up company whose prices the simulator generates, like
+ALPHA/BETA/GAMMA/DELTA: choose a symbol, name, starting price and a behaviour (random walk,
+trending, volatile or sideways, with daily volatility and trend). It gets history from the
+simulator's start up to the current market date, then advances, regenerates and resets with the
+others; Reset keeps the behaviour you chose. It appears in every dropdown and works with charts,
+trading, strategies and backtests. Use it to test a strategy against a market you design.
+You can delete a practice stock you created, as long as you don't hold it and have no trades or
+strategies on it (Reset clears trades). The four built-in stocks and imported stocks can't be
+deleted. The code is `backend/app/services/practice_stocks.py` (`POST /api/stocks/practice`,
+`DELETE /api/stocks/{symbol}`).
+
 ### Adding stocks from the app: Trade, then Import data
 
 The **Import data** tab on the Trade page has an **Import from** choice: *A file (CSV)*, *Upstox* or

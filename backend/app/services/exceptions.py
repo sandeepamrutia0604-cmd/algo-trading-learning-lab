@@ -24,3 +24,7 @@ class StrategyNotFoundError(TradingError):
 
 class InvalidStrategyError(TradingError):
     pass
+
+
+class InvalidStockError(TradingError):
+    """A practice stock that can't be created or deleted (bad symbol, name taken, still in use...)."""

@@ -140,7 +140,7 @@ async function placeOrder(side, symbol, quantity) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market", "risk", "costs", "import"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "market", "practice", "risk", "costs", "import"]) $(`tab-${pane}`).hidden = pane !== name;
 }
 
 function renderPositions() {
@@ -369,6 +369,69 @@ async function applyCostSettings() {
   }
 }
 
+/* ---------------- practice stocks you create ---------------- */
+
+function renderPracticeList() {
+  const mine = store.stocks.filter((s) => s.removable);
+  const list = $("ps-list");
+  if (!mine.length) {
+    list.innerHTML = `<p class="hint">You haven't created any practice stocks yet.</p>`;
+    return;
+  }
+  list.innerHTML =
+    `<h4 class="lesson-h" style="margin:4px 0">Your practice stocks</h4>` +
+    mine
+      .map((s) => {
+        const cfg = store.configs[s.symbol];
+        return `<div class="practice-row"><b>${s.symbol}</b><span class="grow muted">${escapeHtml(s.name)}${cfg ? ` &middot; ${MODEL_LABEL[cfg.model]}` : ""} &middot; ${money(s.current_price)}</span>
+          <button class="btn btn-sell" data-delete-stock="${s.symbol}">Delete</button></div>`;
+      })
+      .join("");
+  list.querySelectorAll("[data-delete-stock]").forEach((btn) => btn.addEventListener("click", () => deletePracticeStock(btn.dataset.deleteStock)));
+}
+
+async function createPracticeStock() {
+  const symbol = cleanSymbol($("ps-symbol").value);
+  const price = parseFloat($("ps-price").value);
+  if (!symbol) return toast("Enter a symbol, for example ZETA", true);
+  if (!(price > 0)) return toast("The starting price must be greater than zero", true);
+  const body = {
+    symbol,
+    name: $("ps-name").value.trim() || null,
+    starting_price: price,
+    model: $("ps-model").value,
+    volatility: parseFloat($("ps-vol").value) / 100,
+    trend: parseFloat($("ps-trend").value) / 100,
+  };
+  const button = $("ps-create");
+  button.disabled = true;
+  try {
+    const stock = await api("/stocks/practice", { method: "POST", body: JSON.stringify(body) });
+    toast(`Created ${stock.symbol}. It's in every dropdown now.`);
+    $("ps-symbol").value = "";
+    $("ps-name").value = "";
+    store.symbol = stock.symbol;
+    await hooks.reloadConfigs();
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deletePracticeStock(symbol) {
+  if (!confirm(`Delete the practice stock ${symbol}? Its price history is removed.`)) return;
+  try {
+    await api(`/stocks/${symbol}`, { method: "DELETE" });
+    toast(`Deleted ${symbol}`);
+    await hooks.reloadConfigs();
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 /* ---------------- importing from a broker (Upstox / Angel One) ---------------- */
 
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -556,6 +619,7 @@ export async function renderTrade() {
   renderPositions();
   renderTrades();
   renderSettings();
+  renderPracticeList();
   renderRisk();
   renderCosts();
   await renderChart();
@@ -592,6 +656,13 @@ export function initTrade() {
     $("m-model-desc").textContent = MODEL_INFO[e.target.value];
     if (e.target.value === "trending" && parseFloat($("m-trend").value) === 0) $("m-trend").value = 0.3;
   });
+
+  $("ps-create").addEventListener("click", createPracticeStock);
+  $("ps-model").addEventListener("change", (e) => {
+    $("ps-model-desc").textContent = MODEL_INFO[e.target.value];
+    if (e.target.value === "trending" && parseFloat($("ps-trend").value) === 0) $("ps-trend").value = 0.3;
+  });
+  $("ps-model-desc").textContent = MODEL_INFO[$("ps-model").value];
 
   $("im-source").addEventListener("change", switchImportSource);
   $("im-broker-apply").addEventListener("click", importFromBroker);

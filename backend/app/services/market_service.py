@@ -304,6 +304,8 @@ def advance(db: Session, days: int) -> None:
 
 def reset_market(db: Session) -> None:
     for stock in _simulated_stocks(db):
+        if stock.symbol not in DEFAULT_CONFIGS:
+            continue  # a practice stock you created keeps the behaviour you gave it
         config = get_config(db, stock)
         config.model, config.volatility, config.trend = _default_config(stock.symbol)
     generate_all(db, DEFAULT_HISTORY_DAYS, seed=DEFAULT_SEED)
