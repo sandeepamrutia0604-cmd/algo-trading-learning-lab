@@ -36,6 +36,19 @@ Screens (left navigation):
   re-runs the request on the server, so a saved result is always one the server computed
   (`/api/backtests/saved`, `services/saved_backtests.py`). Nothing here touches your real paper
   portfolio, and Reset leaves saved backtests alone.
+- **Optimise** - parameter optimisation with a built-in honesty check. Pick a strategy, a stock
+  and one or two of its settings (say the fast and slow averages), give each a From / To / Step,
+  and press Run: every combination (up to 400) is backtested on a **training** period, then the
+  same combinations on a **test** period the choice never saw (default: first 70% / last 30% of
+  the stored history). You get both grids as heatmaps side by side with the training winner
+  starred, where that winner ranks among all settings on the test period, how a typical setting
+  did there, buy-and-hold for each period, a table of the eight best on training and what
+  became of them on test, and a plain verdict (held up, mixed, or did not hold up, which is the
+  classic sign of overfitting). Each cell is an ordinary backtest under your current Risk
+  management and Trading costs settings, so it equals the same run on the Backtests page; the
+  test period is traded with indicators warmed up on the days before it, and the training run
+  never sees test data. Nothing is saved or traded (`POST /api/backtests/optimise`,
+  `services/optimizer_service.py`). Scores are total return, or return per unit of drawdown.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an

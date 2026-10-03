@@ -23,6 +23,7 @@
         <a href="#/trade" data-route="trade">Trade</a>
         <a href="#/strategies" data-route="strategies">Strategies</a>
         <a href="#/backtests" data-route="backtests">Backtests</a>
+        <a href="#/optimise" data-route="optimise">Optimise</a>
         <a href="#/performance" data-route="performance">Performance</a>
         <a href="#/journal" data-route="journal">Journal</a>
         <a href="#/learn" data-route="learn">Learn</a>
@@ -500,6 +501,119 @@
                   <thead><tr><th>Name</th><th>Period</th><th class="num">Return</th><th class="num">Final</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th>Saved</th><th></th></tr></thead>
                   <tbody></tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ OPTIMISE ============ -->
+        <section id="page-optimise" class="page" hidden>
+          <div class="strat-grid">
+            <div class="panel builder">
+              <h3>Optimiser</h3>
+              <p class="hint">Tries every combination of one or two of a strategy's settings on a <b>training</b> period, then runs the winner on a
+                <b>test</b> period it has never seen. Picking the best of many settings on the same data you score them on is how overfitting happens;
+                the test period is how you find out.</p>
+
+              <label class="field">Strategy type
+                <select id="op-type"></select>
+              </label>
+              <label class="field">Stock
+                <select id="op-symbol"></select>
+              </label>
+
+              <div class="op-axis">
+                <label class="field">Setting to vary (across)
+                  <select id="op-x"></select>
+                </label>
+                <div class="param-grid three">
+                  <label class="field">From <input id="op-x-low" type="number" step="any" /></label>
+                  <label class="field">To <input id="op-x-high" type="number" step="any" /></label>
+                  <label class="field">Step <input id="op-x-step" type="number" step="any" min="0" /></label>
+                </div>
+              </div>
+              <div class="op-axis">
+                <label class="field">Second setting (down)
+                  <select id="op-y"></select>
+                </label>
+                <div class="param-grid three" id="op-y-range">
+                  <label class="field">From <input id="op-y-low" type="number" step="any" /></label>
+                  <label class="field">To <input id="op-y-high" type="number" step="any" /></label>
+                  <label class="field">Step <input id="op-y-step" type="number" step="any" min="0" /></label>
+                </div>
+              </div>
+              <p class="hint" id="op-combos"></p>
+
+              <label class="field">Score each combination by
+                <select id="op-metric">
+                  <option value="return">Total return</option>
+                  <option value="risk_adjusted">Return per unit of drawdown</option>
+                </select>
+              </label>
+
+              <div class="param-grid">
+                <label class="field">Shares per BUY <input id="op-qty" type="number" min="1" value="10" /></label>
+                <label class="field">Initial capital <input id="op-capital" type="number" min="1" step="1000" value="100000" /></label>
+              </div>
+
+              <div class="op-axis">
+                <b class="small">Training period</b>
+                <div class="param-grid">
+                  <label class="field">From <input id="op-train-from" type="date" /></label>
+                  <label class="field">To <input id="op-train-to" type="date" /></label>
+                </div>
+                <b class="small">Test period (unseen)</b>
+                <div class="param-grid">
+                  <label class="field">From <input id="op-test-from" type="date" /></label>
+                  <label class="field">To <input id="op-test-to" type="date" /></label>
+                </div>
+                <div class="range-presets" id="op-presets">
+                  <button type="button" class="btn" data-split="70">70% / 30%</button>
+                  <button type="button" class="btn" data-split="50">50% / 50%</button>
+                  <button type="button" class="btn" data-split="none">No test</button>
+                </div>
+              </div>
+
+              <button id="op-run" class="btn btn-primary big">Run optimisation</button>
+              <p class="hint" id="op-hint">Other settings stay at their defaults. Each combination is an ordinary backtest, run with your current Risk
+                management and Trading costs settings, so a cell equals the same run on the Backtests page. Nothing is saved or traded.</p>
+            </div>
+
+            <div class="strat-main">
+              <div class="panel" id="op-empty">
+                <p class="empty">Choose a strategy, a stock and one or two settings to sweep, then press "Run optimisation". The default 70% / 30% split trains on the first
+                  70% of the stored history and tests on the last 30%.</p>
+              </div>
+
+              <div id="op-results" hidden>
+                <div class="panel">
+                  <h2 id="op-title"></h2>
+                  <div class="muted small" id="op-sub"></div>
+                  <div class="op-verdict" id="op-verdict"></div>
+                  <div class="metrics-grid" id="op-metrics"></div>
+                </div>
+
+                <div class="panel">
+                  <div class="sd-head">
+                    <h3>Every combination</h3>
+                    <div class="legend"><span class="up">&#9632; positive score</span><span class="down">&#9632; negative</span><span>&#9733; training winner</span></div>
+                  </div>
+                  <div class="heat-grid">
+                    <div><div class="muted small" id="op-train-title"></div><div id="op-heat-train" class="heatmap"></div></div>
+                    <div id="op-test-wrap"><div class="muted small" id="op-test-title"></div><div id="op-heat-test" class="heatmap"></div></div>
+                  </div>
+                  <p class="hint">Each grid has its own colour scale. A real edge tends to show as a broad bright region that appears in <b>both</b> grids. One bright spike on the
+                    left that has vanished on the right is the signature of a setting that merely fitted the past. Hover a cell for its numbers.</p>
+                </div>
+
+                <div class="panel" id="op-top-panel">
+                  <h3>The best on training, and what happened to them on the test period</h3>
+                  <table id="op-top-table">
+                    <thead><tr><th>Settings</th><th class="num">Training return</th><th class="num">Test return</th><th class="num">Test rank</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                  <p class="hint">If the settings that looked best on training are scattered all over the test ranking, the training ranking was mostly luck.</p>
+                </div>
               </div>
             </div>
           </div>

@@ -931,7 +931,7 @@ export const MODULES = [
         ],
       },
       {
-        note: "On the Backtests page you can do this directly: set the From and To dates, or press First half and Second half. Tune your settings on the first half, then run them once on the second half. Days before your From date still warm the indicators up, so the test period isn't wasted waiting for a slow average to form.",
+        note: "The Optimise page does this for you: it tries every combination of one or two settings on a training period, then runs the winner on a test period it has never seen, and shows both grids side by side. You can also do it by hand on the Backtests page with the From and To dates, or the First half and Second half buttons. Days before your From date still warm the indicators up, so a test period isn't wasted waiting for a slow average to form.",
       },
 
       { h: "Key terms" },
@@ -947,9 +947,9 @@ export const MODULES = [
 
       {
         tryit: {
-          label: "Hunt for the best settings, then test them elsewhere",
-          hint: "Practical experiment: on RELIANCE, run MA Crossover with a few different fast and slow values (for example 10/30, 20/50, 5/20) and note which looks best. First do this on the First half of the history, then run your best pair on the Second half, which it has never seen. Does it still win? Then try it on TCS and INFY, and nudge the best pair by a day or two to see whether the result holds.",
-          route: "backtests",
+          label: "Hunt for the best settings, then test them on unseen data",
+          hint: "Practical experiment: on the Optimise page, keep MA Crossover on RELIANCE with the default 70% / 30% split and press Run optimisation. The starred cell is the best setting on the training period. Compare the two grids, and read where that winner ranks on the test period. Then try another stock, another strategy, or press Run again with the ranges widened, and see how often the winner holds up.",
+          route: "optimise",
           symbol: "RELIANCE",
         },
       },

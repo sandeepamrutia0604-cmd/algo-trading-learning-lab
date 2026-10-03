@@ -430,3 +430,70 @@ class SavedBacktestOut(BaseModel):
 class SavedBacktestDetailOut(SavedBacktestOut):
     request: BacktestRequest
     result: BacktestResultOut
+
+
+class AxisRange(BaseModel):
+    param: str = Field(min_length=1, max_length=40)
+    low: float
+    high: float
+    step: float = Field(gt=0)
+
+
+class OptimiseRequest(BaseModel):
+    symbol: str
+    type: str
+    params: dict[str, float] = {}  # settings that stay fixed while the others are swept
+    x: AxisRange
+    y: AxisRange | None = None
+    metric: Literal["return", "risk_adjusted"] = "return"
+    quantity: int = Field(default=10, ge=1, le=100000)
+    initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
+    train_start: dt.date | None = None
+    train_end: dt.date | None = None
+    test_start: dt.date | None = None
+    test_end: dt.date | None = None
+
+
+class GridCellOut(BaseModel):
+    score: float
+    return_pct: float
+    max_drawdown_pct: float
+    trades: int
+
+
+class GridAxisOut(BaseModel):
+    name: str
+    label: str
+    values: list[float]
+
+
+class GridPeriodOut(BaseModel):
+    start: dt.date
+    end: dt.date
+    buy_hold_pct: float
+    cells: list[list[GridCellOut | None]]  # rows follow the y values (one row if there is no y), columns the x values
+
+
+class BestSettingsOut(BaseModel):
+    params: dict
+    train: GridCellOut
+    test: GridCellOut | None = None
+    test_rank: int | None = None  # 1 = the training winner was also the best on the test period
+    test_valid: int | None = None
+    test_median_score: float | None = None
+
+
+class OptimiseOut(BaseModel):
+    symbol: str
+    type: str
+    type_label: str
+    metric: str
+    x: GridAxisOut
+    y: GridAxisOut | None = None
+    train: GridPeriodOut
+    test: GridPeriodOut | None = None
+    best: BestSettingsOut
+    combinations: int
+    valid: int
+    uses_risk: bool
+    uses_costs: bool

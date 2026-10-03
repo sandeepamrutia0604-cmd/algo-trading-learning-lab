@@ -8,12 +8,15 @@ from ..schemas import (
     BacktestTradeOut,
     EquityPoint,
     IndicatorPoint,
+    OptimiseOut,
+    OptimiseRequest,
     SaveBacktestRequest,
     SavedBacktestDetailOut,
     SavedBacktestOut,
     SeriesOut,
 )
-from ..services import backtest_service, saved_backtests
+from ..services import backtest_service, optimizer_service, saved_backtests
+from ..services.optimizer_service import AxisRequest
 from ..services.saved_backtests import SavedBacktestNotFoundError
 
 router = APIRouter()
@@ -82,6 +85,28 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
 @router.post("/backtests/run", response_model=BacktestResultOut)
 def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
     return _run(body, db)
+
+
+@router.post("/backtests/optimise", response_model=OptimiseOut)
+def optimise(body: OptimiseRequest, db: Session = Depends(get_db)):
+    """Try every combination of one or two settings on a training period, then see how the winner
+    does on an unseen test period (see services/optimizer_service.py). Stores nothing."""
+    axis = lambda a: AxisRequest(a.param, a.low, a.high, a.step)  # noqa: E731
+    return optimizer_service.optimise(
+        db,
+        body.symbol,
+        body.type,
+        body.params,
+        axis(body.x),
+        axis(body.y) if body.y else None,
+        body.quantity,
+        body.initial_capital,
+        body.metric,
+        body.train_start,
+        body.train_end,
+        body.test_start,
+        body.test_end,
+    )
 
 
 # ---------- saved backtests ----------
