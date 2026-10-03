@@ -1,6 +1,7 @@
 import { $, toast } from "./util.js";
 import { hooks, loadConfigs, loadCore, loadCostSettings, loadRiskSettings, loadStrategyTypes } from "./store.js";
 import { initTheme } from "./theme.js";
+import { initLive } from "./live.js";
 import { checkHealth, initTopbar, renderTopbar } from "./topbar.js";
 import { renderHome } from "./pages/home.js";
 import { initTrade, renderTrade } from "./pages/trade.js";
@@ -55,6 +56,15 @@ async function refresh() {
   }
 }
 
+/** Another tab changed something: re-read what that kind of change can affect, then redraw. */
+async function onLiveChange(kinds) {
+  const reloads = [];
+  if (kinds.has("stocks") || kinds.has("market") || kinds.has("reconnected")) reloads.push(loadConfigs());
+  if (kinds.has("settings") || kinds.has("reconnected")) reloads.push(loadRiskSettings(), loadCostSettings());
+  await Promise.all(reloads).catch(() => {});
+  await refresh();
+}
+
 hooks.refresh = refresh;
 hooks.reloadConfigs = loadConfigs;
 hooks.navigate = (route) => {
@@ -77,6 +87,7 @@ async function boot() {
     toast(err.message, true);
   }
   await showRoute();
+  initLive(onLiveChange);
 }
 
 boot();

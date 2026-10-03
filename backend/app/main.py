@@ -21,6 +21,7 @@ from .api.strategies import router as strategies_router
 from .api.trades import router as trades_router
 from .config import settings
 from .db import Base, SessionLocal, engine
+from .live import is_change, kind_for, live, router as live_router
 from .logging_config import configure_logging
 from .migrations import ensure_columns
 from .services.exceptions import StockNotFoundError, StrategyNotFoundError, TradingError
@@ -55,6 +56,18 @@ async def no_cache_headers(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def announce_changes(request: Request, call_next):
+    """After any request that successfully changed something, tell every open tab (see live.py)."""
+    response = await call_next(request)
+    path = request.url.path
+    if is_change(request.method, path, response.status_code):
+        await live.broadcast(
+            {"type": "changed", "kind": kind_for(path), "origin": request.headers.get("x-client-id")}
+        )
+    return response
+
+
 @app.exception_handler(TradingError)
 def trading_error_handler(request: Request, exc: TradingError):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
@@ -70,6 +83,7 @@ def strategy_not_found_handler(request: Request, exc: StrategyNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 
+app.include_router(live_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 app.include_router(market_router, prefix="/api")
 app.include_router(stocks_router, prefix="/api")

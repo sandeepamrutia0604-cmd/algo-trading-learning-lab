@@ -29,9 +29,13 @@ export function toast(message, isError = false) {
   toast._t = setTimeout(() => (el.hidden = true), 3500);
 }
 
+/** Identifies this browser tab to the backend, so live updates (live.js) don't echo a tab's own
+ *  changes back to it. */
+export const CLIENT_ID = globalThis.crypto?.randomUUID?.() ?? String(Math.random()).slice(2);
+
 export async function api(path, options) {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Client-Id": CLIENT_ID },
     ...options,
   });
   const data = await res.json().catch(() => ({}));

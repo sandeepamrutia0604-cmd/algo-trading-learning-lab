@@ -215,6 +215,25 @@ header. Both the file layout and the endpoint were checked against Upstox's docs
 instrument file. `MARKET_DATA_PROVIDER=upstox` also works, like `angel_one`, but the import
 above is the usual route.
 
+### Live updates across tabs
+
+If the app is open in more than one tab (one pressing Play, another watching a chart), every tab
+now follows along. The backend has a WebSocket at `/api/ws`; after any request that successfully
+changes something (an order, an advance, Reset, a new stock, a setting, a saved backtest...) it
+broadcasts a tiny `{"type": "changed", "kind": ...}` message, and each other tab re-reads what it
+shows. The message carries no data, so there is nothing to merge or get out of step. The sidebar
+shows **Live updates on** (or **off** while it reconnects, which it does automatically, and
+refreshes once it is back).
+
+Details: a tab ignores changes it made itself (it sends an `X-Client-Id` header so the server
+can say who did it), bursts such as Play are combined into one refresh at a time, and a hidden
+tab waits until you switch back to it instead of redrawing charts in the background. Reads,
+failed requests and backtest runs (`/api/backtests/run` stores nothing) never broadcast. The
+socket refuses connections from other websites (the Origin must match the page's own host), since
+browsers don't apply the same-origin policy to WebSockets. The code is `backend/app/live.py` (the
+broadcast is a middleware in `main.py`) and `frontend/js/live.js`. This is *not* a feed of real
+market prices: the lab still replays history on its market clock.
+
 ### Making your own practice stock: Trade, then New practice stock
 
 The **New practice stock** tab creates a made-up company whose prices the simulator generates, like
