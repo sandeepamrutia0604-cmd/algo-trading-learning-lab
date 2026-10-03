@@ -931,7 +931,7 @@ export const MODULES = [
         ],
       },
       {
-        note: "This lab doesn't yet have a date-range picker for backtests, so the easiest out-of-sample check here is to run your chosen settings on other stocks and compare.",
+        note: "On the Backtests page you can do this directly: set the From and To dates, or press First half and Second half. Tune your settings on the first half, then run them once on the second half. Days before your From date still warm the indicators up, so the test period isn't wasted waiting for a slow average to form.",
       },
 
       { h: "Key terms" },
@@ -948,7 +948,7 @@ export const MODULES = [
       {
         tryit: {
           label: "Hunt for the best settings, then test them elsewhere",
-          hint: "Practical experiment: on RELIANCE, run MA Crossover with a few different fast and slow values (for example 10/30, 20/50, 5/20) and note which looks best. Then run that best pair on TCS and INFY. Does it still win? Also nudge the best pair by one or two days and see whether the result holds.",
+          hint: "Practical experiment: on RELIANCE, run MA Crossover with a few different fast and slow values (for example 10/30, 20/50, 5/20) and note which looks best. First do this on the First half of the history, then run your best pair on the Second half, which it has never seen. Does it still win? Then try it on TCS and INFY, and nudge the best pair by a day or two to see whether the result holds.",
           route: "backtests",
           symbol: "RELIANCE",
         },

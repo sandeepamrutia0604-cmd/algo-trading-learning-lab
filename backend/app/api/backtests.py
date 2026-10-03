@@ -18,8 +18,10 @@ router = APIRouter()
 @router.post("/backtests/run", response_model=BacktestResultOut)
 def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
     defn, params, dates, closes, result, risk_managed = backtest_service.run(
-        db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules
+        db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules,
+        start_date=body.start_date, end_date=body.end_date,
     )
+    period_start, period_end = result.equity_curve[0].date, result.equity_curve[-1].date
     return BacktestResultOut(
         symbol=body.symbol.upper(),
         type=defn.key,
@@ -29,6 +31,8 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
         quantity=body.quantity,
         initial_capital=result.initial_capital,
         final_capital=result.final_capital,
+        period_start=period_start,
+        period_end=period_end,
         total_return_pct=result.total_return_pct,
         total_trades=result.total_trades,
         winning_trades=result.winning_trades,
@@ -65,7 +69,7 @@ def run_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
                 width=s.width,
                 fill_to_previous=s.fill_to_previous,
                 y_range=list(s.y_range) if s.y_range else None,
-                points=[IndicatorPoint(date=d, value=round(v, 4)) for d, v in zip(dates, s.values) if v is not None],
+                points=[IndicatorPoint(date=d, value=round(v, 4)) for d, v in zip(dates, s.values) if v is not None and d >= period_start],
             )
             for s in defn.chart_series(closes, params)
         ],

@@ -43,10 +43,18 @@ def run(
     quantity: int,
     initial_capital: float,
     rules: dict | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult, bool]:
     """Returns (defn, params, dates, closes, result, risk_enabled). The backtest applies the
     same RiskSettings (position sizing, stop-loss, max allocation) live auto-trading would,
-    so a backtest result reflects what auto-trading this strategy would actually have done."""
+    so a backtest result reflects what auto-trading this strategy would actually have done.
+
+    `start_date`/`end_date` (both optional, inclusive) pick the period that is traded. History
+    after `end_date` is dropped. History before `start_date` is kept only to warm the
+    indicators up, so a short window isn't spent waiting for a slow average to form; `dates`
+    and `closes` still include those warm-up days, and the result's equity curve starts on
+    the first traded day."""
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     if initial_capital <= 0:
@@ -62,6 +70,13 @@ def run(
     candles = get_market_data_adapter(db, full_history=True).get_historical_candles(symbol)
     if len(candles) < 2:
         raise InvalidStrategyError("Not enough price history to run a backtest")
+    if start_date and end_date and start_date > end_date:
+        raise InvalidStrategyError("The start date must be on or before the end date")
+    if end_date:
+        candles = [c for c in candles if c.date <= end_date]
+    start_index = next((i for i, c in enumerate(candles) if not start_date or c.date >= start_date), len(candles))
+    if len(candles) - start_index < 2:
+        raise InvalidStrategyError("Fewer than 2 trading days of price history fall in that date range")
 
     dates = [c.date for c in candles]
     closes = [c.close for c in candles]
@@ -72,5 +87,7 @@ def run(
         stop_loss_pct=settings.stop_loss_pct,
         max_allocation_pct=settings.max_allocation_pct,
     )
-    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital, risk, cost_service.config(db))
+    result = run_backtest(
+        defn, clean, dates, closes, quantity, initial_capital, risk, cost_service.config(db), start_index=start_index
+    )
     return defn, clean, dates, closes, result, settings.enabled

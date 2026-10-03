@@ -6,7 +6,7 @@ import * as rb from "../rulebuilder.js";
 const MAX_COMPARE = 6;
 const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
 
-const state = { result: null, running: false, compareList: [] };
+const state = { result: null, running: false, compareList: [], ranges: {} };
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
 const isCustom = () => $("bt-type").value === "custom";
@@ -88,6 +88,52 @@ function renderBuilder() {
   }
 }
 
+/* ---------------- date range ---------------- */
+
+/** First and last stored date for a stock (backtests replay the whole history), cached per symbol. */
+async function historyRange(symbol) {
+  if (!state.ranges[symbol]) {
+    const prices = await api(`/stocks/${symbol}/prices?full=true`);
+    state.ranges[symbol] = prices.length ? { dates: prices.map((p) => p.date), first: prices[0].date, last: prices[prices.length - 1].date } : { dates: [], first: null, last: null };
+  }
+  return state.ranges[symbol];
+}
+
+async function refreshRange({ clear = false } = {}) {
+  const symbol = $("bt-symbol").value;
+  if (!symbol) return;
+  let range;
+  try {
+    delete state.ranges[symbol]; // re-read: the stock may have been re-imported or regenerated since
+    range = await historyRange(symbol);
+  } catch (err) {
+    return;
+  }
+  if ($("bt-symbol").value !== symbol) return; // the selection moved on while loading
+  for (const id of ["bt-from", "bt-to"]) {
+    $(id).min = range.first || "";
+    $(id).max = range.last || "";
+    if (clear) $(id).value = "";
+  }
+  $("bt-range-hint").textContent = range.first
+    ? `${symbol} has ${range.dates.length.toLocaleString("en-IN")} stored trading days, ${range.first} to ${range.last}. Leave both dates empty to use all of it.`
+    : `${symbol} has no stored price history.`;
+}
+
+async function applyPreset(kind) {
+  const range = await historyRange($("bt-symbol").value);
+  if (!range.dates.length) return;
+  const middle = Math.floor(range.dates.length / 2);
+  const [from, to] = { all: ["", ""], first: [range.first, range.dates[middle - 1]], second: [range.dates[middle], range.last] }[kind];
+  $("bt-from").value = from;
+  $("bt-to").value = to;
+}
+
+const isPartial = (r) => {
+  const range = state.ranges[r.symbol];
+  return Boolean(range && range.first && (r.period_start !== range.first || r.period_end !== range.last));
+};
+
 /* ---------------- run ---------------- */
 
 async function runBacktest() {
@@ -95,6 +141,11 @@ async function runBacktest() {
   const initialCapital = parseFloat($("bt-capital").value);
   if (!(quantity >= 1)) return toast("Shares per trade must be at least 1", true);
   if (!(initialCapital > 0)) return toast("Initial capital must be greater than zero", true);
+
+  const from = $("bt-from").value;
+  const to = $("bt-to").value;
+  if (from && to && from > to) return toast("The From date must be on or before the To date", true);
+  const dates = { ...(from ? { start_date: from } : {}), ...(to ? { end_date: to } : {}) };
 
   state.running = true;
   $("bt-run").disabled = true;
@@ -107,9 +158,11 @@ async function runBacktest() {
           rules: { entry: rb.readSide($("bt-entry-rows"), $("bt-entry-logic").value), exit: rb.readSide($("bt-exit-rows"), $("bt-exit-logic").value) },
           quantity,
           initial_capital: initialCapital,
+          ...dates,
         }
-      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital };
+      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital, ...dates };
     const result = await api("/backtests/run", { method: "POST", body: JSON.stringify(body) });
+    await historyRange(result.symbol).catch(() => {}); // so the results can tell a partial period from the whole history
     state.result = result;
     await renderResults();
   } catch (err) {
@@ -155,14 +208,16 @@ async function renderResults() {
   $("bt-title").textContent = `${r.type_label} on ${r.symbol}`;
   $("bt-sub").textContent =
     `${r.rule} · ${r.quantity} shares per trade · started with ${money(r.initial_capital)}` +
+    ` · traded ${r.period_start} to ${r.period_end}` +
     (r.risk_managed ? " · sized and stop-lossed using your Risk management settings" : "") +
     (r.costs_applied ? " · slippage, brokerage and taxes applied from your Trading costs settings" : "") +
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
     (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
   renderMetrics(r);
 
-  const { prices } = await loadChartData(r.symbol, [], { full: true });
+  const everyPrice = (await loadChartData(r.symbol, [], { full: true })).prices;
   if (state.result !== r) return;
+  const prices = everyPrice.filter((p) => p.date >= r.period_start && p.date <= r.period_end);
   const dates = prices.map((p) => p.date);
   const buyHold = prices.map((p) => (r.initial_capital / prices[0].close) * p.close);
   drawEquityChart($("bt-equity"), {
@@ -215,6 +270,7 @@ function addToComparison() {
   }
   const label =
     `${state.result.type_label} on ${state.result.symbol}` +
+    (isPartial(state.result) ? ` (${state.result.period_start} to ${state.result.period_end})` : "") +
     (state.result.risk_managed ? " (risk-managed)" : "") +
     (state.result.costs_applied ? " (with costs)" : "");
   state.compareList.push({ id: `${Date.now()}-${Math.random()}`, label, result: state.result });
@@ -270,6 +326,7 @@ function renderComparison() {
 
 export async function renderBacktests() {
   renderBuilder();
+  refreshRange();
   await renderResults();
   renderComparison();
 }
@@ -277,6 +334,8 @@ export async function renderBacktests() {
 export function initBacktests() {
   $("bt-type").addEventListener("change", applyBuilderDefaults);
   $("bt-run").addEventListener("click", runBacktest);
+  $("bt-symbol").addEventListener("change", () => refreshRange({ clear: true }));
+  $("bt-presets").querySelectorAll("[data-range]").forEach((btn) => btn.addEventListener("click", () => applyPreset(btn.dataset.range)));
 
   $("bt-entry-add").addEventListener("click", () => {
     rb.addRow($("bt-entry-rows"));

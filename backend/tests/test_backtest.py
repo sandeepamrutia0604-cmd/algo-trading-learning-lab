@@ -29,6 +29,10 @@ def make_defn(events):
     )
 
 
+def ev(index, side):
+    return SignalEvent(index=index, side=side, headline="", checks=[], values={})
+
+
 def make_dates(n):
     return [date(2025, 1, 1 + i) for i in range(n)]
 
@@ -293,3 +297,117 @@ def test_backtest_endpoint_risk_managed_false_by_default(client):
     res = client.post("/api/backtests/run", json={"symbol": "ALPHA", "type": "ma_crossover"})
     assert res.json()["risk_managed"] is False
     assert res.json()["stopped_out"] == 0
+
+
+# ---------- date range ----------
+
+
+def test_engine_start_index_skips_earlier_signals_and_starts_the_account_there():
+    dates = make_dates(10)
+    closes = [100, 100, 110, 110, 120, 120, 130, 130, 140, 140]
+    # BUY 1, SELL 3 happen before the window; BUY 5, SELL 7 inside it
+    events = [ev(1, "BUY"), ev(3, "SELL"), ev(5, "BUY"), ev(7, "SELL")]
+
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=10_000, start_index=4)
+
+    assert result.equity_curve[0].date == dates[4] and len(result.equity_curve) == 6
+    assert result.equity_curve[0].value == 10_000  # nothing was held on the first traded day
+    assert [(t.entry_date, t.exit_date) for t in result.trades] == [(dates[5], dates[7])]
+    assert result.final_capital == pytest.approx(10_000 + 10 * (130 - 120))
+
+
+def test_engine_ignores_a_sell_that_belongs_to_a_position_opened_before_the_window():
+    dates = make_dates(6)
+    closes = [100, 100, 110, 110, 120, 120]
+    events = [ev(1, "BUY"), ev(3, "SELL")]
+
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=10_000, start_index=2)
+
+    assert result.trades == [] and result.final_capital == 10_000
+
+
+def test_engine_drawdown_is_measured_only_inside_the_window():
+    dates = make_dates(8)
+    closes = [100, 50, 100, 100, 100, 100, 100, 100]  # a crash before the window
+    events = [ev(0, "BUY"), ev(7, "SELL")]
+
+    result = run_backtest(make_defn(events), {}, dates, closes, quantity=10, initial_capital=10_000, start_index=3)
+
+    assert result.max_drawdown_pct == 0
+
+
+def _ranges(client):
+    client.post("/api/market/generate", json={"days": 250, "seed": 11})
+    prices = client.get("/api/stocks/ALPHA/prices?full=true").json()
+    return [p["date"] for p in prices]
+
+
+def test_service_trims_to_the_window_but_keeps_warm_up_days_in_the_series(client, db_session):
+    days = _ranges(client)
+    start, end = date.fromisoformat(days[100]), date.fromisoformat(days[200])
+
+    defn, params, dates, closes, result, _ = backtest_service.run(
+        db_session, "ALPHA", "ma_crossover", {"fast": 5, "slow": 50}, 10, 100_000, start_date=start, end_date=end
+    )
+
+    assert dates[0] == date.fromisoformat(days[0]) and dates[-1] == end  # later days dropped, earlier kept
+    assert result.equity_curve[0].date == start and result.equity_curve[-1].date == end
+    assert len(result.equity_curve) == 101
+
+
+def test_service_rejects_a_range_with_too_few_days(client, db_session):
+    days = _ranges(client)
+    last = date.fromisoformat(days[-1])
+
+    with pytest.raises(InvalidStrategyError, match="date range"):
+        backtest_service.run(db_session, "ALPHA", "ma_crossover", {}, 10, 100_000, start_date=last)
+    with pytest.raises(InvalidStrategyError, match="date range"):
+        backtest_service.run(db_session, "ALPHA", "ma_crossover", {}, 10, 100_000, end_date=date(1999, 1, 1))
+    with pytest.raises(InvalidStrategyError, match="start date"):
+        backtest_service.run(db_session, "ALPHA", "ma_crossover", {}, 10, 100_000, start_date=last, end_date=date.fromisoformat(days[0]))
+
+
+def test_endpoint_reports_the_period_and_starts_indicator_lines_on_the_first_traded_day(client):
+    days = _ranges(client)
+    body = {"symbol": "ALPHA", "type": "ma_crossover", "params": {"fast": 5, "slow": 50}, "quantity": 10, "initial_capital": 100_000, "start_date": days[100], "end_date": days[200]}
+
+    result = client.post("/api/backtests/run", json=body).json()
+
+    assert (result["period_start"], result["period_end"]) == (days[100], days[200])
+    assert len(result["equity_curve"]) == 101
+    slow = next(s for s in result["series"] if "50" in s["name"])
+    # the 50-day average already existed on day one of the window, because it warmed up beforehand
+    assert slow["points"][0]["date"] == days[100] and slow["points"][-1]["date"] == days[200]
+    assert all(t["entry_date"] >= days[100] for t in result["trades"])
+
+
+def test_endpoint_without_dates_covers_the_whole_history(client):
+    days = _ranges(client)
+
+    result = client.post("/api/backtests/run", json={"symbol": "ALPHA", "type": "ma_crossover", "quantity": 10, "initial_capital": 100_000}).json()
+
+    assert (result["period_start"], result["period_end"]) == (days[0], days[-1])
+
+
+def test_a_window_that_starts_midway_can_differ_from_the_full_run(client):
+    days = _ranges(client)
+    base = {"symbol": "ALPHA", "type": "ma_crossover", "params": {"fast": 5, "slow": 20}, "quantity": 10, "initial_capital": 100_000}
+
+    full = client.post("/api/backtests/run", json=base).json()
+    late = client.post("/api/backtests/run", json={**base, "start_date": days[150]}).json()
+
+    assert late["period_start"] == days[150] and len(late["equity_curve"]) == 100
+    assert late["equity_curve"][0]["value"] == pytest.approx(100_000, rel=0.2)
+    assert len(late["equity_curve"]) < len(full["equity_curve"])
+
+
+def test_endpoint_rejects_bad_ranges(client):
+    days = _ranges(client)
+    base = {"symbol": "ALPHA", "type": "ma_crossover", "quantity": 10, "initial_capital": 100_000}
+
+    backwards = client.post("/api/backtests/run", json={**base, "start_date": days[200], "end_date": days[100]})
+    assert backwards.status_code == 422
+    empty = client.post("/api/backtests/run", json={**base, "start_date": "2999-01-01"})
+    assert empty.status_code == 400 and "date range" in empty.json()["detail"]
+    junk = client.post("/api/backtests/run", json={**base, "start_date": "not-a-date"})
+    assert junk.status_code == 422

@@ -387,8 +387,20 @@
                 <input id="bt-capital" type="number" min="1" step="1000" value="100000" />
               </label>
 
+              <div class="param-grid">
+                <label class="field">From <input id="bt-from" type="date" /></label>
+                <label class="field">To <input id="bt-to" type="date" /></label>
+              </div>
+              <div class="range-presets" id="bt-presets">
+                <button type="button" class="btn" data-range="all">Whole history</button>
+                <button type="button" class="btn" data-range="first">First half</button>
+                <button type="button" class="btn" data-range="second">Second half</button>
+              </div>
+              <p class="hint" id="bt-range-hint">Leave both dates empty to use the whole stored history.</p>
+
               <button id="bt-run" class="btn btn-primary big">Run backtest</button>
-              <p class="hint">Runs over the full price history currently on the Trade screen. This is a what-if — no trades are placed.</p>
+              <p class="hint">Replays the stock's stored price history (not just what the market clock has reached). This is a what-if &mdash; no trades are placed.
+                The days before your From date are used only to warm the indicators up; trading and your starting capital begin on the From date.</p>
             </div>
 
             <div class="strat-main">

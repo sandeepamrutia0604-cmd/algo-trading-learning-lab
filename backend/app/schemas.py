@@ -343,6 +343,14 @@ class BacktestRequest(BaseModel):
     rules: dict | None = None
     quantity: int = Field(default=10, ge=1, le=100000)
     initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
+    start_date: dt.date | None = None  # first day traded; earlier history only warms the indicators up
+    end_date: dt.date | None = None
+
+    @model_validator(mode="after")
+    def _dates_in_order(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValueError("start_date must be on or before end_date")
+        return self
 
 
 class BacktestTradeOut(BaseModel):
@@ -366,6 +374,8 @@ class BacktestResultOut(BaseModel):
     quantity: int
     initial_capital: float
     final_capital: float
+    period_start: dt.date  # first and last day actually traded
+    period_end: dt.date
     total_return_pct: float
     total_trades: int
     winning_trades: int

@@ -89,6 +89,7 @@ def run_backtest(
     initial_capital: float,
     risk: RiskConfig | None = None,
     costs: CostConfig | None = None,
+    start_index: int = 0,
 ) -> BacktestResult:
     """Process `dates`/`closes` chronologically, buying/selling on each signal at that day's
     close, marking to market every day. A BUY is skipped if it would cost more than the cash
@@ -104,6 +105,11 @@ def run_backtest(
 
     `defn.generate()` (from the strategy registry) only ever looks at closes up to the
     signal's own day, so this carries over the no-look-ahead guarantee already enforced there.
+
+    `start_index` begins trading part-way through the series: the days before it are only used
+    to warm the indicators up (they are past data, so nothing is peeked at), and no trade,
+    capital or equity point exists for them. The account starts with `initial_capital` on day
+    `start_index`.
     """
     events_by_index = {e.index: e for e in defn.generate(closes, params)}
     risk = risk if risk is not None else RiskConfig()
@@ -121,6 +127,8 @@ def run_backtest(
     max_drawdown_pct = 0.0
 
     for i, day in enumerate(dates):
+        if i < start_index:
+            continue
         price = closes[i]
         event = events_by_index.get(i)
 

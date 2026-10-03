@@ -25,8 +25,11 @@ Screens (left navigation):
   Pick "Custom" to build your own entry/exit conditions instead.
 - **Backtests** - pick a type and starting capital, press "Run backtest" to replay it over
   history: final capital, return, trade count, win rate, max drawdown, an equity curve against
-  buy-and-hold, and every simulated trade. Add a result to the strategy comparison table to
-  weigh it against other runs on the same stock. Nothing here touches your real paper portfolio.
+  buy-and-hold, and every simulated trade. Optional From/To dates (or the First half / Second
+  half buttons) restrict the period that is traded, so you can tune on one stretch and test on
+  another; the days before From still warm the indicators up. Add a result to the strategy
+  comparison table to weigh it against other runs on the same stock. Nothing here touches your
+  real paper portfolio.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
