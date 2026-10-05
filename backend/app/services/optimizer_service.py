@@ -163,10 +163,20 @@ def _buy_and_hold_pct(closes: list[float], start_index: int) -> float:
     return (closes[-1] / closes[start_index] - 1) * 100
 
 
-def _runner(sweep: Sweep, quantity: int, initial_capital: float, risk, costs):
+def _data(candles: list, start: date | None, end: date | None, fill_mode: str) -> tuple:
+    """(dates, closes, start_index, opens) for one window; opens only when fills are at the next open."""
+    dates, closes, start_index = backtest_service.window(candles, start, end)
+    opens = backtest_service.opens_until(candles, end) if fill_mode == "next_open" else None
+    return dates, closes, start_index, opens
+
+
+def _runner(sweep: Sweep, quantity: int, initial_capital: float, risk, costs, fill_mode: str = "signal_close"):
     def run(data, params):
-        dates, closes, start_index = data
-        return run_backtest(sweep.defn, params, dates, closes, quantity, initial_capital, risk, costs, start_index=start_index)
+        dates, closes, start_index, opens = data
+        return run_backtest(
+            sweep.defn, params, dates, closes, quantity, initial_capital, risk, costs,
+            start_index=start_index, fill_mode=fill_mode, opens=opens,
+        )
 
     return run
 
@@ -251,15 +261,17 @@ def optimise(
     train_end: date | None = None,
     test_start: date | None = None,
     test_end: date | None = None,
+    fill_mode: str = "signal_close",
 ) -> dict:
+    backtest_service.check_fill_mode(fill_mode)
     sweep = _prepare(type_key, fixed_params, x, y, metric, quantity, initial_capital)
     train_start, train_end = _periods(train_start, train_end, test_start, test_end)
     candles = _history(db, symbol)
     risk, costs = backtest_service.run_config(db)
-    run = _runner(sweep, quantity, initial_capital, risk, costs)
+    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode)
 
-    train_data = backtest_service.window(candles, train_start, train_end)
-    test_data = backtest_service.window(candles, test_start, test_end) if test_start else None
+    train_data = _data(candles, train_start, train_end, fill_mode)
+    test_data = _data(candles, test_start, test_end, fill_mode) if test_start else None
     train_rows, test_rows = _grid(sweep, metric, run, train_data, test_data)
 
     best_r, best_c, valid = _best_position(train_rows)
@@ -270,7 +282,7 @@ def optimise(
         test_rank, test_valid, test_median = _test_standing(test_rows, best_test)
 
     def period(data, rows):
-        dates, closes, start_index = data
+        dates, closes, start_index, _ = data
         return {
             "start": dates[start_index],
             "end": dates[-1],
@@ -283,6 +295,7 @@ def optimise(
         "type": sweep.defn.key,
         "type_label": sweep.defn.label,
         "metric": metric,
+        "fill_mode": fill_mode,
         "x": _axis_out(sweep.x_spec, sweep.x_values),
         "y": _axis_out(sweep.y_spec, sweep.y_values) if sweep.y else None,
         "train": period(train_data, train_rows),
@@ -364,13 +377,15 @@ def walk_forward(
     mode: str = "rolling",
     start_date: date | None = None,
     end_date: date | None = None,
+    fill_mode: str = "signal_close",
 ) -> dict:
+    backtest_service.check_fill_mode(fill_mode)
     sweep = _prepare(type_key, fixed_params, x, y, metric, quantity, initial_capital)
     candles = _history(db, symbol)
     in_range = [c.date for c in candles if (not start_date or c.date >= start_date) and (not end_date or c.date <= end_date)]
     plan = fold_plan(len(in_range), folds, train_ratio, mode)
     risk, costs = backtest_service.run_config(db)
-    run = _runner(sweep, quantity, initial_capital, risk, costs)
+    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode)
 
     fold_rows: list[dict] = []
     equity_dates: list[date] = []
@@ -380,8 +395,8 @@ def walk_forward(
     chosen: set[tuple] = set()
 
     for index, (train_a, train_b, test_a, test_b) in enumerate(plan):
-        train_data = backtest_service.window(candles, in_range[train_a], in_range[train_b])
-        test_data = backtest_service.window(candles, in_range[test_a], in_range[test_b])
+        train_data = _data(candles, in_range[train_a], in_range[train_b], fill_mode)
+        test_data = _data(candles, in_range[test_a], in_range[test_b], fill_mode)
         train_rows, test_rows = _grid(sweep, metric, run, train_data, test_data)
         best_r, best_c, _ = _best_position(train_rows)
         params = sweep.params_at(best_r, best_c)
@@ -391,7 +406,7 @@ def walk_forward(
 
         # The winner's actual test-window run, to chain its equity curve onto the previous folds'.
         result = run(test_data, sweep.defn.normalize(params))
-        test_dates, test_closes, test_start = test_data
+        test_dates, test_closes, test_start, _ = test_data
         hold_pct = _buy_and_hold_pct(test_closes, test_start)
         for point, close in zip(result.equity_curve, test_closes[test_start:]):
             equity_dates.append(point.date)
@@ -434,6 +449,7 @@ def walk_forward(
         "type_label": sweep.defn.label,
         "metric": metric,
         "mode": mode,
+        "fill_mode": fill_mode,
         "train_ratio": train_ratio,
         "x": _axis_out(sweep.x_spec, sweep.x_values),
         "y": _axis_out(sweep.y_spec, sweep.y_values) if sweep.y else None,

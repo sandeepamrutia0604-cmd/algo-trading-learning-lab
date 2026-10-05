@@ -670,6 +670,17 @@ export const MODULES = [
         note: "A backtest without costs is flattering. Always run it with costs on before you believe the result.",
       },
 
+      { h: "When does the trade happen?" },
+      {
+        p: "A strategy's signal is worked out from the day's closing price, so you only know it once the market has closed. A simple backtest pretends you could still trade at that closing price. In real life the first price you can get is **the next morning's opening price**, which can be higher or lower after news overnight.",
+      },
+      {
+        p: "The **Trade at** setting lets you choose. *The signal day's close* is the simple, optimistic way. *The next day's open* is more realistic: every decision, a signal or a stop-loss, is carried out at the next opening price instead. Run the same strategy both ways to see how much the optimism was worth.",
+      },
+      {
+        note: "On five years of five big NSE stocks, the gap between the two was small on average, and it depended on the kind of strategy. Strategies that buy strength (moving-average crossovers, breakouts) usually did a little worse at the open, because the stock often gaps further up overnight before you can buy. Strategies that buy weakness were about the same or slightly better. Small, but it adds up when a strategy trades a lot, and it is exactly the kind of quiet advantage that makes a backtest look better than reality.",
+      },
+
       { h: "What a backtest can't tell you" },
       {
         list: [

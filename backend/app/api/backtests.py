@@ -29,7 +29,7 @@ router = APIRouter()
 def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
     defn, params, dates, closes, result, risk_managed = backtest_service.run(
         db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules,
-        start_date=body.start_date, end_date=body.end_date,
+        start_date=body.start_date, end_date=body.end_date, fill_mode=body.fill_mode,
     )
     period_start, period_end = result.equity_curve[0].date, result.equity_curve[-1].date
     return BacktestResultOut(
@@ -43,6 +43,8 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
         final_capital=result.final_capital,
         period_start=period_start,
         period_end=period_end,
+        fill_mode=result.fill_mode,
+        unfilled_signal=result.unfilled_signal,
         total_return_pct=result.total_return_pct,
         total_trades=result.total_trades,
         winning_trades=result.winning_trades,
@@ -112,6 +114,7 @@ def optimise(body: OptimiseRequest, db: Session = Depends(get_db)):
         body.train_end,
         body.test_start,
         body.test_end,
+        body.fill_mode,
     )
 
 
@@ -142,6 +145,7 @@ def walk_forward(body: WalkForwardRequest, db: Session = Depends(get_db)):
         body.mode,
         body.start_date,
         body.end_date,
+        body.fill_mode,
     )
 
 

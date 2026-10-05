@@ -425,6 +425,13 @@
               <label class="field">Initial capital
                 <input id="bt-capital" type="number" min="1" step="1000" value="100000" />
               </label>
+              <label class="field">Trade at
+                <select id="bt-fill">
+                  <option value="signal_close">The signal day's close (as before)</option>
+                  <option value="next_open">The next day's open (more realistic)</option>
+                </select>
+              </label>
+              <p class="hint" id="bt-fill-hint"></p>
 
               <div class="param-grid">
                 <label class="field">From <input id="bt-from" type="date" /></label>
@@ -610,6 +617,12 @@
                 <label class="field">Shares per BUY <input id="op-qty" type="number" min="1" value="10" /></label>
                 <label class="field">Initial capital <input id="op-capital" type="number" min="1" step="1000" value="100000" /></label>
               </div>
+              <label class="field">Trade at
+                <select id="op-fill">
+                  <option value="signal_close">The signal day's close (as before)</option>
+                  <option value="next_open">The next day's open (more realistic)</option>
+                </select>
+              </label>
 
               <div class="op-axis" id="op-wf-box" hidden>
                 <b class="small">Walk-forward windows</b>

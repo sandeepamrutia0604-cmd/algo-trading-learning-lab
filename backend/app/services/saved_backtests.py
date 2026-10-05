@@ -19,6 +19,8 @@ def default_name(result: BacktestResultOut, request: BacktestRequest) -> str:
     name = f"{result.type_label} on {result.symbol}"
     if request.start_date or request.end_date:
         name += f" ({result.period_start} to {result.period_end})"
+    if result.fill_mode == "next_open":
+        name += ", next-open fills"
     return name
 
 

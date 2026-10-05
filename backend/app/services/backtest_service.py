@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..adapters import get_market_data_adapter
 from ..engine import rule_engine
-from ..engine.backtest import BacktestResult, RiskConfig, run_backtest
+from ..engine.backtest import FILL_MODES, BacktestResult, RiskConfig, run_backtest
 from ..engine.cost_math import CostConfig
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
@@ -51,6 +51,16 @@ def window(candles: list, start_date: date | None, end_date: date | None) -> tup
     return [c.date for c in candles], [c.close for c in candles], start_index
 
 
+def opens_until(candles: list, end_date: date | None) -> list[float]:
+    """Opening prices lined up with the dates `window` returns for the same `end_date`."""
+    return [c.open for c in candles if not end_date or c.date <= end_date]
+
+
+def check_fill_mode(fill_mode: str) -> None:
+    if fill_mode not in FILL_MODES:
+        raise InvalidStrategyError(f"Unknown fill mode '{fill_mode}'. Choose one of: {', '.join(FILL_MODES)}")
+
+
 def run_config(db: Session) -> tuple[RiskConfig, CostConfig]:
     """The risk and cost settings a backtest runs under (the same ones live auto-trading uses)."""
     settings = risk_service.get_settings(db)
@@ -76,6 +86,7 @@ def run(
     rules: dict | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
+    fill_mode: str = "signal_close",
 ) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult, bool]:
     """Returns (defn, params, dates, closes, result, risk_enabled). The backtest applies the
     same RiskSettings (position sizing, stop-loss, max allocation) live auto-trading would,
@@ -85,7 +96,11 @@ def run(
     after `end_date` is dropped. History before `start_date` is kept only to warm the
     indicators up, so a short window isn't spent waiting for a slow average to form; `dates`
     and `closes` still include those warm-up days, and the result's equity curve starts on
-    the first traded day."""
+    the first traded day.
+
+    `fill_mode` is when decisions are carried out: "signal_close" (at the close of the day a signal
+    appears) or "next_open" (at the next day's opening price); see engine/backtest.py."""
+    check_fill_mode(fill_mode)
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     if initial_capital <= 0:
@@ -103,5 +118,8 @@ def run(
         raise InvalidStrategyError("Not enough price history to run a backtest")
     dates, closes, start_index = window(candles, start_date, end_date)
     risk, costs = run_config(db)
-    result = run_backtest(defn, clean, dates, closes, quantity, initial_capital, risk, costs, start_index=start_index)
+    opens = opens_until(candles, end_date) if fill_mode == "next_open" else None
+    result = run_backtest(
+        defn, clean, dates, closes, quantity, initial_capital, risk, costs, start_index=start_index, fill_mode=fill_mode, opens=opens
+    )
     return defn, clean, dates, closes, result, risk.enabled

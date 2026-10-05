@@ -130,6 +130,7 @@ function render() {
   $("mc-note").textContent =
     `Based on ${a.trade_count} closed trades from ${a.period_start} to ${a.period_end}` +
     (a.open_trade_excluded ? " (a position still open at the end is left out)" : "") +
+    (a.fill_mode === "next_open" ? ", trading at the next day's open" : "") +
     (a.uses_risk ? ", with your Risk management settings" : "") +
     (a.uses_costs ? ", with trading costs" : "") +
     `. ${a.method === "shuffle" ? "Each simulation re-orders the same trades." : "Each simulation draws the same number of trades at random, with replacement, from this run's trades."} ` +

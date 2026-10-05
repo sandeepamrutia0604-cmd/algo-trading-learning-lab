@@ -159,9 +159,10 @@ async function runBacktest() {
           rules: { entry: rb.readSide($("bt-entry-rows"), $("bt-entry-logic").value), exit: rb.readSide($("bt-exit-rows"), $("bt-exit-logic").value) },
           quantity,
           initial_capital: initialCapital,
+          fill_mode: $("bt-fill").value,
           ...dates,
         }
-      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital, ...dates };
+      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital, fill_mode: $("bt-fill").value, ...dates };
     const result = await api("/backtests/run", { method: "POST", body: JSON.stringify(body) });
     await historyRange(result.symbol).catch(() => {}); // so the results can tell a partial period from the whole history
     state.result = result;
@@ -213,6 +214,8 @@ async function renderResults() {
   $("bt-sub").textContent =
     `${r.rule} · ${r.quantity} shares per trade · started with ${money(r.initial_capital)}` +
     ` · traded ${r.period_start} to ${r.period_end}` +
+    (r.fill_mode === "next_open" ? " · every trade made at the next day's opening price" : "") +
+    (r.unfilled_signal ? " · a decision on the last day had no next day to trade on, so it was not carried out" : "") +
     (r.risk_managed ? ` · sized and stop-lossed using your Risk management settings${r.volatility_stops ? " (each stop set from the stock's volatility on the day of the buy)" : ""}` : "") +
     (r.costs_applied ? " · slippage, brokerage and taxes applied from your Trading costs settings" : "") +
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
@@ -276,6 +279,7 @@ function addToComparison() {
   const label =
     `${state.result.type_label} on ${state.result.symbol}` +
     (isPartial(state.result) ? ` (${state.result.period_start} to ${state.result.period_end})` : "") +
+    (state.result.fill_mode === "next_open" ? " (next open)" : "") +
     (state.result.risk_managed ? " (risk-managed)" : "") +
     (state.result.costs_applied ? " (with costs)" : "");
   pushComparison(label, state.result);
@@ -425,6 +429,8 @@ async function loadSavedRun(id) {
   $("bt-symbol").value = req.symbol;
   $("bt-qty").value = req.quantity;
   $("bt-capital").value = req.initial_capital;
+  $("bt-fill").value = req.fill_mode || "signal_close";
+  updateFillHint();
   await refreshRange(); // sets the date limits for this stock; then put the saved dates back
   $("bt-from").value = req.start_date || "";
   $("bt-to").value = req.end_date || "";
@@ -474,7 +480,18 @@ export async function renderBacktests() {
   renderComparison();
 }
 
+const FILL_HINT = {
+  signal_close: "Each decision is carried out at the close of the day its signal appears. That close is the very price the signal was computed from, so it assumes you could have traded on it after the fact: optimistic.",
+  next_open: "Each decision (a signal, or a stop-loss) is carried out at the next trading day's opening price: the first price you could really have got. Overnight gaps now count for or against you.",
+};
+
+function updateFillHint() {
+  $("bt-fill-hint").textContent = FILL_HINT[$("bt-fill").value];
+}
+
 export function initBacktests() {
+  $("bt-fill").addEventListener("change", updateFillHint);
+  updateFillHint();
   $("bt-type").addEventListener("change", applyBuilderDefaults);
   $("bt-run").addEventListener("click", runBacktest);
   $("bt-symbol").addEventListener("change", () => refreshRange({ clear: true }));

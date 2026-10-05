@@ -151,6 +151,7 @@ function buildBase() {
     metric: $("op-metric").value,
     quantity: parseInt($("op-qty").value, 10),
     initial_capital: parseFloat($("op-capital").value),
+    fill_mode: $("op-fill").value,
   };
   if ($("op-y").value) request.y = axis("op-y", $("op-y").value);
   return request;
@@ -331,6 +332,7 @@ function renderResults() {
   $("op-sub").textContent =
     `${r.valid} of ${r.combinations} combinations valid · scored by ${METRIC_LABEL[r.metric]}` +
     (fixed ? ` · other settings held at their defaults (${fixed})` : "") +
+    (r.fill_mode === "next_open" ? " · trades at the next day's open" : "") +
     (r.uses_risk ? " · with your Risk management settings" : "") +
     (r.uses_costs ? " · with trading costs" : "");
   const v = verdict(r);
@@ -465,6 +467,7 @@ function renderWalkForward() {
   $("op-wf-title").textContent = `Walk-forward: ${r.type_label} on ${r.symbol}, ${r.x.label}${r.y ? ` × ${r.y.label}` : ""}`;
   $("op-wf-sub").textContent =
     `${r.summary.folds} folds · ${r.mode} training window (${r.train_ratio}:1 train to test) · ${r.combinations} combinations per fold · scored by ${METRIC_LABEL[r.metric]}` +
+    (r.fill_mode === "next_open" ? " · trades at the next day's open" : "") +
     (r.uses_risk ? " · with your Risk management settings" : "") +
     (r.uses_costs ? " · with trading costs" : "");
   const v = wfVerdict(r);

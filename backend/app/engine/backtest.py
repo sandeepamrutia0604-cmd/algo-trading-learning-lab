@@ -66,8 +66,17 @@ class BacktestResult:
     costs_applied: bool = False
     total_fees: float = 0.0
     slippage_cost: float = 0.0
+    fill_mode: str = "signal_close"
+    unfilled_signal: bool = False  # next-open mode: a decision on the final day had no next day to trade on
     equity_curve: list[EquityPoint] = field(default_factory=list)
     trades: list[BacktestTrade] = field(default_factory=list)
+
+
+# When a decision is carried out. "signal_close": at the close of the day the signal appears (the
+# signal is computed from that close, so this assumes you could trade at a price you only learn once
+# the day is over: optimistic). "next_open": at the opening price of the next trading day, the first
+# price you could really have got.
+FILL_MODES = ("signal_close", "next_open")
 
 
 def _close_trade(
@@ -94,6 +103,8 @@ def run_backtest(
     risk: RiskConfig | None = None,
     costs: CostConfig | None = None,
     start_index: int = 0,
+    fill_mode: str = "signal_close",
+    opens: list[float] | None = None,
 ) -> BacktestResult:
     """Process `dates`/`closes` chronologically, buying/selling on each signal at that day's
     close, marking to market every day. A BUY is skipped if it would cost more than the cash
@@ -114,7 +125,19 @@ def run_backtest(
     to warm the indicators up (they are past data, so nothing is peeked at), and no trade,
     capital or equity point exists for them. The account starts with `initial_capital` on day
     `start_index`.
+
+    `fill_mode` "next_open" (needs `opens`, one per close) carries out everything decided at a
+    day's close, a signal or a stop-loss, at the next trading day's opening price instead. The
+    size of a BUY is still worked out at the decision, from the signal day's close (all that is
+    known then); whether the cash and allocation cap allow it is checked at the open it fills at. A
+    decision on the final day has no next day and is dropped (`unfilled_signal`). The account is
+    still marked to market at each close.
     """
+    if fill_mode not in FILL_MODES:
+        raise ValueError(f"Unknown fill mode '{fill_mode}'. Choose one of: {', '.join(FILL_MODES)}")
+    next_open = fill_mode == "next_open"
+    if next_open and (opens is None or len(opens) != len(closes)):
+        raise ValueError("Next-open fills need one opening price per close")
     events_by_index = {e.index: e for e in defn.generate(closes, params)}
     risk = risk if risk is not None else RiskConfig()
     costs = costs if costs is not None else CostConfig()
@@ -138,29 +161,64 @@ def run_backtest(
     peak = initial_capital
     max_drawdown_pct = 0.0
 
+    def execute_sell(day: date, quote: float, *, stopped: bool = False) -> None:
+        nonlocal cash, held, total_fees, slippage_cost, stopped_out
+        fill = cost_math.fill_price(quote, "SELL", costs)
+        proceeds = fill * held
+        fees = cost_math.charges(proceeds, costs)
+        cash += proceeds - fees
+        total_fees += fees
+        slippage_cost += (quote - fill) * held
+        _close_trade(trades[-1], day, fill, stopped_out=stopped, exit_fees=fees)
+        held = 0
+        if stopped:
+            stopped_out += 1
+
+    def execute_buy(day: date, quote: float, equity: float, buy_qty: int, stop_pct: float | None) -> None:
+        nonlocal cash, held, total_fees, slippage_cost, skipped_buys
+        fill = cost_math.fill_price(quote, "BUY", costs)
+        cost = fill * buy_qty
+        fees = cost_math.charges(cost, costs)
+        allowed = buy_qty > 0 and cost + fees <= cash
+        if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and quote * buy_qty > equity * risk.max_allocation_pct / 100 + 1e-9:
+            allowed = False
+        if allowed:
+            cash -= cost + fees
+            held = buy_qty
+            total_fees += fees
+            slippage_cost += (fill - quote) * buy_qty
+            trades.append(BacktestTrade(entry_date=day, entry_price=fill, quantity=buy_qty, stop_pct=stop_pct, entry_fees=fees))
+        else:
+            skipped_buys += 1
+
+    # next-open mode only: what was decided at yesterday's close and is carried out at today's open,
+    # ("BUY", planned quantity, stop %) or ("SELL", stopped by the stop-loss?)
+    pending: tuple | None = None
+
     for i, day in enumerate(dates):
         if i < start_index:
             continue
         price = closes[i]
         event = events_by_index.get(i)
 
+        if pending is not None:
+            if pending[0] == "BUY":
+                execute_buy(day, opens[i], cash, pending[1], pending[2])
+            else:
+                execute_sell(day, opens[i], stopped=pending[1])
+            pending = None
+
         open_stop_pct = (trades[-1].stop_pct or risk.stop_loss_pct) if held > 0 else None
-        if risk.enabled and open_stop_pct and held > 0:
-            open_trade = trades[-1]
-            stop_price = risk_math.stop_loss_price(open_trade.entry_price, open_stop_pct)
+        if risk.enabled and open_stop_pct and held > 0 and pending is None:
+            stop_price = risk_math.stop_loss_price(trades[-1].entry_price, open_stop_pct)
             if price <= stop_price:
-                fill = cost_math.fill_price(price, "SELL", costs)
-                proceeds = fill * held
-                fees = cost_math.charges(proceeds, costs)
-                cash += proceeds - fees
-                total_fees += fees
-                slippage_cost += (price - fill) * held
-                _close_trade(open_trade, day, fill, stopped_out=True, exit_fees=fees)
-                held = 0
-                stopped_out += 1
+                if next_open:
+                    pending = ("SELL", True)
+                else:
+                    execute_sell(day, price, stopped=True)
                 event = None  # the strategy's own signal (if any) is superseded for today
 
-        if event is not None and event.side == "BUY" and held == 0:
+        if event is not None and event.side == "BUY" and held == 0 and pending is None:
             equity = cash + held * price
             stop_pct = None
             if risk.enabled:
@@ -176,30 +234,17 @@ def run_backtest(
                 if risk.enabled
                 else quantity
             )
-            fill = cost_math.fill_price(price, "BUY", costs)
-            cost = fill * buy_qty
-            fees = cost_math.charges(cost, costs)
-            allowed = buy_qty > 0 and cost + fees <= cash
-            if allowed and risk.enabled and risk.max_allocation_pct and equity > 0 and price * buy_qty > equity * risk.max_allocation_pct / 100 + 1e-9:
-                allowed = False
-            if allowed:
-                cash -= cost + fees
-                held = buy_qty
-                total_fees += fees
-                slippage_cost += (fill - price) * buy_qty
-                trades.append(BacktestTrade(entry_date=day, entry_price=fill, quantity=buy_qty, stop_pct=stop_pct, entry_fees=fees))
+            if not next_open:
+                execute_buy(day, price, equity, buy_qty, stop_pct)
+            elif buy_qty > 0:
+                pending = ("BUY", buy_qty, stop_pct)
             else:
                 skipped_buys += 1
-        elif event is not None and event.side == "SELL" and held > 0:
-            open_trade = trades[-1]
-            fill = cost_math.fill_price(price, "SELL", costs)
-            proceeds = fill * held
-            fees = cost_math.charges(proceeds, costs)
-            cash += proceeds - fees
-            total_fees += fees
-            slippage_cost += (price - fill) * held
-            _close_trade(open_trade, day, fill, exit_fees=fees)
-            held = 0
+        elif event is not None and event.side == "SELL" and held > 0 and pending is None:
+            if next_open:
+                pending = ("SELL", False)
+            else:
+                execute_sell(day, price)
 
         equity = cash + held * price
         equity_curve.append(EquityPoint(date=day, value=equity))
@@ -226,6 +271,8 @@ def run_backtest(
         costs_applied=costs.enabled,
         total_fees=total_fees,
         slippage_cost=slippage_cost,
+        fill_mode=fill_mode,
+        unfilled_signal=pending is not None,
         equity_curve=equity_curve,
         trades=trades,
     )

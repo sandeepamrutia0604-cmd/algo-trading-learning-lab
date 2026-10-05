@@ -364,6 +364,9 @@ class BacktestRequest(BaseModel):
     initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
     start_date: dt.date | None = None  # first day traded; earlier history only warms the indicators up
     end_date: dt.date | None = None
+    # When a decision is carried out: at the close of the day the signal appears (the default), or
+    # at the next trading day's opening price, the first price you could really have got.
+    fill_mode: Literal["signal_close", "next_open"] = "signal_close"
 
     @model_validator(mode="after")
     def _dates_in_order(self):
@@ -404,6 +407,8 @@ class BacktestResultOut(BaseModel):
     max_drawdown_pct: float
     skipped_buys: int
     stopped_out: int = 0
+    fill_mode: str = "signal_close"
+    unfilled_signal: bool = False  # next-open fills: a decision on the last day had no next day to trade on
     risk_managed: bool = False
     volatility_stops: bool = False  # risk management on, with the stop distance set from volatility
     costs_applied: bool = False
@@ -462,6 +467,7 @@ class OptimiseRequest(BaseModel):
     train_end: dt.date | None = None
     test_start: dt.date | None = None
     test_end: dt.date | None = None
+    fill_mode: Literal["signal_close", "next_open"] = "signal_close"
 
 
 class GridCellOut(BaseModel):
@@ -498,6 +504,7 @@ class OptimiseOut(BaseModel):
     type: str
     type_label: str
     metric: str
+    fill_mode: str = "signal_close"
     x: GridAxisOut
     y: GridAxisOut | None = None
     train: GridPeriodOut
@@ -523,6 +530,7 @@ class WalkForwardRequest(BaseModel):
     mode: Literal["rolling", "anchored"] = "rolling"
     start_date: dt.date | None = None
     end_date: dt.date | None = None
+    fill_mode: Literal["signal_close", "next_open"] = "signal_close"
 
 
 class WalkForwardFoldOut(BaseModel):
@@ -569,6 +577,7 @@ class WalkForwardOut(BaseModel):
     type_label: str
     metric: str
     mode: str
+    fill_mode: str = "signal_close"
     train_ratio: float
     x: GridAxisOut
     y: GridAxisOut | None = None
@@ -636,5 +645,6 @@ class MonteCarloOut(BaseModel):
     original_return_better_than_pct: float
     fan: McFanOut
     open_trade_excluded: bool
+    fill_mode: str = "signal_close"
     uses_risk: bool
     uses_costs: bool

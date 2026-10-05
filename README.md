@@ -37,6 +37,17 @@ Screens (left navigation):
   (`/api/backtests/saved`, `services/saved_backtests.py`). Nothing here touches your real paper
   portfolio, and Reset leaves saved backtests alone.
 
+  **Trade at** chooses when a decision is carried out: at the close of the day the signal
+  appears (the default, and the simple optimistic way, since that close is the very price the
+  signal was computed from) or at the **next day's opening price**, the first price you could
+  really have got. In next-open mode a signal or a stop-loss decided at a close is filled at the
+  next open; a BUY's size is still worked out from the signal day's close (all that is known then)
+  while cash and the allocation cap are checked at the price actually paid; costs apply to the
+  opening fill; and a decision on the final day has no next day, so it is dropped and flagged.
+  The choice also applies to the Optimise page (single split and walk-forward) and Monte Carlo,
+  and is saved with a saved backtest. On five years of five large NSE stocks the average effect
+  was small (about -0.2 percentage points) but mattered most for trend followers.
+
   Under a result, **Monte Carlo** shows how much of it was luck. It takes the run's closed
   trades, reduces each to its return on the account at the moment it opened (exact, since trades
   never overlap), and re-plays them 100 to 5,000 times: **resampling** them with replacement (so
