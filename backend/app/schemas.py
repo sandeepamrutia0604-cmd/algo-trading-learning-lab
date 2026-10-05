@@ -98,6 +98,7 @@ class TradeOut(BaseModel):
     source: str = "Manual"
     fees: float = 0.0
     market_price: float | None = None
+    stop_pct: float | None = None
 
     @classmethod
     def from_trade(cls, trade) -> "TradeOut":
@@ -117,6 +118,7 @@ class TradeOut(BaseModel):
             source=source,
             fees=trade.fees or 0.0,
             market_price=trade.market_price,
+            stop_pct=trade.stop_pct,
         )
 
 
@@ -288,6 +290,9 @@ class RiskSettingsOut(BaseModel):
     stop_loss_pct: float
     max_open_positions: int
     max_allocation_pct: float
+    stop_mode: Literal["fixed", "volatility"] = "fixed"
+    volatility_window: int = 20
+    volatility_multiplier: float = 2.0
 
 
 class RiskSettingsUpdate(BaseModel):
@@ -296,6 +301,9 @@ class RiskSettingsUpdate(BaseModel):
     stop_loss_pct: float | None = Field(default=None, gt=0, le=100)
     max_open_positions: int | None = Field(default=None, ge=1, le=50)
     max_allocation_pct: float | None = Field(default=None, gt=0, le=100)
+    stop_mode: Literal["fixed", "volatility"] | None = None
+    volatility_window: int | None = Field(default=None, ge=5, le=100)
+    volatility_multiplier: float | None = Field(default=None, ge=0.5, le=10)
 
 
 class CostSettingsOut(BaseModel):
@@ -374,6 +382,7 @@ class BacktestTradeOut(BaseModel):
     pnl_pct: float | None = None
     open: bool
     stopped_out: bool = False
+    stop_pct: float | None = None  # the stop distance this trade was sized and protected with (risk management on)
 
 
 class BacktestResultOut(BaseModel):
@@ -396,6 +405,7 @@ class BacktestResultOut(BaseModel):
     skipped_buys: int
     stopped_out: int = 0
     risk_managed: bool = False
+    volatility_stops: bool = False  # risk management on, with the stop distance set from volatility
     costs_applied: bool = False
     total_fees: float = 0.0
     slippage_cost: float = 0.0

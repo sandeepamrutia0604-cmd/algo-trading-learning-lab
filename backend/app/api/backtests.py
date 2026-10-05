@@ -19,7 +19,7 @@ from ..schemas import (
     WalkForwardOut,
     WalkForwardRequest,
 )
-from ..services import backtest_service, monte_carlo_service, optimizer_service, saved_backtests
+from ..services import backtest_service, monte_carlo_service, optimizer_service, risk_service, saved_backtests
 from ..services.optimizer_service import AxisRequest
 from ..services.saved_backtests import SavedBacktestNotFoundError
 
@@ -52,6 +52,7 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
         skipped_buys=result.skipped_buys,
         stopped_out=result.stopped_out,
         risk_managed=risk_managed,
+        volatility_stops=risk_managed and risk_service.get_settings(db).stop_mode == "volatility",
         costs_applied=result.costs_applied,
         total_fees=round(result.total_fees, 2),
         slippage_cost=round(result.slippage_cost, 2),
@@ -67,6 +68,7 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
                 pnl_pct=t.pnl_pct,
                 open=t.is_open,
                 stopped_out=t.stopped_out,
+                stop_pct=t.stop_pct,
             )
             for t in result.trades
         ],

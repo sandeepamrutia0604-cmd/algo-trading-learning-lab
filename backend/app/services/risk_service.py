@@ -27,10 +27,26 @@ def portfolio_value(db: Session) -> float:
     return portfolio.virtual_cash + market_value
 
 
-def position_size(db: Session, price: float, fallback_qty: int, *, fit_allocation_cap: bool = False) -> int:
+def entry_stop_pct(db: Session, closes: list[float]) -> float | None:
+    """The stop distance (percent below the entry) for a position about to be opened on the last
+    close in `closes`: the fixed stop-loss %, or in volatility mode a multiple of the stock's
+    recent daily volatility. None when risk management is off."""
+    settings = get_settings(db)
+    if not settings.enabled:
+        return None
+    return risk_math.entry_stop_pct(
+        closes, settings.stop_mode or "fixed", settings.volatility_window or 20, settings.volatility_multiplier or 2.0, settings.stop_loss_pct
+    )
+
+
+def position_size(
+    db: Session, price: float, fallback_qty: int, *, fit_allocation_cap: bool = False, stop_pct: float | None = None
+) -> int:
     """Risk-based share count for a BUY: (capital * max risk %) / (price * stop-loss %),
     the sizing formula from the plan's example. Falls back to `fallback_qty` (the strategy's
     own configured quantity) when risk management is off or isn't fully configured.
+    `stop_pct` is the stop distance for this particular trade (see entry_stop_pct); without it
+    the fixed stop-loss setting is used.
     `fit_allocation_cap` shrinks the result to the max-allocation-per-stock limit (as the
     backtest engine does) instead of leaving a larger buy to be rejected by the cap."""
     settings = get_settings(db)
@@ -40,7 +56,7 @@ def position_size(db: Session, price: float, fallback_qty: int, *, fit_allocatio
         portfolio_value(db),
         price,
         settings.max_risk_per_trade_pct,
-        settings.stop_loss_pct,
+        stop_pct if stop_pct is not None else settings.stop_loss_pct,
         fallback_qty,
         settings.max_allocation_pct if fit_allocation_cap else 0.0,
     )
@@ -75,10 +91,11 @@ def check_buy_allowed(db: Session, stock: Stock, quantity: int, price: float) ->
 
 
 def stop_loss_price_for_strategy(db: Session, strategy_id: int) -> float | None:
-    """The exit price for a strategy's current open position, based on its entry trade and
+    """The exit price for a strategy's current open position, based on its entry trade and the
+    stop distance that trade was opened with (a volatility-based stop is fixed at entry), or else
     the configured stop-loss %. None if risk management or the stop-loss isn't configured."""
     settings = get_settings(db)
-    if not settings.enabled or not settings.stop_loss_pct:
+    if not settings.enabled:
         return None
     entry = (
         db.query(Trade)
@@ -88,4 +105,7 @@ def stop_loss_price_for_strategy(db: Session, strategy_id: int) -> float | None:
     )
     if entry is None:
         return None
-    return risk_math.stop_loss_price(entry.price, settings.stop_loss_pct)
+    stop_pct = entry.stop_pct if entry.stop_pct is not None else settings.stop_loss_pct
+    if not stop_pct:
+        return None
+    return risk_math.stop_loss_price(entry.price, stop_pct)

@@ -28,7 +28,12 @@ def get_stock_by_symbol(db: Session, symbol: str) -> Stock:
 
 
 def execute_buy(
-    db: Session, symbol: str, quantity: int, reason: str = "Manual trade", strategy_id: int | None = None
+    db: Session,
+    symbol: str,
+    quantity: int,
+    reason: str = "Manual trade",
+    strategy_id: int | None = None,
+    stop_pct: float | None = None,
 ) -> Trade:
     if quantity <= 0:
         raise InvalidQuantityError("Quantity must be a positive integer")
@@ -74,6 +79,7 @@ def execute_buy(
         reason=reason,
         strategy_id=strategy_id,
         market_date=latest_market_date(db),
+        stop_pct=stop_pct,
     )
     db.add(trade)
     db.commit()

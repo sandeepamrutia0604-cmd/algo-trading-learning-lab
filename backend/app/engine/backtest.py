@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..strategies.base import StrategyDef
-from . import cost_math, risk_math
+from . import cost_math, indicators, risk_math
 from .cost_math import CostConfig
 
 
@@ -21,6 +21,9 @@ class RiskConfig:
     max_risk_per_trade_pct: float = 0.0
     stop_loss_pct: float = 0.0
     max_allocation_pct: float = 0.0
+    stop_mode: str = "fixed"  # or "volatility": see risk_math.entry_stop_pct
+    volatility_window: int = 20
+    volatility_multiplier: float = 2.0
 
 
 @dataclass
@@ -33,6 +36,7 @@ class BacktestTrade:
     pnl: float | None = None
     pnl_pct: float | None = None
     stopped_out: bool = False
+    stop_pct: float | None = None  # the stop distance this trade was sized and protected with
     entry_fees: float = 0.0
     exit_fees: float = 0.0
 
@@ -115,6 +119,14 @@ def run_backtest(
     risk = risk if risk is not None else RiskConfig()
     costs = costs if costs is not None else CostConfig()
 
+    # Daily volatility as of each day (None until there is enough history). Each value only looks
+    # at that day and the days before it, so reading it at a BUY's day peeks at nothing.
+    volatility = (
+        indicators.volatility_pct(closes, risk.volatility_window)
+        if risk.enabled and risk.stop_mode == "volatility" and risk.volatility_window >= 2
+        else None
+    )
+
     cash = initial_capital
     held = 0
     trades: list[BacktestTrade] = []
@@ -132,9 +144,10 @@ def run_backtest(
         price = closes[i]
         event = events_by_index.get(i)
 
-        if risk.enabled and risk.stop_loss_pct and held > 0:
+        open_stop_pct = (trades[-1].stop_pct or risk.stop_loss_pct) if held > 0 else None
+        if risk.enabled and open_stop_pct and held > 0:
             open_trade = trades[-1]
-            stop_price = risk_math.stop_loss_price(open_trade.entry_price, risk.stop_loss_pct)
+            stop_price = risk_math.stop_loss_price(open_trade.entry_price, open_stop_pct)
             if price <= stop_price:
                 fill = cost_math.fill_price(price, "SELL", costs)
                 proceeds = fill * held
@@ -149,9 +162,16 @@ def run_backtest(
 
         if event is not None and event.side == "BUY" and held == 0:
             equity = cash + held * price
+            stop_pct = None
+            if risk.enabled:
+                stop_pct = (
+                    risk_math.volatility_stop_pct(volatility[i], risk.volatility_multiplier, risk.stop_loss_pct)
+                    if volatility is not None
+                    else risk.stop_loss_pct
+                )
             buy_qty = (
                 risk_math.position_size(
-                    equity, price, risk.max_risk_per_trade_pct, risk.stop_loss_pct, quantity, risk.max_allocation_pct
+                    equity, price, risk.max_risk_per_trade_pct, stop_pct, quantity, risk.max_allocation_pct
                 )
                 if risk.enabled
                 else quantity
@@ -167,7 +187,7 @@ def run_backtest(
                 held = buy_qty
                 total_fees += fees
                 slippage_cost += (fill - price) * buy_qty
-                trades.append(BacktestTrade(entry_date=day, entry_price=fill, quantity=buy_qty, entry_fees=fees))
+                trades.append(BacktestTrade(entry_date=day, entry_price=fill, quantity=buy_qty, stop_pct=stop_pct, entry_fees=fees))
             else:
                 skipped_buys += 1
         elif event is not None and event.side == "SELL" and held > 0:

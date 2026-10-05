@@ -218,12 +218,18 @@ def _execute_signal(db: Session, strategy: Strategy, stock: Stock, signal: Signa
     if signal.signal == "BUY":
         if held > 0:
             raise TradingError("this strategy is already holding shares")
+        # The stop distance is worked out once, here, from what is known today, and kept on the
+        # trade so the stop does not move as the stock's volatility changes afterwards.
+        _, closes = _series(db, stock.symbol)
+        stop_pct = risk_service.entry_stop_pct(db, closes)
         quantity = risk_service.position_size(
-            db, stock.current_price, strategy_quantity(strategy), fit_allocation_cap=True
+            db, stock.current_price, strategy_quantity(strategy), fit_allocation_cap=True, stop_pct=stop_pct
         )
         if quantity <= 0:
             raise TradingError("risk-based position sizing rounds down to zero shares at this price")
-        return trading_service.execute_buy(db, stock.symbol, quantity, reason=reason, strategy_id=strategy.id)
+        return trading_service.execute_buy(
+            db, stock.symbol, quantity, reason=reason, strategy_id=strategy.id, stop_pct=stop_pct
+        )
 
     position = db.query(Position).filter(Position.stock_id == stock.id).first()
     sell_qty = min(held, position.quantity if position else 0)

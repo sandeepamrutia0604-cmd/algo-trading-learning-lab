@@ -213,7 +213,7 @@ async function renderResults() {
   $("bt-sub").textContent =
     `${r.rule} · ${r.quantity} shares per trade · started with ${money(r.initial_capital)}` +
     ` · traded ${r.period_start} to ${r.period_end}` +
-    (r.risk_managed ? " · sized and stop-lossed using your Risk management settings" : "") +
+    (r.risk_managed ? ` · sized and stop-lossed using your Risk management settings${r.volatility_stops ? " (each stop set from the stock's volatility on the day of the buy)" : ""}` : "") +
     (r.costs_applied ? " · slippage, brokerage and taxes applied from your Trading costs settings" : "") +
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
     (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
@@ -259,6 +259,7 @@ function renderTrades(r) {
         <td class="num">${t.quantity}</td>
         <td class="num ${t.pnl == null ? "" : pnlClass(t.pnl)}">${t.pnl == null ? "-" : money(t.pnl)}</td>
         <td class="num ${t.pnl_pct == null ? "" : pnlClass(t.pnl_pct)}">${t.pnl_pct == null ? "-" : percent(t.pnl_pct)}</td>
+        <td class="num muted">${t.stop_pct == null ? "-" : percent(t.stop_pct)}</td>
       </tr>`,
     )
     .join("");

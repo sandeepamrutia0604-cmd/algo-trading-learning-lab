@@ -250,20 +250,58 @@ async function regenerateHistory() {
   }
 }
 
+const MIN_STOP_PCT = 0.5; // keep in step with engine/risk_math.py
+const MAX_STOP_PCT = 30;
+
+/** Standard deviation of the last `window` daily returns, in percent (same figure the backend uses),
+ *  or null if the closes don't reach back far enough. */
+function dailyVolatility(closes, window) {
+  if (!closes || closes.length < window + 1) return null;
+  const tail = closes.slice(-(window + 1));
+  const returns = tail.slice(1).map((close, i) => close / tail[i] - 1);
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  return Math.sqrt(returns.reduce((a, r) => a + (r - mean) ** 2, 0) / returns.length) * 100;
+}
+
+function updateRiskMode() {
+  const volatility = $("rk-mode").value === "volatility";
+  $("rk-vol-window-field").hidden = !volatility;
+  $("rk-vol-mult-field").hidden = !volatility;
+  $("rk-mode-hint").textContent = volatility
+    ? "Each position's stop is set when it is opened: this many recent daily volatilities below the entry (never tighter than 0.5% or wider than 30%). A calm stock gets a tight stop and so a bigger position; a jumpy one a wide stop and a smaller position, so what a stop-out costs stays about the same. The Stop-loss % below is then only the fallback while a stock has too little history."
+    : "Every position uses the same stop-loss percentage below.";
+  riskExample();
+}
+
 function riskExample() {
   const risk = parseFloat($("rk-risk").value) || 0;
-  const stop = parseFloat($("rk-stop").value) || 0;
+  const fixedStop = parseFloat($("rk-stop").value) || 0;
   const pv = store.portfolio?.portfolio_value || 0;
   const example = $("rk-example");
-  if (!risk || !stop || !pv) {
+  if (!risk || !fixedStop || !pv) {
     example.textContent = "";
     return;
   }
   const riskAmount = (pv * risk) / 100;
-  const entryPrice = 100;
-  const riskPerShare = (entryPrice * stop) / 100;
-  const qty = Math.floor(riskAmount / riskPerShare);
-  example.textContent = `Example: ${money(pv)} portfolio × ${risk}% risk = ${money(riskAmount)} max risk per trade. A ₹100 entry with a ${stop}% stop risks ${money(riskPerShare)} per share, so a signal would size to ${qty} shares.`;
+  const sharesFor = (price, stop) => Math.floor(riskAmount / ((price * stop) / 100));
+  if ($("rk-mode").value !== "volatility") {
+    example.textContent = `Example: ${money(pv)} portfolio × ${risk}% risk = ${money(riskAmount)} max risk per trade. A ₹100 entry with a ${fixedStop}% stop risks ${money((100 * fixedStop) / 100)} per share, so a signal would size to ${sharesFor(100, fixedStop)} shares.`;
+    return;
+  }
+  const window = parseInt($("rk-vol-window").value, 10) || 20;
+  const multiplier = parseFloat($("rk-vol-mult").value) || 2;
+  const stock = store.stocks.find((s) => s.symbol === store.symbol);
+  const volatility = stock ? dailyVolatility(stock.recent_closes, window) : null;
+  if (!stock || volatility === null || !(volatility > 0)) {
+    example.textContent = `Example: pick a stock with at least ${window + 1} days of history on the chart to see its volatility-based stop. Until a stock has that much, the fixed ${fixedStop}% stop applies.`;
+    return;
+  }
+  const stop = Math.min(MAX_STOP_PCT, Math.max(MIN_STOP_PCT, multiplier * volatility));
+  const price = stock.current_price;
+  example.textContent =
+    `Example with ${stock.symbol}: its daily volatility over the last ${window} days is ${volatility.toFixed(2)}%, so a ${multiplier}× stop sits ${stop.toFixed(2)}% below the entry. ` +
+    `${money(pv)} × ${risk}% risk = ${money(riskAmount)}; at ${money(price)} each share risks ${money((price * stop) / 100)}, so a signal would size to ${sharesFor(price, stop)} shares ` +
+    `(a fixed ${fixedStop}% stop would give ${sharesFor(price, fixedStop)}). The max allocation per stock may shrink this further.`;
 }
 
 function renderRisk() {
@@ -274,7 +312,10 @@ function renderRisk() {
     $("rk-stop").value = r.stop_loss_pct;
     $("rk-positions").value = r.max_open_positions;
     $("rk-allocation").value = r.max_allocation_pct;
-    riskExample();
+    $("rk-mode").value = r.stop_mode || "fixed";
+    $("rk-vol-window").value = r.volatility_window ?? 20;
+    $("rk-vol-mult").value = r.volatility_multiplier ?? 2;
+    updateRiskMode();
   }
   if (store.portfolio) $("ac-capital").value = store.portfolio.starting_capital;
 }
@@ -303,6 +344,9 @@ async function applyRiskSettings() {
     stop_loss_pct: parseFloat($("rk-stop").value),
     max_open_positions: parseInt($("rk-positions").value, 10),
     max_allocation_pct: parseFloat($("rk-allocation").value),
+    stop_mode: $("rk-mode").value,
+    volatility_window: parseInt($("rk-vol-window").value, 10),
+    volatility_multiplier: parseFloat($("rk-vol-mult").value),
   };
   try {
     store.riskSettings = await api("/risk-settings", { method: "PATCH", body: JSON.stringify(body) });
@@ -610,6 +654,7 @@ export function selectSymbol(symbol) {
   renderWatchlist();
   renderTicket();
   renderSettings();
+  riskExample(); // the volatility example is for the selected stock
   renderChart();
 }
 
@@ -672,5 +717,6 @@ export function initTrade() {
   for (const id of ["co-enabled", "co-slip", "co-brok", "co-cap", "co-tax"]) $(id).addEventListener("input", costExample);
   $("ac-apply").addEventListener("click", applyStartingCapital);
   $("rk-apply").addEventListener("click", applyRiskSettings);
-  for (const id of ["rk-risk", "rk-stop"]) $(id).addEventListener("input", riskExample);
+  for (const id of ["rk-risk", "rk-stop", "rk-vol-window", "rk-vol-mult"]) $(id).addEventListener("input", riskExample);
+  $("rk-mode").addEventListener("change", updateRiskMode);
 }

@@ -9,8 +9,14 @@ ADDED_COLUMNS = {
         "strategy_id": "INTEGER",
         "fees": "FLOAT DEFAULT 0",
         "market_price": "FLOAT",
+        "stop_pct": "FLOAT",
     },
     "strategies": {"rules": "JSON"},
+    "risk_settings": {
+        "stop_mode": "VARCHAR(12) DEFAULT 'fixed'",
+        "volatility_window": "INTEGER DEFAULT 20",
+        "volatility_multiplier": "FLOAT DEFAULT 2.0",
+    },
     "stocks": {"source": "VARCHAR(20) DEFAULT 'simulated'"},
     "portfolio": {"starting_capital": "FLOAT DEFAULT 100000.0", "market_date": "DATE"},
 }

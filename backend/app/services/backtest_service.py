@@ -59,6 +59,9 @@ def run_config(db: Session) -> tuple[RiskConfig, CostConfig]:
         max_risk_per_trade_pct=settings.max_risk_per_trade_pct,
         stop_loss_pct=settings.stop_loss_pct,
         max_allocation_pct=settings.max_allocation_pct,
+        stop_mode=settings.stop_mode or "fixed",
+        volatility_window=settings.volatility_window or 20,
+        volatility_multiplier=settings.volatility_multiplier or 2.0,
     )
     return risk, cost_service.config(db)
 

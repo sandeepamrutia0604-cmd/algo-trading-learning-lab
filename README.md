@@ -136,6 +136,21 @@ positions and max allocation per stock still apply to every BUY, manual or auto-
 reject a manual or fixed-quantity order that exceeds them. Turn it off
 and the app behaves exactly as it did in Phase 4-6 (fixed quantity, no caps, no stop-loss).
 
+**Volatility-based stops.** The Risk management tab's **Stop distance** setting chooses where
+the stop sits: *a fixed percentage* (the default, as above) or *based on the stock's volatility*.
+In volatility mode each position's stop is `multiplier × the stock's daily volatility` below the
+entry (volatility is the standard deviation of the last N daily returns; defaults: 20 days and
+2×; never tighter than 0.5% or wider than 30%), and the same sizing formula then uses that stop.
+A calm stock gets a tight stop and so a bigger position, a jumpy one a wide stop and a smaller
+position, so a stop-out costs about the same share of the account either way. The stop is worked
+out once, when the position is opened, from what is known that day (no look-ahead), and kept on
+the trade (`Trade.stop_pct` live, `BacktestTrade.stop_pct` in a backtest), so it does not drift
+as volatility changes afterwards; with too little history the fixed stop-loss % is the fallback.
+The tab shows a worked example for the stock you have selected, and backtest trades list the
+stop each one used. This evens out the risk per trade; it does not make a strategy better, and a
+tighter stop is hit more often. The formulas are `latest_volatility_pct`, `volatility_stop_pct`
+and `entry_stop_pct` in `engine/risk_math.py`, shared by live trading and backtests.
+
 Backtests use these same saved risk settings — if risk management is on, a backtest sizes and
 stop-losses its trades exactly as live auto-trading would. A buy is skipped (counted in
 `skipped_buys`) only if the cap leaves room for less than one share, if cash runs short, or if

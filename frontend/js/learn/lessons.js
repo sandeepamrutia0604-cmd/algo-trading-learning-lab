@@ -813,6 +813,20 @@ export const MODULES = [
         p: "Spreading money across several stocks is called **diversification**. If one company has a bad year, the others cushion the blow.",
       },
 
+      { h: "Letting volatility set the stop" },
+      {
+        p: "A stop 5% below the entry means very different things for two stocks. For a calm one that rarely moves 1% a day, 5% is a long way off. For a jumpy one that swings 4% a day, it is hit by ordinary noise. **Volatility-based sizing** sets the stop from how much the stock actually moves: roughly *a couple of typical daily moves* below the entry. The sizing formula is unchanged, but its stop distance now fits the stock.",
+      },
+      {
+        example: {
+          title: "Two stocks, the same ₹20,000 of risk",
+          text: "On a ₹10,00,000 account with 2% risk, a calm stock that moves about 0.6% a day gets a stop about 1.3% below the entry (two daily moves), so each share risks very little and the position is big. A jumpy stock that moves about 3.5% a day gets a stop about 7% below, each share risks a lot, and the position is much smaller. A stop-out costs about ₹20,000 either way.",
+        },
+      },
+      {
+        note: "This evens out the risk of each trade. It does not make a strategy better: a tighter stop on a calm stock is also hit more often, and many small stopped-out losses add up. You can try it under Stop distance in the Risk management tab, then compare a backtest with and without it.",
+      },
+
       { h: "Using it in this lab" },
       {
         p: "Open the **Risk management** tab on the Trade page, tick *Enable risk management* and press Save. From then on, position sizing, the stop-loss and both limits apply to auto-trading, every manual BUY is checked against the limits, and backtests use the same rules. So you can compare a strategy with and without risk management, side by side.",
@@ -882,6 +896,17 @@ export const MODULES = [
         ],
         answer: 3,
         why: "If most of your money is in one company and it falls sharply, your whole account suffers. A cap on each stock's share, together with a limit on open positions, spreads the risk.",
+      },
+      {
+        q: "With volatility-based position sizing, which stock gets the larger position for the same money at risk?",
+        options: [
+          "The jumpiest one, because it has the most potential.",
+          "Both get the same number of shares.",
+          "The calm one, because its stop sits closer to the entry.",
+          "The cheapest one, whatever its volatility.",
+        ],
+        answer: 2,
+        why: "The stop is set from the stock's own volatility, so a calm stock gets a tight stop. Each share then risks little, so the same risk budget buys more shares. A jumpy stock gets a wide stop and a smaller position.",
       },
     ],
   },

@@ -16,6 +16,9 @@ def _out(settings: RiskSettings) -> RiskSettingsOut:
         stop_loss_pct=settings.stop_loss_pct,
         max_open_positions=settings.max_open_positions,
         max_allocation_pct=settings.max_allocation_pct,
+        stop_mode=settings.stop_mode or "fixed",
+        volatility_window=settings.volatility_window or 20,
+        volatility_multiplier=settings.volatility_multiplier or 2.0,
     )
 
 
