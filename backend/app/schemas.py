@@ -367,6 +367,8 @@ class BacktestRequest(BaseModel):
     # When a decision is carried out: at the close of the day the signal appears (the default), or
     # at the next trading day's opening price, the first price you could really have got.
     fill_mode: Literal["signal_close", "next_open"] = "signal_close"
+    risk_free_pct: float = Field(default=0.0, ge=0, le=30)  # yearly, for the Sharpe and Sortino ratios and alpha
+    benchmark: str | None = Field(default=None, max_length=40)  # another stock or index to compare with
 
     @model_validator(mode="after")
     def _dates_in_order(self):
@@ -386,6 +388,52 @@ class BacktestTradeOut(BaseModel):
     open: bool
     stopped_out: bool = False
     stop_pct: float | None = None  # the stop distance this trade was sized and protected with (risk management on)
+
+
+class TradeStatsDetailOut(BaseModel):
+    profit_factor: float | None = None
+    average_win: float | None = None
+    average_loss: float | None = None
+    payoff_ratio: float | None = None
+    expectancy: float | None = None
+    best_trade: float | None = None
+    worst_trade: float | None = None
+    max_consecutive_losses: int = 0
+    average_holding_days: float | None = None
+
+
+class BuyHoldOut(BaseModel):
+    return_pct: float
+    cagr_pct: float | None = None
+    excess_return_pct: float  # the strategy's return minus buying and holding the same stock
+
+
+class BenchmarkOut(BaseModel):
+    symbol: str
+    days: int  # trading days both the strategy and the benchmark have prices for
+    return_pct: float | None = None
+    strategy_return_pct: float | None = None  # over those same days
+    excess_return_pct: float | None = None
+    beta: float | None = None
+    alpha_pct: float | None = None
+    correlation: float | None = None
+
+
+class BacktestMetricsOut(BaseModel):
+    risk_free_pct: float
+    trading_days: int
+    years: float
+    cagr_pct: float | None = None
+    volatility_pct: float | None = None
+    sharpe: float | None = None
+    sortino: float | None = None
+    calmar: float | None = None
+    longest_drawdown_days: int = 0
+    days_in_market: int = 0
+    exposure_pct: float = 0.0
+    trade_stats: TradeStatsDetailOut
+    buy_hold: BuyHoldOut
+    benchmark: BenchmarkOut | None = None
 
 
 class BacktestResultOut(BaseModel):
@@ -409,6 +457,7 @@ class BacktestResultOut(BaseModel):
     stopped_out: int = 0
     fill_mode: str = "signal_close"
     unfilled_signal: bool = False  # next-open fills: a decision on the last day had no next day to trade on
+    metrics: BacktestMetricsOut | None = None  # None on a result saved before these existed
     risk_managed: bool = False
     volatility_stops: bool = False  # risk management on, with the stop distance set from volatility
     costs_applied: bool = False

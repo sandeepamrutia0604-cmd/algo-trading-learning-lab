@@ -432,6 +432,14 @@
                 </select>
               </label>
               <p class="hint" id="bt-fill-hint"></p>
+              <div class="param-grid">
+                <label class="field">Risk-free rate (% a year) <input id="bt-rf" type="number" min="0" max="30" step="0.5" value="0" /></label>
+                <label class="field">Compare with
+                  <select id="bt-bench"><option value="">(nothing)</option></select>
+                </label>
+              </div>
+              <p class="hint">The risk-free rate is what a safe deposit would pay. It only affects the Sharpe and Sortino ratios and alpha: 0 matches the Performance page, and a few
+                percent is more realistic. "Compare with" adds a stock or index (such as NSE500) to the comparison under the results.</p>
 
               <div class="param-grid">
                 <label class="field">From <input id="bt-from" type="date" /></label>
@@ -468,6 +476,36 @@
                     </div>
                   </div>
                   <div class="metrics-grid" id="bt-metrics"></div>
+                </div>
+
+                <div class="panel" id="bt-more-panel">
+                  <h3>Risk, quality and comparison</h3>
+                  <p class="hint" id="bt-more-intro"></p>
+                  <h4 class="lesson-h">Return for the risk taken</h4>
+                  <div class="metrics-grid" id="bt-m-risk"></div>
+                  <h4 class="lesson-h">What the trades looked like</h4>
+                  <div class="metrics-grid" id="bt-m-trades"></div>
+                  <h4 class="lesson-h">Against doing nothing, and against the market</h4>
+                  <div class="metrics-grid" id="bt-m-versus"></div>
+                  <details class="glossary">
+                    <summary>What do these numbers mean?</summary>
+                    <dl class="lesson-terms">
+                      <dt>Annual growth (CAGR)</dt><dd>The yearly growth rate the result works out to, as if the profit had compounded evenly. Handy for comparing runs of different lengths.</dd>
+                      <dt>Volatility</dt><dd>How much the account value jumps around from day to day, scaled to a year. Higher means a bumpier ride.</dd>
+                      <dt>Sharpe ratio</dt><dd>Return earned for each unit of bumpiness. A common rule of thumb calls above 1 decent and above 2 excellent, but a short backtest can flatter it, so treat it as a clue, not a verdict.</dd>
+                      <dt>Sortino ratio</dt><dd>Like Sharpe, but only the falling days count as risk. A strategy with big up-days and small down-days scores better here than on Sharpe.</dd>
+                      <dt>Calmar ratio</dt><dd>Yearly growth divided by the worst fall: how much growth you got for the worst pain you sat through.</dd>
+                      <dt>Longest time under water</dt><dd>The longest stretch the account stayed below a previous high, in trading days (about 21 make a month). It shows how long you might wait to be back in profit.</dd>
+                      <dt>Time in the market</dt><dd>The share of days the strategy actually held shares. The rest of the time it sat in cash, so a low figure means the return was earned on little exposure.</dd>
+                      <dt>Profit factor</dt><dd>All the money won on closed trades divided by all the money lost. Above 1 means it made money overall; many guides want 1.5 or more before trusting a strategy.</dd>
+                      <dt>Expectancy</dt><dd>The average profit or loss per trade. It equals win rate × average win minus loss rate × average loss, so a strategy can win rarely and still have a positive expectancy.</dd>
+                      <dt>Payoff ratio</dt><dd>Average win divided by average loss. A low win rate can still work if this is high, and a high win rate can still lose money if it is low.</dd>
+                      <dt>Longest losing streak</dt><dd>The most losing trades in a row. A reminder of what you would have had to sit through.</dd>
+                      <dt>Beta</dt><dd>How much the strategy has tended to move when the comparison moved 1%. 1 means in step, 0.5 means half as much, 0 means unrelated.</dd>
+                      <dt>Alpha</dt><dd>The yearly return left over after taking out what the comparison's own moves (via beta) would explain. Positive means the strategy added something of its own.</dd>
+                      <dt>Correlation</dt><dd>How closely the two moved together, from -1 (opposite) through 0 (unrelated) to 1 (in lockstep).</dd>
+                    </dl>
+                  </details>
                 </div>
 
                 <div class="panel">
@@ -539,7 +577,7 @@
                   <div id="bt-compare-content" hidden>
                     <div id="bt-compare-chart" class="chart small"></div>
                     <table id="bt-compare-table">
-                      <thead><tr><th>Strategy</th><th class="num">Initial</th><th class="num">Final</th><th class="num">Return</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th></th></tr></thead>
+                      <thead><tr><th>Strategy</th><th class="num">Initial</th><th class="num">Final</th><th class="num">Return</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th class="num">Sharpe</th><th></th></tr></thead>
                       <tbody></tbody>
                     </table>
                   </div>

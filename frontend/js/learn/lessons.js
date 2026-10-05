@@ -681,6 +681,23 @@ export const MODULES = [
         note: "On five years of five big NSE stocks, the gap between the two was small on average, and it depended on the kind of strategy. Strategies that buy strength (moving-average crossovers, breakouts) usually did a little worse at the open, because the stock often gaps further up overnight before you can buy. Strategies that buy weakness were about the same or slightly better. Small, but it adds up when a strategy trades a lot, and it is exactly the kind of quiet advantage that makes a backtest look better than reality.",
       },
 
+      { h: "Reading beyond the return" },
+      {
+        p: "A total return and a max drawdown are only the start. Under every result the lab also shows how good the *ride* was and what the trades looked like:",
+      },
+      {
+        terms: [
+          ["Sharpe ratio", "Return earned for each unit of bumpiness. Two strategies can end at the same profit, but the one that got there smoothly scores higher."],
+          ["Profit factor", "All the money won divided by all the money lost on closed trades. Above 1 it made money overall."],
+          ["Expectancy", "The average profit or loss per trade. A strategy can win only a third of the time and still have a positive expectancy if its wins are big enough."],
+          ["Time in the market", "The share of days the strategy actually held shares. A strategy that is invested only 20% of the time earned its return on little exposure."],
+          ["Beta and alpha", "Compare the strategy with an index such as NSE500. Beta says how much it moves with the index, and alpha is the yearly return it made beyond that."],
+        ],
+      },
+      {
+        note: "None of these is a verdict. A short backtest can flatter every one of them, so use them to ask better questions: Was the profit smooth or lucky? Did it beat simply holding the stock, and beat the index? Did it earn that while hardly invested?",
+      },
+
       { h: "What a backtest can't tell you" },
       {
         list: [
@@ -763,6 +780,17 @@ export const MODULES = [
         ],
         answer: 1,
         why: "Every trade pays slippage, brokerage and taxes. A strategy that trades 40 times a year pays that bill 40 times, and it has to earn more than the total just to break even.",
+      },
+      {
+        q: "A strategy wins only 35% of its trades, but its average win is three times its average loss. What can you say?",
+        options: [
+          "It must lose money, because most of its trades lose.",
+          "It can still make money: the big wins can outweigh the many small losses.",
+          "Its profit factor must be below 1.",
+          "Its win rate is the only number that matters.",
+        ],
+        answer: 1,
+        why: "Per trade, the expectancy is 0.35 × 3 − 0.65 × 1 = +0.40, in units of the average loss, so it makes money. A low win rate is fine when the payoff ratio is high, which is why win rate alone tells you little.",
       },
     ],
   },

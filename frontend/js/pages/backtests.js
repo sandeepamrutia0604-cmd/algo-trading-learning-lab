@@ -1,4 +1,4 @@
-import { $, api, money, percent, pnlClass, signedPercent, toast } from "../util.js";
+import { $, api, money, percent, pnlClass, signedMoney, signedPercent, toast } from "../util.js";
 import { store } from "../store.js";
 import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
 import * as rb from "../rulebuilder.js";
@@ -87,6 +87,12 @@ function renderBuilder() {
     symbolSelect.innerHTML = store.stocks.map((s) => `<option value="${s.symbol}">${s.symbol}</option>`).join("");
     symbolSelect.value = store.symbol;
   }
+  const benchSelect = $("bt-bench");
+  if (benchSelect.options.length !== store.stocks.length + 1) {
+    const wanted = benchSelect.value || (store.stocks.some((s) => s.symbol === "NSE500") ? "NSE500" : "");
+    benchSelect.innerHTML = `<option value="">(nothing)</option>` + store.stocks.map((s) => `<option value="${s.symbol}">${s.symbol}</option>`).join("");
+    benchSelect.value = store.stocks.some((s) => s.symbol === wanted) ? wanted : "";
+  }
 }
 
 /* ---------------- date range ---------------- */
@@ -148,6 +154,10 @@ async function runBacktest() {
   if (from && to && from > to) return toast("The From date must be on or before the To date", true);
   const dates = { ...(from ? { start_date: from } : {}), ...(to ? { end_date: to } : {}) };
 
+  const riskFree = parseFloat($("bt-rf").value);
+  if (!(riskFree >= 0 && riskFree <= 30)) return toast("The risk-free rate must be between 0 and 30", true);
+  const extra = { risk_free_pct: riskFree, ...($("bt-bench").value ? { benchmark: $("bt-bench").value } : {}) };
+
   state.running = true;
   $("bt-run").disabled = true;
   $("bt-run").textContent = "Running...";
@@ -161,8 +171,9 @@ async function runBacktest() {
           initial_capital: initialCapital,
           fill_mode: $("bt-fill").value,
           ...dates,
+          ...extra,
         }
-      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital, fill_mode: $("bt-fill").value, ...dates };
+      : { symbol: $("bt-symbol").value, type: $("bt-type").value, params: readParams(), quantity, initial_capital: initialCapital, fill_mode: $("bt-fill").value, ...dates, ...extra };
     const result = await api("/backtests/run", { method: "POST", body: JSON.stringify(body) });
     await historyRange(result.symbol).catch(() => {}); // so the results can tell a partial period from the whole history
     state.result = result;
@@ -203,6 +214,63 @@ function renderMetrics(r) {
   $("bt-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
 }
 
+const ratio = (value) => (value === null || value === undefined ? "n/a" : value.toFixed(2));
+const maybe = (value, format) => (value === null || value === undefined ? "n/a" : format(value));
+const tone = (value) => (value === null || value === undefined ? "" : pnlClass(value));
+
+/** The numbers beyond the headline return: see engine/metrics.py and the glossary under the panel. */
+function renderMore(r) {
+  const panel = $("bt-more-panel");
+  const x = r.metrics;
+  panel.hidden = !x; // a result saved before these existed has none
+  if (!x) return;
+  const ts = x.trade_stats;
+  const tiles = (rows) => rows.map(([label, value, cls = ""]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
+  $("bt-more-intro").textContent =
+    `Worked out from ${x.trading_days.toLocaleString("en-IN")} trading days (${x.years.toFixed(1)} years) of the account's daily value` +
+    (x.risk_free_pct ? `, with a ${x.risk_free_pct}% a year risk-free rate for Sharpe, Sortino and alpha` : ", with a 0% risk-free rate (as on the Performance page)") +
+    ". Short or quiet backtests make ratios like these unreliable, so read them as clues.";
+
+  $("bt-m-risk").innerHTML = tiles([
+    ["Annual growth (CAGR)", maybe(x.cagr_pct, signedPercent), tone(x.cagr_pct)],
+    ["Volatility (a year)", maybe(x.volatility_pct, percent)],
+    ["Sharpe ratio", ratio(x.sharpe), tone(x.sharpe)],
+    ["Sortino ratio", ratio(x.sortino), tone(x.sortino)],
+    ["Calmar ratio", ratio(x.calmar), tone(x.calmar)],
+    ["Longest time under water", `${x.longest_drawdown_days.toLocaleString("en-IN")} days`],
+    ["Time in the market", `${percent(x.exposure_pct)} (${x.days_in_market.toLocaleString("en-IN")} days)`],
+  ]);
+  $("bt-m-trades").innerHTML = tiles([
+    ["Profit factor", ratio(ts.profit_factor), ts.profit_factor === null ? "" : ts.profit_factor >= 1 ? "up" : "down"],
+    ["Expectancy per trade", maybe(ts.expectancy, signedMoney), tone(ts.expectancy)],
+    ["Average win", maybe(ts.average_win, money), "up"],
+    ["Average loss", maybe(ts.average_loss, money), "down"],
+    ["Payoff ratio (win ÷ loss)", ratio(ts.payoff_ratio)],
+    ["Best trade", maybe(ts.best_trade, signedMoney), tone(ts.best_trade)],
+    ["Worst trade", maybe(ts.worst_trade, signedMoney), tone(ts.worst_trade)],
+    ["Longest losing streak", `${ts.max_consecutive_losses} trade${ts.max_consecutive_losses === 1 ? "" : "s"}`],
+    ["Average time held", maybe(ts.average_holding_days, (d) => `${d.toFixed(1)} days`)],
+  ]);
+
+  const versus = [
+    [`Buy & hold ${r.symbol}`, signedPercent(x.buy_hold.return_pct), tone(x.buy_hold.return_pct)],
+    [x.buy_hold.excess_return_pct >= 0 ? "Beat buy & hold by" : "Trailed buy & hold by", `${Math.abs(x.buy_hold.excess_return_pct).toFixed(2)} points`, tone(x.buy_hold.excess_return_pct)],
+  ];
+  const b = x.benchmark;
+  if (b && b.return_pct !== null) {
+    versus.push(
+      [`${b.symbol} over the same ${b.days.toLocaleString("en-IN")} days`, signedPercent(b.return_pct), tone(b.return_pct)],
+      [b.excess_return_pct >= 0 ? `Beat ${b.symbol} by` : `Trailed ${b.symbol} by`, `${Math.abs(b.excess_return_pct).toFixed(2)} points`, tone(b.excess_return_pct)],
+      [`Beta to ${b.symbol}`, ratio(b.beta)],
+      ["Alpha (a year)", maybe(b.alpha_pct, signedPercent), tone(b.alpha_pct)],
+      ["Correlation", ratio(b.correlation)],
+    );
+  } else if (b) {
+    versus.push([`${b.symbol}`, `only ${b.days} shared days: too few to compare`]);
+  }
+  $("bt-m-versus").innerHTML = tiles(versus);
+}
+
 async function renderResults() {
   const r = state.result;
   $("bt-empty").hidden = Boolean(r);
@@ -221,6 +289,7 @@ async function renderResults() {
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
     (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
   renderMetrics(r);
+  renderMore(r);
 
   const everyPrice = (await loadChartData(r.symbol, [], { full: true })).prices;
   if (state.result !== r) return;
@@ -318,6 +387,7 @@ function renderComparison() {
         <td class="num">${row.result.total_trades}</td>
         <td class="num">${percent(row.result.win_rate_pct)}</td>
         <td class="num ${row.result.max_drawdown_pct > 0 ? "down" : ""}">${percent(row.result.max_drawdown_pct)}</td>
+        <td class="num">${row.result.metrics && row.result.metrics.sharpe !== null ? row.result.metrics.sharpe.toFixed(2) : "-"}</td>
         <td class="num"><button class="btn btn-sell" data-remove="${row.id}">Remove</button></td>
       </tr>`,
     )
@@ -431,6 +501,8 @@ async function loadSavedRun(id) {
   $("bt-capital").value = req.initial_capital;
   $("bt-fill").value = req.fill_mode || "signal_close";
   updateFillHint();
+  $("bt-rf").value = req.risk_free_pct ?? 0;
+  $("bt-bench").value = req.benchmark || "";
   await refreshRange(); // sets the date limits for this stock; then put the saved dates back
   $("bt-from").value = req.start_date || "";
   $("bt-to").value = req.end_date || "";

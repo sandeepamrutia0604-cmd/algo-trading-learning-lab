@@ -19,7 +19,7 @@ from ..schemas import (
     WalkForwardOut,
     WalkForwardRequest,
 )
-from ..services import backtest_service, monte_carlo_service, optimizer_service, risk_service, saved_backtests
+from ..services import backtest_metrics, backtest_service, monte_carlo_service, optimizer_service, risk_service, saved_backtests
 from ..services.optimizer_service import AxisRequest
 from ..services.saved_backtests import SavedBacktestNotFoundError
 
@@ -45,6 +45,7 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
         period_end=period_end,
         fill_mode=result.fill_mode,
         unfilled_signal=result.unfilled_signal,
+        metrics=backtest_metrics.compute(db, result, dates, closes, body.risk_free_pct, body.benchmark or None),
         total_return_pct=result.total_return_pct,
         total_trades=result.total_trades,
         winning_trades=result.winning_trades,

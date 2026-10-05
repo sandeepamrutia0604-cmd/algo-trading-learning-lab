@@ -37,6 +37,19 @@ Screens (left navigation):
   (`/api/backtests/saved`, `services/saved_backtests.py`). Nothing here touches your real paper
   portfolio, and Reset leaves saved backtests alone.
 
+  Under the headline numbers, **Risk, quality and comparison** adds the figures serious
+  backtest reports carry (`engine/metrics.py`, `services/backtest_metrics.py`): annual growth
+  (CAGR), volatility, **Sharpe**, **Sortino** and **Calmar** ratios, the longest time spent
+  below a previous high, and the share of days the strategy was invested; for the closed trades,
+  profit factor, expectancy, average win and loss, payoff ratio, best and worst trade, longest
+  losing streak and average holding time; and a comparison with buying and holding the same
+  stock plus, optionally, any other stock or index you pick (NSE500 is preselected when it is
+  imported): its return over the same days, beta, yearly alpha and correlation. They come from
+  the account's daily value (days in cash count as zero-return days), use 252 trading days a
+  year and the population standard deviation, and match the Performance page's Sharpe at a 0%
+  risk-free rate; the **Risk-free rate** box adjusts Sharpe, Sortino and alpha. A glossary in
+  plain words sits under the panel, and Module 6 explains the main ones.
+
   **Trade at** chooses when a decision is carried out: at the close of the day the signal
   appears (the default, and the simple optimistic way, since that close is the very price the
   signal was computed from) or at the **next day's opening price**, the first price you could
