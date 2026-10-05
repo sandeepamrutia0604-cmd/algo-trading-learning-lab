@@ -414,6 +414,10 @@ def walk_forward(
                 "test_rank": rank,
                 "test_valid": valid,
                 "test_median_score": test_median,
+                # Every combination on this fold's training and test windows (rows follow the y
+                # values, columns the x values, as in `optimise`), for the per-fold heatmaps.
+                "train_cells": train_rows,
+                "test_cells": test_rows,
             }
         )
 

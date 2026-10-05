@@ -562,6 +562,11 @@ tr:last-child td { border-bottom: 0; }
 .heat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 8px; }
 .heatmap { width: 100%; height: 340px; }
 .heatmap.thin { height: 150px; }
+.heatmap.mini { height: 230px; }
+.heatmap.mini.thin { height: 120px; }
+.wf-maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 10px; }
+.wf-map .muted { min-height: 2.6em; line-height: 1.3; }
+.seg.neutral button.on { background: var(--accent); }
 #op-combos.over, #op-wf-hint.over { color: var(--down); }
 #op-wf-table td { white-space: nowrap; }
 #op-wf-table .muted { font-size: 12px; }

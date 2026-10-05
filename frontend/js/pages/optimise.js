@@ -7,7 +7,7 @@ const MAX_AXIS_VALUES = 40;
 const NICE_STEPS = [1, 2, 5, 10, 20, 25, 50, 100];
 const METRIC_LABEL = { return: "total return", risk_adjusted: "return per unit of drawdown" };
 
-const state = { result: null, wf: null, runId: 0, wfRunId: 0, drawn: "", wfDrawn: "", running: false, history: {} };
+const state = { result: null, wf: null, runId: 0, wfRunId: 0, drawn: "", wfDrawn: "", wfMaps: "train", wfMapsBuilt: -1, wfMapsDrawn: "", running: false, history: {} };
 const isWalk = () => $("op-mode").value === "walk";
 
 const typeOf = (key) => store.strategyTypes.find((t) => t.key === key);
@@ -256,7 +256,8 @@ function renderMetrics(r) {
   $("op-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
 }
 
-function heatmap(el, r, period, title) {
+/** `compact` is for the small per-fold maps: tighter margins and type, and cell labels only on small grids. */
+function heatmap(el, r, period, title, { compact = false } = {}) {
   const c = themeColors();
   const xs = r.x.values.map(String);
   const ys = r.y ? r.y.values.map(String) : [""];
@@ -272,14 +273,14 @@ function heatmap(el, r, period, title) {
   const best = r.best.params;
   const bx = xs.indexOf(String(best[r.x.name]));
   const by = r.y ? ys.indexOf(String(best[r.y.name])) : 0;
-  const small = xs.length * ys.length <= 144;
+  const small = xs.length * ys.length <= (compact ? 64 : 144);
   const traces = [
     {
       type: "heatmap", x: xs, y: ys, z, text, hoverinfo: "text", hoverongaps: false, showscale: false, xgap: 1, ygap: 1,
       zmid: 0, colorscale: [[0, c.down], [0.5, c.line], [1, c.up]],
-      ...(small ? { texttemplate: "%{z:.1f}", textfont: { size: 10, color: c.text } } : {}),
+      ...(small ? { texttemplate: "%{z:.1f}", textfont: { size: compact ? 9 : 10, color: c.text } } : {}),
     },
-    { type: "scatter", mode: "markers", x: [xs[bx]], y: [ys[by]], hoverinfo: "skip", marker: { symbol: "star", size: 15, color: "#ffffff", line: { color: "#000000", width: 1 } } },
+    { type: "scatter", mode: "markers", x: [xs[bx]], y: [ys[by]], hoverinfo: "skip", marker: { symbol: "star", size: compact ? 12 : 15, color: "#ffffff", line: { color: "#000000", width: 1 } } },
   ];
   el.classList.toggle("thin", !r.y);
   el.previousElementSibling.textContent = title;
@@ -287,11 +288,11 @@ function heatmap(el, r, period, title) {
     el,
     traces,
     {
-      margin: { l: r.y ? 56 : 12, r: 8, t: 6, b: 46 },
+      margin: compact ? { l: r.y ? 44 : 8, r: 4, t: 4, b: 38 } : { l: r.y ? 56 : 12, r: 8, t: 6, b: 46 },
       showlegend: false,
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
-      font: { color: c.muted, size: 11 },
+      font: { color: c.muted, size: compact ? 9 : 11 },
       xaxis: { type: "category", title: { text: r.x.label }, automargin: true, showgrid: false, zeroline: false },
       yaxis: r.y ? { type: "category", title: { text: r.y.label }, automargin: true, showgrid: false, zeroline: false } : { visible: false },
     },
@@ -427,6 +428,37 @@ function drawWfEquity(r) {
   );
 }
 
+const MAPS_HINT = {
+  train: "Each map is one fold's search on its training window; the star is the winner it picked. Watch whether the bright region stays in roughly the same place from fold to fold, which suggests a stable area of settings, or jumps around, which suggests the optimiser is chasing noise.",
+  test: "The same settings on each fold's unseen test window. The star marks the settings that fold chose on training. A real edge shows bright cells around the star here too; a star sitting in a dark cell means the winner was probably fitted to noise.",
+};
+
+/** One small heatmap per fold, for the training grids or the test grids. */
+function drawWfMaps(r) {
+  // An older backend (not yet restarted) doesn't send the per-fold grids: leave the maps out.
+  $("op-wf-maps-panel").hidden = !r.folds.every((f) => f.train_cells && f.test_cells);
+  if ($("op-wf-maps-panel").hidden) return;
+  const host = $("op-wf-maps");
+  if (state.wfMapsBuilt !== state.wfRunId) {
+    host.innerHTML = r.folds.map(() => `<div class="wf-map"><div class="muted small"></div><div class="heatmap mini"></div></div>`).join("");
+    state.wfMapsBuilt = state.wfRunId;
+  }
+  const test = state.wfMaps === "test";
+  $("op-wf-maps-hint").textContent = MAPS_HINT[state.wfMaps];
+  document.querySelectorAll("#op-wf-maps-toggle button").forEach((b) => b.classList.toggle("on", b.dataset.maps === state.wfMaps));
+  const key = `${state.wfRunId}|${currentTheme()}|${state.wfMaps}`;
+  if (state.wfMapsDrawn === key) return;
+  state.wfMapsDrawn = key;
+  host.querySelectorAll(".heatmap").forEach((el, i) => {
+    const f = r.folds[i];
+    const shaped = { x: r.x, y: r.y, metric: r.metric, best: { params: f.params } };
+    const title = test
+      ? `Fold ${f.index}, unseen ${f.test_start} to ${f.test_end}: the chosen settings made ${signedPercent(f.test.return_pct)}, rank ${f.test_rank} of ${f.test_valid}`
+      : `Fold ${f.index}, trained ${f.train_start} to ${f.train_end}: the winner made ${signedPercent(f.train.return_pct)}`;
+    heatmap(el, shaped, { cells: test ? f.test_cells : f.train_cells }, title, { compact: true });
+  });
+}
+
 function renderWalkForward() {
   const r = state.wf;
   if (!r) return;
@@ -441,6 +473,7 @@ function renderWalkForward() {
   renderWfMetrics(r);
   renderWfTable(r);
   if (typeof Plotly === "undefined") return;
+  drawWfMaps(r);
   const key = `${state.wfRunId}|${currentTheme()}`;
   if (state.wfDrawn === key) return;
   state.wfDrawn = key;
@@ -500,6 +533,12 @@ export function renderOptimise() {
 
 export function initOptimise() {
   $("op-mode").addEventListener("change", renderView);
+  $("op-wf-maps-toggle").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-maps]");
+    if (!button || button.dataset.maps === state.wfMaps) return;
+    state.wfMaps = button.dataset.maps;
+    if (state.wf && typeof Plotly !== "undefined") drawWfMaps(state.wf);
+  });
   $("op-wf-switch").addEventListener("click", () => {
     $("op-mode").value = "split";
     renderView();

@@ -538,6 +538,8 @@ class WalkForwardFoldOut(BaseModel):
     test_rank: int
     test_valid: int
     test_median_score: float
+    train_cells: list[list[GridCellOut | None]]  # the whole grid on this fold's training window
+    test_cells: list[list[GridCellOut | None]]  # and on its unseen test window
 
 
 class WalkForwardSummaryOut(BaseModel):

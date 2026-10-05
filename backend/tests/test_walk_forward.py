@@ -235,3 +235,69 @@ def test_the_usual_optimiser_refusals_apply(client, days):
 def test_a_walk_forward_changes_nothing_so_it_is_not_announced_to_other_tabs():
     assert not is_change("POST", "/api/backtests/walk-forward", 200)
     assert optimizer_service.MAX_FOLDS == 10
+
+
+# ---------- the per-fold grids (for the heatmaps) ----------
+
+
+def position(result, fold):
+    return result["y"]["values"].index(fold["params"]["slow"]), result["x"]["values"].index(fold["params"]["fast"])
+
+
+def test_every_fold_carries_its_whole_grid_on_both_windows(client, days):
+    result = walk(client).json()
+
+    for fold in result["folds"]:
+        for key in ("train_cells", "test_cells"):
+            assert len(fold[key]) == 3 and all(len(row) == 3 for row in fold[key])  # slow rows by fast columns
+            assert all(cell is not None for row in fold[key] for cell in row)  # 5/10/15 against 20/30/40: all valid
+
+
+def test_the_winner_is_the_highest_cell_of_its_training_grid_and_its_test_cell_is_the_same_settings(client, days):
+    result = walk(client).json()
+
+    for fold in result["folds"]:
+        row, column = position(result, fold)
+        assert fold["train_cells"][row][column] == fold["train"]
+        assert fold["test_cells"][row][column] == fold["test"]
+        scores = [cell["score"] for r in fold["train_cells"] for cell in r if cell]
+        assert fold["train"]["score"] == max(scores)
+
+
+def test_the_rank_and_count_agree_with_the_test_grid(client, days):
+    result = walk(client).json()
+
+    for fold in result["folds"]:
+        scores = [cell["score"] for r in fold["test_cells"] for cell in r if cell]
+        assert fold["test_valid"] == len(scores)
+        assert fold["test_rank"] == 1 + sum(1 for s in scores if s > fold["test"]["score"])
+
+
+def test_a_folds_grids_equal_the_single_split_optimiser_on_the_same_windows(client, days):
+    result = walk(client).json()
+
+    for fold in result["folds"]:
+        split = client.post(
+            "/api/backtests/optimise",
+            json={**body(), "train_start": fold["train_start"], "train_end": fold["train_end"], "test_start": fold["test_start"], "test_end": fold["test_end"]},
+        ).json()
+        assert split["train"]["cells"] == fold["train_cells"]
+        assert split["test"]["cells"] == fold["test_cells"]
+
+
+def test_combinations_that_are_not_real_strategies_are_blank_in_both_grids_of_every_fold(client, days):
+    result = walk(client, x={"param": "fast", "low": 20, "high": 40, "step": 10}, y={"param": "slow", "low": 20, "high": 40, "step": 10}).json()
+
+    for fold in result["folds"]:
+        for key in ("train_cells", "test_cells"):
+            cells = fold[key]  # rows: slow 20, 30, 40; columns: fast 20, 30, 40
+            assert cells[0][0] is None and cells[0][1] is None and cells[1][1] is None
+            assert cells[1][0] is not None and cells[2][1] is not None
+
+
+def test_one_swept_setting_gives_single_row_grids(client, days):
+    result = walk(client, y=None).json()
+
+    for fold in result["folds"]:
+        assert len(fold["train_cells"]) == 1 and len(fold["train_cells"][0]) == 3
+        assert len(fold["test_cells"]) == 1

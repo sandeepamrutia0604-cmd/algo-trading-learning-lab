@@ -664,8 +664,7 @@
                 <div class="panel">
                   <h2 id="op-wf-title"></h2>
                   <div class="muted small" id="op-wf-sub"></div>
-                  <p class="muted small" id="op-wf-note">Looking for the heatmaps? They belong to the Train / test split method, which shows every combination on one training and one test
-                    period. Walk-forward runs a separate optimisation per fold, so it shows the fold table instead.
+                  <p class="muted small" id="op-wf-note">Each fold's heatmaps are further down. Want one larger pair of heatmaps for a single training and test period instead?
                     <button type="button" class="link-btn" id="op-wf-switch">Switch to Train / test split</button></p>
                   <div class="op-verdict" id="op-wf-verdict"></div>
                   <div class="metrics-grid" id="op-wf-metrics"></div>
@@ -680,6 +679,19 @@
                   <div id="op-wf-equity" class="chart small"></div>
                   <p class="hint">Only days the chosen settings had never seen. The dotted lines mark where each fold's test window begins, and at each one the settings
                     were re-optimised on the training window just before it. Both lines start at your initial capital.</p>
+                </div>
+
+                <div class="panel" id="op-wf-maps-panel">
+                  <div class="sd-head">
+                    <h3>Every combination, fold by fold</h3>
+                    <div class="seg neutral" id="op-wf-maps-toggle" style="min-width:300px">
+                      <button type="button" class="on" data-maps="train">Training windows</button>
+                      <button type="button" data-maps="test">Unseen test windows</button>
+                    </div>
+                  </div>
+                  <p class="hint" id="op-wf-maps-hint"></p>
+                  <div class="legend"><span class="up">&#9632; positive score</span><span class="down">&#9632; negative</span><span>&#9733; the settings the fold chose on its training window</span></div>
+                  <div class="wf-maps" id="op-wf-maps"></div>
                 </div>
 
                 <div class="panel">

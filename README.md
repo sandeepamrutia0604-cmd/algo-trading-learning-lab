@@ -73,6 +73,10 @@ Screens (left navigation):
   test return, rank among all settings), the share of windows that were profitable, how many
   different settings were chosen, the walk-forward efficiency (the share of the average training
   return that survived on unseen data) and a verdict (`POST /api/backtests/walk-forward`).
+  Below the equity chart, **every combination, fold by fold** shows one small heatmap per fold,
+  switchable between the training windows (the star is the winner the fold picked) and the
+  unseen test windows (the same settings, starred): if the bright region moves around from
+  fold to fold, or the star sits in a dark cell on test, the optimiser was chasing noise.
 - **Performance** - the analytics dashboard for your actual paper trades (see above).
 - **Journal** - a feed of every signal with its reasons and outcome.
 - **Learn** - Learning Mode: ten short lessons (what is a stock, an order, a portfolio, an
