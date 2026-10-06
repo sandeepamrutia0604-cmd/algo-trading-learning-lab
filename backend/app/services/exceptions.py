@@ -10,6 +10,10 @@ class InvalidQuantityError(TradingError):
     pass
 
 
+class InvalidOrderError(TradingError):
+    """An order whose stop-loss or take-profit levels make no sense."""
+
+
 class InsufficientFundsError(TradingError):
     pass
 

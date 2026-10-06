@@ -11,6 +11,7 @@ ADDED_COLUMNS = {
         "market_price": "FLOAT",
         "stop_pct": "FLOAT",
     },
+    "positions": {"stop_price": "FLOAT", "target_price": "FLOAT"},
     "strategies": {"rules": "JSON"},
     "risk_settings": {
         "stop_mode": "VARCHAR(12) DEFAULT 'fixed'",

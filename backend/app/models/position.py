@@ -14,5 +14,9 @@ class Position(Base):
     stock_id: Mapped[int] = mapped_column(ForeignKey("stocks.id"), unique=True)
     quantity: Mapped[int] = mapped_column(Integer)
     average_price: Mapped[float] = mapped_column(Float)
+    # Protective exits for the whole position (see engine/exit_math.py): sell if the price falls
+    # to stop_price or rises to target_price. NULL means no exit of that kind.
+    stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    target_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     stock: Mapped[Stock] = relationship()

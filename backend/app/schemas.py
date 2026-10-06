@@ -112,6 +112,19 @@ class OrderRequest(BaseModel):
     quantity: int = Field(gt=0)
 
 
+class BuyOrderRequest(OrderRequest):
+    # Protective exits for the whole position: absolute prices (the page turns a percentage into one).
+    stop_loss_price: float | None = Field(default=None, gt=0, le=10_000_000)
+    take_profit_price: float | None = Field(default=None, gt=0, le=10_000_000)
+
+
+class ExitLevelsRequest(BaseModel):
+    """Replaces both levels on a position; leave one out (null) to clear it."""
+
+    stop_loss_price: float | None = Field(default=None, gt=0, le=10_000_000)
+    take_profit_price: float | None = Field(default=None, gt=0, le=10_000_000)
+
+
 class TradeOut(BaseModel):
     symbol: str
     side: str
@@ -132,6 +145,8 @@ class TradeOut(BaseModel):
         source = trade.strategy.name if trade.strategy else "Manual"
         if trade.reason and "stop-loss" in trade.reason.lower():
             source += " · stop-loss"
+        elif trade.reason and "take-profit" in trade.reason.lower():
+            source += " · take-profit"
         return cls(
             symbol=trade.stock.symbol,
             side=trade.side,
@@ -158,6 +173,8 @@ class PositionOut(BaseModel):
     market_value: float
     unrealized_pnl: float
     day_pnl: float
+    stop_price: float | None = None
+    target_price: float | None = None
 
 
 class PortfolioOut(BaseModel):

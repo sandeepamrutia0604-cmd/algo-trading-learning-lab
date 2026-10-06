@@ -67,6 +67,26 @@ function renderWatchlist() {
 
 /* ---------------- order ticket ---------------- */
 
+/* The stop-loss and take-profit the ticket describes, as prices. A level is a percentage from the
+   quote or a price, as the unit box says; `problems` says why one can't be used. */
+function exitLevels(price) {
+  const levels = { stop: null, target: null, problems: [] };
+  for (const [key, kind, label] of [["stop", "sl", "stop-loss"], ["target", "tp", "take-profit"]]) {
+    if (!$(`o-${kind}-on`).checked) continue;
+    const value = parseFloat($(`o-${kind}`).value);
+    if (!(value > 0)) {
+      levels.problems.push(`Enter a ${label} above 0, or untick it.`);
+      continue;
+    }
+    const sign = key === "stop" ? -1 : 1;
+    const level = $(`o-${kind}-unit`).value === "pct" ? price * (1 + (sign * value) / 100) : value;
+    levels[key] = Math.round(level * 100) / 100;
+    if (key === "stop" && levels.stop >= price) levels.problems.push(`The stop-loss (${money(levels.stop)}) must be below the price (${money(price)}).`);
+    if (key === "target" && levels.target <= price) levels.problems.push(`The take-profit (${money(levels.target)}) must be above the price (${money(price)}).`);
+  }
+  return levels;
+}
+
 function ticketState() {
   const stock = stockBySymbol(store.symbol);
   const qty = parseInt($("o-qty").value, 10) || 0;
@@ -86,12 +106,14 @@ function ticketState() {
   }
   const positionValue = held * price;
   const after = buy ? positionValue + qty * price : positionValue - qty * price;
+  const exits = buy ? exitLevels(price) : { stop: null, target: null, problems: [] };
   let warning = "";
   if (qty <= 0) warning = "Enter a quantity above 0.";
   else if (buy && value + fees > p.cash) warning = `Not enough cash: this order costs ${money(value + fees)} but you have ${money(p.cash)}.`;
   else if (!buy && qty > held) warning = `You hold only ${held} ${stock.symbol}.`;
+  else if (exits.problems.length) warning = exits.problems[0];
   return {
-    stock, qty, price, fill, fees, costsOn: Boolean(costs), value, buy, maxQty, after, warning,
+    stock, qty, price, fill, fees, costsOn: Boolean(costs), value, buy, maxQty, after, warning, exits, held,
     cashAfter: buy ? p.cash - value - fees : p.cash + value - fees,
     pv: p.portfolio_value,
   };
@@ -117,6 +139,9 @@ function renderTicket() {
     row(t.buy ? "Cash after" : "Cash after sale", money(t.cashAfter)) +
     row("Position after", `${money(t.after)} (${t.pv ? ((t.after / t.pv) * 100).toFixed(1) : "0.0"}% of portfolio)`);
 
+  $("o-exits").hidden = !t.buy;
+  $("o-exit-sum").innerHTML = t.buy ? exitSummary(t) : "";
+
   const warn = $("o-warn");
   warn.hidden = !t.warning || t.qty <= 0;
   warn.textContent = t.warning;
@@ -127,10 +152,44 @@ function renderTicket() {
   submit.disabled = Boolean(t.warning);
 }
 
-async function placeOrder(side, symbol, quantity) {
+/* What the chosen stop-loss and take-profit would mean in rupees, so the trade's risk and reward are
+   visible before it is placed. Before costs, and against the quoted price. */
+function exitSummary(t) {
+  const { stop, target } = t.exits;
+  if (stop === null && target === null) return `No exit set: this position is only closed when you sell it. Tick a box to protect it.`;
+  const shown = t.pv ? (amount) => `${money(amount)} (${((amount / t.pv) * 100).toFixed(2)}% of your portfolio)` : money;
+  const lines = [];
+  const risk = stop !== null ? (t.price - stop) * t.qty : null;
+  const reward = target !== null ? (target - t.price) * t.qty : null;
+  if (risk !== null) lines.push(`Sells at <b>${money(stop)}</b>: you would lose about <b class="down">${shown(risk)}</b>.`);
+  if (reward !== null) lines.push(`Sells at <b>${money(target)}</b>: you would make about <b class="up">${shown(reward)}</b>.`);
+  if (risk > 0 && reward !== null) lines.push(`Reward is <b>${(reward / risk).toFixed(1)}x</b> the risk.`);
+  if (t.held > 0) lines.push(`You already hold ${t.held}: these levels cover the whole position.`);
+  return lines.join("<br>");
+}
+
+/* Switching a level between "%" and a price keeps it describing the same level. */
+function convertExitUnit(kind) {
+  const select = $(`o-${kind}-unit`);
+  const input = $(`o-${kind}`);
+  const price = stockBySymbol(store.symbol)?.current_price;
+  const value = parseFloat(input.value);
+  if (price && value > 0 && select.dataset.unit !== select.value) {
+    const sign = kind === "sl" ? -1 : 1;
+    input.value = select.value === "price" ? roundTo(price * (1 + (sign * value) / 100), 2) : roundTo(Math.abs(((value / price) - 1) * 100), 2);
+  }
+  select.dataset.unit = select.value;
+  renderTicket();
+}
+
+async function placeOrder(side, symbol, quantity, exits = {}) {
+  const body = { symbol, quantity };
+  if (exits.stop != null) body.stop_loss_price = exits.stop;
+  if (exits.target != null) body.take_profit_price = exits.target;
   try {
-    await api(`/orders/${side.toLowerCase()}`, { method: "POST", body: JSON.stringify({ symbol, quantity }) });
-    toast(`${side} ${quantity} ${symbol} executed`);
+    await api(`/orders/${side.toLowerCase()}`, { method: "POST", body: JSON.stringify(body) });
+    const set = [exits.stop != null && `stop ${money(exits.stop)}`, exits.target != null && `target ${money(exits.target)}`].filter(Boolean);
+    toast(`${side} ${quantity} ${symbol} executed${set.length ? ` · ${set.join(", ")}` : ""}`);
     await hooks.refresh();
   } catch (err) {
     toast(err.message, true);
@@ -145,8 +204,45 @@ function switchTab(name) {
   if (name === "quality") renderDataQuality();
 }
 
+const exitEdit = { symbol: null, stop: "", target: "" }; // the position whose levels are being edited, and what is typed
+
+function levelCell(level, current) {
+  if (level == null) return `<td class="num muted">-</td>`;
+  const away = ((level / current) - 1) * 100;
+  return `<td class="num pos-level">${money(level)}<small>${signedPercent(away)} from now</small></td>`;
+}
+
+function exitEditRow(p) {
+  return `<tr class="exit-edit" data-for="${p.symbol}"><td colspan="10">
+    <span class="field-row">
+      <b>${p.symbol}</b>
+      <label>Stop-loss &#8377; <input type="number" step="0.05" min="0" data-ex="stop" value="${exitEdit.stop}" /></label>
+      <label>Take-profit &#8377; <input type="number" step="0.05" min="0" data-ex="target" value="${exitEdit.target}" /></label>
+      <button class="btn btn-primary" data-ex-save>Save</button>
+      <button class="btn" data-ex-cancel>Cancel</button>
+      <span class="muted">Price now ${money(p.current_price)}. Leave a box empty for none. Covers all ${p.quantity} shares.</span>
+    </span>
+  </td></tr>`;
+}
+
+async function saveExits() {
+  const number = (text) => (text === "" || text == null ? null : parseFloat(text));
+  try {
+    await api(`/positions/${exitEdit.symbol}/exits`, {
+      method: "PUT",
+      body: JSON.stringify({ stop_loss_price: number(exitEdit.stop), take_profit_price: number(exitEdit.target) }),
+    });
+    toast(`Updated the exits on ${exitEdit.symbol}`);
+    exitEdit.symbol = null;
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 function renderPositions() {
   const rows = store.positions;
+  if (exitEdit.symbol && !rows.some((p) => p.symbol === exitEdit.symbol)) exitEdit.symbol = null; // it was sold
   $("tab-pos-n").textContent = rows.length;
   $("positions-empty").hidden = rows.length > 0;
   const tbody = document.querySelector("#positions-table tbody");
@@ -160,13 +256,37 @@ function renderPositions() {
         <td class="num">${money(p.market_value)}</td>
         <td class="num ${pnlClass(p.unrealized_pnl)}">${signedMoney(p.unrealized_pnl)}</td>
         <td class="num ${pnlClass(p.day_pnl)}">${signedMoney(p.day_pnl)}</td>
+        ${levelCell(p.stop_price, p.current_price)}
+        ${levelCell(p.target_price, p.current_price)}
         <td><div class="row-actions">
           <button class="btn" data-add="${p.symbol}">+ Add</button>
+          <button class="btn" data-levels="${p.symbol}">Exits</button>
           <button class="btn btn-sell" data-exit="${p.symbol}">Exit</button>
         </div></td>
-      </tr>`,
+      </tr>${exitEdit.symbol === p.symbol ? exitEditRow(p) : ""}`,
     )
     .join("");
+
+  tbody.querySelectorAll("[data-levels]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const p = positionBySymbol(btn.dataset.levels);
+      if (exitEdit.symbol === p.symbol) exitEdit.symbol = null;
+      else Object.assign(exitEdit, { symbol: p.symbol, stop: p.stop_price ?? "", target: p.target_price ?? "" });
+      renderPositions();
+    }),
+  );
+  tbody.querySelectorAll("[data-ex]").forEach((input) =>
+    input.addEventListener("input", () => {
+      exitEdit[input.dataset.ex] = input.value; // kept, so a refresh doesn't wipe what is being typed
+    }),
+  );
+  tbody.querySelectorAll("[data-ex-save]").forEach((btn) => btn.addEventListener("click", saveExits));
+  tbody.querySelectorAll("[data-ex-cancel]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      exitEdit.symbol = null;
+      renderPositions();
+    }),
+  );
 
   tbody.querySelectorAll(".sym-link").forEach((el) => el.addEventListener("click", () => selectSymbol(el.dataset.symbol)));
   tbody.querySelectorAll("[data-add]").forEach((btn) =>
@@ -687,13 +807,21 @@ export function initTrade() {
   });
   $("o-symbol").addEventListener("change", (e) => selectSymbol(e.target.value));
   $("o-qty").addEventListener("input", renderTicket);
+  for (const kind of ["sl", "tp"]) {
+    $(`o-${kind}-on`).addEventListener("change", renderTicket);
+    $(`o-${kind}`).addEventListener("input", () => {
+      $(`o-${kind}-on`).checked = true; // typing a level means you want it
+      renderTicket();
+    });
+    $(`o-${kind}-unit`).addEventListener("change", () => convertExitUnit(kind));
+  }
   $("o-max").addEventListener("click", () => {
     $("o-qty").value = Math.max(ticketState().maxQty, 1);
     renderTicket();
   });
   $("o-submit").addEventListener("click", () => {
     const t = ticketState();
-    if (!t.warning) placeOrder(store.side, t.stock.symbol, t.qty);
+    if (!t.warning) placeOrder(store.side, t.stock.symbol, t.qty, t.buy ? t.exits : {});
   });
 
   for (const id of ["ind-fast-on", "ind-fast", "ind-slow-on", "ind-slow", "ind-trades", "ind-signals"]) $(id).addEventListener("change", renderChart);

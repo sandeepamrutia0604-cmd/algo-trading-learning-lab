@@ -52,6 +52,8 @@ def get_positions_with_pnl(db: Session) -> list[dict]:
                 "market_value": market_value,
                 "unrealized_pnl": market_value - cost_basis,
                 "day_pnl": _day_pnl(db, p),
+                "stop_price": p.stop_price,
+                "target_price": p.target_price,
             }
         )
     return result

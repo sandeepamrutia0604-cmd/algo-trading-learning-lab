@@ -2,11 +2,12 @@ from sqlalchemy.orm import Session
 
 from ..models import Position, Stock, Trade
 from ..models.portfolio import Portfolio
-from ..engine import cost_math
+from ..engine import cost_math, exit_math
 from . import cost_service, risk_service
 from .exceptions import (
     InsufficientFundsError,
     InsufficientSharesError,
+    InvalidOrderError,
     InvalidQuantityError,
     StockNotFoundError,
 )
@@ -34,7 +35,11 @@ def execute_buy(
     reason: str = "Manual trade",
     strategy_id: int | None = None,
     stop_pct: float | None = None,
+    stop_price: float | None = None,
+    target_price: float | None = None,
 ) -> Trade:
+    """`stop_price` / `target_price` set the position's protective exits (see engine/exit_math.py);
+    left out, any exits the position already has are kept. They apply to the whole position."""
     if quantity <= 0:
         raise InvalidQuantityError("Quantity must be a positive integer")
 
@@ -42,6 +47,9 @@ def execute_buy(
     portfolio = get_portfolio(db)
     costs = cost_service.config(db)
     market_price = stock.current_price
+    problem = exit_math.check_levels(stop_price, target_price, market_price)
+    if problem:
+        raise InvalidOrderError(problem)
     fill = cost_math.fill_price(market_price, "BUY", costs)
     value = fill * quantity
     fees = cost_math.charges(value, costs)
@@ -66,6 +74,10 @@ def execute_buy(
         total_cost = position.quantity * position.average_price + cost
         position.quantity += quantity
         position.average_price = total_cost / position.quantity
+    if stop_price is not None:
+        position.stop_price = stop_price
+    if target_price is not None:
+        position.target_price = target_price
 
     portfolio.virtual_cash -= cost
 
@@ -88,8 +100,15 @@ def execute_buy(
 
 
 def execute_sell(
-    db: Session, symbol: str, quantity: int, reason: str = "Manual trade", strategy_id: int | None = None
+    db: Session,
+    symbol: str,
+    quantity: int,
+    reason: str = "Manual trade",
+    strategy_id: int | None = None,
+    market_price: float | None = None,
 ) -> Trade:
+    """`market_price` sells at that quote instead of the stock's current price: a stop-loss or
+    take-profit that triggered earlier in the day sells at its own level, not at the close."""
     if quantity <= 0:
         raise InvalidQuantityError("Quantity must be a positive integer")
 
@@ -104,7 +123,8 @@ def execute_sell(
         )
 
     costs = cost_service.config(db)
-    market_price = stock.current_price
+    if market_price is None:
+        market_price = stock.current_price
     fill = cost_math.fill_price(market_price, "SELL", costs)
     proceeds = fill * quantity
     fees = cost_math.charges(proceeds, costs)

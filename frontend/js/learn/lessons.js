@@ -835,7 +835,27 @@ export const MODULES = [
         p: "A **stop-loss** is a predefined exit: if the price falls a set percentage below your entry, you sell and accept the loss rather than hoping. In this lab, with risk management on, an auto-trade strategy's position is closed on the first day its closing price falls to or below the stop. It is a promise to yourself, enforced by the program, which is exactly why algorithms are good at it: they don't hesitate.",
       },
       {
-        note: "A stop-loss limits losses but does not guarantee them. In this lab it checks closing prices, and in real markets a stock can gap down overnight and open far below your stop, so you can exit at a worse price than planned.",
+        note: "A stop-loss limits losses but does not guarantee them. A stock can gap down overnight and open far below your stop, so you can exit at a worse price than planned. (An auto-trade strategy's stop looks at closing prices; the stops you set on an order, below, look at each day's low.)",
+      },
+
+      { h: "Stop-loss and take-profit on an order" },
+      {
+        p: "You can attach exits to a trade when you place it. On the order ticket, tick **Stop-loss** to sell if the price falls to a level, and **Take-profit** to sell if it rises to one. Enter each as a percentage from today's price or as an exact price. The ticket shows what each would mean in rupees and the **reward-to-risk ratio**: how much you stand to make for each rupee you stand to lose.",
+      },
+      {
+        p: "The levels belong to the whole position, and you can change them later with the **Exits** button in the Positions tab. When the market advances, each day is checked against that day's **low** (did it reach the stop?) and **high** (did it reach the target?). Two things a real exchange sorts out on its own are decided like this in the lab:",
+      },
+      {
+        list: [
+          "**Gaps.** If the stock *opens* beyond your level, it never traded at your level, so you are sold at the **open**. A stop that gaps costs more than planned; a target that gaps pays more.",
+          "**Both in one day.** A daily candle does not say whether the low or the high came first, so when a day reaches both, the lab assumes the **stop** did. It is the cautious choice: assuming the target came first would flatter every result.",
+        ],
+      },
+      {
+        example: {
+          title: "Buy at ₹100, stop ₹95, target ₹110",
+          text: "You risk ₹5 a share to make ₹10, a reward-to-risk of 2. That means you only need to be right one time in three to break even before costs: two trades that lose ₹5 each and one that makes ₹10 net to exactly zero. If bad news makes the next day open at ₹88, the stop sells at ₹88 and the loss is ₹12 a share, not ₹5.",
+        },
       },
 
       { h: "Limits that spread the risk" },
@@ -913,6 +933,17 @@ export const MODULES = [
         ],
         answer: 2,
         why: "You risk ₹2,000 (2% of ₹1,00,000). Each share risks ₹5 (5% of ₹100). ₹2,000 ÷ ₹5 = 400 shares, which is ₹40,000, so an allocation cap might then shrink it.",
+      },
+      {
+        q: "You hold a stock that closed at ₹100, with a stop-loss at ₹95. Bad news overnight makes it open at ₹88. Where does the lab sell it?",
+        options: [
+          "At ₹95, the stop price.",
+          "At ₹88, the open, because the price never traded at ₹95.",
+          "At ₹100, the last close.",
+          "It waits for the close before selling.",
+        ],
+        answer: 1,
+        why: "A stop only sells if the price reaches it. When a stock opens beyond the level, that price was never available, so the order fills at the open. This gap risk is why a stop limits losses without guaranteeing them.",
       },
       {
         q: "What is the purpose of a stop-loss?",

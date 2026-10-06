@@ -409,6 +409,28 @@ Things worth knowing:
 - Databases from before the clock existed pick one up on the next startup, without losing
   anything.
 
+### Stop-loss and take-profit on an order
+
+On the Trade page's order ticket, a BUY can carry a **stop-loss** (sell if the price falls to a level) and a
+**take-profit** (sell if it rises to one). Each is a percentage from today's price or an exact price, and the ticket
+previews what they would mean in rupees and the reward-to-risk ratio. They belong to the whole position, not to one order:
+adding shares without new levels keeps the old ones, new levels replace them, a partial sale keeps them, and selling
+everything clears them. The **Exits** button on a position (Positions tab) changes or clears them later
+(`PUT /api/positions/{symbol}/exits`), and the ticket takes them as `stop_loss_price` / `take_profit_price` on
+`POST /api/orders/buy`. A stop must be below the current price and a target above it, or it would fire at once.
+
+They are checked as the market advances, **one day at a time** (so "+5 days" can exit on day 3), against each day's candle:
+- A stop triggers if the day's **low** reaches it, a target if the **high** does, and the position is sold at that level.
+- **Gaps:** if the stock *opens* beyond the level it never traded there, so it sells at the **open** (worse than a stop, better
+  than a target), and the trade's reason says so.
+- **Both in one day:** a daily candle can't say which came first, so the **stop wins**, the cautious choice.
+- The exit goes through the ordinary sell path, so slippage and charges apply, and the trade shows as `Manual · stop-loss` or
+  `Manual · take-profit`. Days a stock has no candle are skipped, and at the end of real data (the clock can't move) nothing is
+  re-checked, so a level set after the fact can't fire on a day that has already happened.
+
+This is separate from the Risk management stop-loss, which sizes auto-trade positions and exits them on the *closing* price.
+Backtests don't use order-level stops or targets yet. The rules are in `engine/exit_math.py` (pure) and `services/exit_service.py`.
+
 ### Trading costs: slippage, brokerage and taxes
 
 Trade → **Trading costs** tab (off by default). With it on, every paper trade, auto-trade and
@@ -479,11 +501,13 @@ backend/
                     cost_service.py (saved slippage/brokerage/tax settings),
                     analytics_service.py (trade stats, drawdown, Sharpe, monthly returns),
                     real_stocks.py (imports a real symbol's history into Stock/PriceData),
-                    data_quality_service.py (runs the data checks over stored candles)
+                    data_quality_service.py (runs the data checks over stored candles),
+                    exit_service.py (stop-loss / take-profit levels on positions, checked as the market advances)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
                     risk_math.py + cost_math.py (formulas shared by live trading and backtests),
-                    data_quality.py (checks a stock's candles for impossible prices, splits, gaps)
+                    data_quality.py (checks a stock's candles for impossible prices, splits, gaps),
+                    exit_math.py (when a day's candle triggers a position's stop-loss or take-profit)
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
   tests/
