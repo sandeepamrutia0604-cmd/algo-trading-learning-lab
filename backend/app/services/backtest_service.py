@@ -36,6 +36,15 @@ def _validated_rules(rules: dict | None) -> dict:
     return rules
 
 
+def resolve_definition(type_key: str, params: dict | None, rules: dict | None = None) -> tuple[StrategyDef, dict]:
+    """The strategy definition and its cleaned-up parameters for a request naming a built-in type
+    (with its parameters) or a custom rule set. Shared by backtests and the scanner."""
+    if type_key == CUSTOM_TYPE:
+        return rule_engine.build_definition(_validated_rules(rules)), {}
+    defn = _definition(type_key)
+    return defn, _normalize(defn, params)
+
+
 def window(candles: list, start_date: date | None, end_date: date | None) -> tuple[list[date], list[float], int]:
     """Cut `candles` to the traded period: (dates, closes, start_index). Candles after `end_date`
     are dropped; candles before `start_date` stay (the indicators warm up on them) and
@@ -106,13 +115,7 @@ def run(
     if initial_capital <= 0:
         raise InvalidStrategyError("Initial capital must be greater than zero")
 
-    if type_key == CUSTOM_TYPE:
-        clean_rules = _validated_rules(rules)
-        defn = rule_engine.build_definition(clean_rules)
-        clean = {}
-    else:
-        defn = _definition(type_key)
-        clean = _normalize(defn, params)
+    defn, clean = resolve_definition(type_key, params, rules)
     candles = get_market_data_adapter(db, full_history=True).get_historical_candles(symbol)
     if len(candles) < 2:
         raise InvalidStrategyError("Not enough price history to run a backtest")

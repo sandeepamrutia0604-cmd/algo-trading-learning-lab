@@ -409,6 +409,21 @@ Things worth knowing:
 - Databases from before the clock existed pick one up on the next startup, without losing
   anything.
 
+### Scanner: which stocks are signalling today?
+
+The **Scanner** page runs one strategy across every stock and answers the morning question "what is signalling right now?".
+Pick one of your saved strategies (it brings its own settings, custom rules included) or any built-in type with settings you
+can change, and it lists each stock with its price and day change, the **signal today** (BUY or SELL, with the reason as the
+strategy words it), the **last signal** and how many trading days ago it was, whether the strategy would be **in a trade** now
+(its last signal was a BUY), and how many shares you hold. Stocks with a BUY today come first, then SELLs, then the rest by how
+recently they signalled, then stocks with no signal at all. **Only stocks signalling today** narrows the list; **Open** jumps to
+that stock on the Trade page.
+
+It only uses candles up to the market clock, exactly as the chart and auto-trading do, so it never peeks at the future, and
+it scans again whenever the market date moves (+1 day, Play) or your strategies change. It reads and computes only: nothing is
+bought or sold, nothing is stored, and a scan is not announced to your other tabs as a change. The logic is `engine/scanner.py`
+(pure); the endpoint is `POST /api/scanner/run` (`{type, params, rules}`, the same way a backtest names its strategy).
+
 ### Stop-loss and take-profit on an order
 
 On the Trade page's order ticket, a BUY can carry a **stop-loss** (sell if the price falls to a level) and a
@@ -510,12 +525,14 @@ backend/
                     analytics_service.py (trade stats, drawdown, Sharpe, monthly returns),
                     real_stocks.py (imports a real symbol's history into Stock/PriceData),
                     data_quality_service.py (runs the data checks over stored candles),
-                    exit_service.py (stop-loss / take-profit levels on positions, checked as the market advances)
+                    exit_service.py (stop-loss / take-profit levels on positions, checked as the market advances),
+                    scanner_service.py (runs a strategy across every stock for the Scanner page)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
                     risk_math.py + cost_math.py (formulas shared by live trading and backtests),
                     data_quality.py (checks a stock's candles for impossible prices, splits, gaps),
-                    exit_math.py (when a day's candle triggers a position's stop-loss or take-profit)
+                    exit_math.py (when a day's candle triggers a position's stop-loss or take-profit),
+                    scanner.py (what a strategy says about a stock as of its latest candle)
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
   tests/

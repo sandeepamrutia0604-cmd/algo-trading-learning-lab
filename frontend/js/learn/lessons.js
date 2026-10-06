@@ -550,6 +550,14 @@ export const MODULES = [
         note: "A strategy that looks good when you scroll through a chart is not proven. It might just match the stretch of history you happened to look at. The next module, backtesting, is how you test it properly, and the one after that is how you protect yourself when it is wrong.",
       },
 
+      { h: "Scanning many stocks at once" },
+      {
+        p: "A strategy on a chart tells you about one stock, but you follow many. The useful question each day is *which of them is signalling right now?* The **Scanner** page runs a strategy across every stock you have and lists today's BUYs and SELLs first, then the rest by how recently they signalled. A stock marked *In a trade* is one where the strategy's last signal was a BUY, so it would be holding it now.",
+      },
+      {
+        note: "The scanner only uses what has happened by the market date, never later candles, so it shows what you could really have known that day. A signal is a reason to look closer at the chart, the risk and the costs, not an order to place.",
+      },
+
       { h: "Key terms" },
       {
         terms: [
@@ -567,6 +575,14 @@ export const MODULES = [
           hint: "Practical experiment: choose MA Crossover, keep the default 20 and 50 and press Create strategy, then press Run on history on its card. Look at where the BUY and SELL signals fall in the Signals table. Which ones came too late? Which were whipsaws?",
           route: "strategies",
           symbol: "RELIANCE",
+        },
+      },
+      {
+        tryit: {
+          label: "Open the Scanner",
+          hint: "Practical experiment: pick MA Crossover, then press +1 day in the top bar a few times. Watch stocks move between Out and In a trade, and see which ones get a BUY or SELL on the day. Then switch to Breakout and compare: do the two strategies agree?",
+          route: "scanner",
+          symbol: "",
         },
       },
     ],

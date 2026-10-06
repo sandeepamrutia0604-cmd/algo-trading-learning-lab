@@ -9,7 +9,7 @@ import { MODULES, isReady } from "./lessons.js";
 import { completedCount, isDone, loadProgress, nextModule, recordResult, saveProgress } from "./progress.js";
 
 const KNOWN_BLOCKS = ["h", "p", "list", "note", "example", "terms", "tryit"];
-const APP_ROUTES = ["home", "trade", "strategies", "backtests", "optimise", "performance", "journal"];
+const APP_ROUTES = ["home", "trade", "strategies", "scanner", "backtests", "optimise", "performance", "journal"];
 const nonEmpty = (value) => typeof value === "string" && value.trim().length > 0;
 
 function checkBlock(block, where) {

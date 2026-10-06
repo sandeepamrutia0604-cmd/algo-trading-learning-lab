@@ -49,6 +49,7 @@ def test_only_successful_writes_under_api_count_as_changes():
     assert not is_change("POST", "/api/orders/buy", 400)  # a refused order changed nothing
     assert not is_change("POST", "/api/orders/buy", 422)
     assert not is_change("POST", "/api/backtests/run", 200)  # computes, stores nothing
+    assert not is_change("POST", "/api/scanner/run", 200)  # a scan reads, stores nothing
     assert not is_change("POST", "/somewhere/else", 200)
 
 

@@ -421,6 +421,45 @@ class BacktestRequest(BaseModel):
         return self
 
 
+class ScanRequest(BaseModel):
+    """The strategy to scan with, named like a backtest names it: a built-in type and its parameters, or custom rules."""
+
+    type: str = "ma_crossover"
+    params: dict[str, float] = {}
+    rules: dict | None = None
+
+
+class ScanSignalOut(BaseModel):
+    side: Literal["BUY", "SELL"]
+    date: dt.date
+    days_ago: int  # trading days before the latest candle; 0 is today
+    headline: str
+    checks: list[str]
+
+
+class ScanRowOut(BaseModel):
+    symbol: str
+    name: str
+    source: str
+    candles: int
+    price: float
+    change_pct: float | None = None
+    held: int  # shares of it you own
+    state: Literal["in", "out", "none"]  # would the strategy be in a trade now: its last signal was a BUY / a SELL / none yet
+    signal_today: ScanSignalOut | None = None
+    last_signal: ScanSignalOut | None = None
+
+
+class ScanOut(BaseModel):
+    market_date: dt.date | None = None
+    strategy: str
+    scanned: int
+    buy_today: int
+    sell_today: int
+    in_trade: int
+    rows: list[ScanRowOut]
+
+
 class BacktestTradeOut(BaseModel):
     entry_date: dt.date
     entry_price: float
