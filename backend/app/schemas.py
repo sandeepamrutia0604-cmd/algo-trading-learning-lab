@@ -34,6 +34,31 @@ class StockImportRequest(BaseModel):
     replace: bool = False
 
 
+class DataQualitySummaryOut(BaseModel):
+    symbol: str
+    name: str
+    source: str
+    candles: int
+    first_date: dt.date | None = None
+    last_date: dt.date | None = None
+    status: Literal["clean", "check", "problems"]
+    errors: int
+    warnings: int
+    infos: int
+
+
+class DataQualityIssueOut(BaseModel):
+    kind: str
+    severity: Literal["error", "warning", "info"]
+    message: str
+    date: dt.date | None = None
+    value: float | None = None
+
+
+class DataQualityReportOut(DataQualitySummaryOut):
+    issues: list[DataQualityIssueOut]
+
+
 class StockImportOut(BaseModel):
     symbol: str
     name: str
@@ -44,6 +69,7 @@ class StockImportOut(BaseModel):
     last_date: dt.date
     current_price: float
     market_date: dt.date | None = None
+    data_quality: DataQualitySummaryOut | None = None
 
 
 class DataSourceOut(BaseModel):
@@ -70,6 +96,7 @@ class BrokerImportItem(BaseModel):
     last_date: dt.date | None = None
     current_price: float | None = None
     error: str | None = None
+    data_quality: DataQualitySummaryOut | None = None
 
 
 class BrokerImportOut(BaseModel):

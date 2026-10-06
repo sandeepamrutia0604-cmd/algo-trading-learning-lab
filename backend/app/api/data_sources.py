@@ -49,6 +49,7 @@ def import_from_data_source(body: BrokerImportRequest, db: Session = Depends(get
             last_date=o.last_date,
             current_price=o.current_price,
             error=o.error,
+            data_quality=o.data_quality,
         )
         for o in outcomes
     ]

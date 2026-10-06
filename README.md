@@ -367,6 +367,26 @@ stocks (ALPHA/BETA/GAMMA/DELTA) are refused. Imported stocks get `source="csv"`,
 simulator never touches them, and they work in charts, trading, strategies and backtests
 exactly like the Angel One ones. Like those, the data is a snapshot: re-import to bring it up to date.
 
+### Checking your data: Trade, then Data quality
+
+Every backtest is only as good as the prices under it, and bad prices rarely look bad. The **Data
+quality** tab scans each stock's whole stored history (including days the market clock hasn't
+reached, since backtests use them) and lists anything suspicious, most serious first:
+
+- **Problems (errors):** impossible candles (a high below the low, or below the open or close) and zero or negative prices.
+- **Worth a look (warnings):** a one-day move of 20% or more; a drop or jump that matches a **stock split or bonus
+  issue** (1-for-2, 1-for-5, 3:2 bonus and so on, or a reverse split), the classic sign of two data sources joined with
+  only one of them adjusted; six or more missing weekdays in a row (longer than any holiday stretch);
+  three or more days where open, high, low and close are identical; a day whose high is 25% above its low; and a history under 60 days.
+- **Notes:** a gap of 3 to 5 missing weekdays (often a holiday), a candle on a weekend (the exchange does hold special
+  Saturday and Sunday sessions), scattered zero-volume days, a file with no volume at all, and a history under a year.
+
+A stock shows **Looks clean** (no errors or warnings), **Worth a look** or **Problems**. The checks only report: they never
+change your data, and most flags are questions rather than verdicts, since real news can look like a data error. Importing a
+stock, from a file or a broker, now ends with a one-line data check, with a pointer to this tab when something was flagged.
+The rules live in `engine/data_quality.py` (pure, with every threshold at the top) and run through
+`GET /api/data-quality` (a summary per stock) and `GET /api/data-quality/{symbol}` (every issue).
+
 ### How imported stocks replay (the market clock)
 
 The app keeps one **market clock** (`Portfolio.market_date`), the simulated "today", and every
@@ -458,10 +478,12 @@ backend/
                     risk_service.py (position sizing, stop-loss, exposure caps),
                     cost_service.py (saved slippage/brokerage/tax settings),
                     analytics_service.py (trade stats, drawdown, Sharpe, monthly returns),
-                    real_stocks.py (imports a real symbol's history into Stock/PriceData)
+                    real_stocks.py (imports a real symbol's history into Stock/PriceData),
+                    data_quality_service.py (runs the data checks over stored candles)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
-                    risk_math.py + cost_math.py (formulas shared by live trading and backtests)
+                    risk_math.py + cost_math.py (formulas shared by live trading and backtests),
+                    data_quality.py (checks a stock's candles for impossible prices, splits, gaps)
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases
   tests/

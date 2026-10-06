@@ -16,6 +16,7 @@ def test_import_creates_a_stock_that_the_rest_of_the_api_serves(client):
 
     assert response.status_code == 200
     summary = response.json()
+    quality = summary.pop("data_quality")
     assert summary == {
         "symbol": "NEWCO",
         "name": "New Co",
@@ -27,6 +28,8 @@ def test_import_creates_a_stock_that_the_rest_of_the_api_serves(client):
         "current_price": 1015.0,
         "market_date": "2025-01-03",
     }
+    # three days of history is flagged as too short to learn from
+    assert (quality["symbol"], quality["candles"], quality["status"], quality["warnings"]) == ("NEWCO", 3, "check", 1)
     assert "NEWCO" in [s["symbol"] for s in client.get("/api/stocks").json()]
     prices = client.get("/api/stocks/NEWCO/prices").json()
     assert [p["close"] for p in prices] == [1000.0, 1010.0, 1015.0]

@@ -274,3 +274,13 @@ def test_api_validates_the_request(client, fake_open, body):
 
 def test_api_with_only_blank_symbols_is_a_400(client, fake_open):
     assert client.post("/api/data-sources/import", json={"source": "upstox", "symbols": ["  ", ""]}).status_code == 400
+
+
+def test_api_import_includes_a_data_check_for_each_imported_stock(client, fake_open):
+    result = client.post("/api/data-sources/import", json={"source": "upstox", "symbols": ["WIPRO", "NOSUCHCO"]}).json()
+
+    imported, failed = result["results"]
+    # five days of history is too short to learn much from, which the check says
+    assert (imported["data_quality"]["symbol"], imported["data_quality"]["candles"]) == ("WIPRO", 5)
+    assert (imported["data_quality"]["status"], imported["data_quality"]["warnings"]) == ("check", 1)
+    assert failed["data_quality"] is None

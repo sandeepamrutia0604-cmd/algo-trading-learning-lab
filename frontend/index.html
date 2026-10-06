@@ -145,6 +145,7 @@
                 <button data-tab="risk">Risk management</button>
                 <button data-tab="costs">Trading costs</button>
                 <button data-tab="import">Import data</button>
+                <button data-tab="quality">Data quality</button>
               </div>
 
               <div id="tab-positions" class="tabpane">
@@ -304,6 +305,19 @@
                     Your broker credentials stay in your local .env file and are never typed into this page.</p>
                   <div id="im-broker-results" class="import-results"></div>
                 </div>
+              </div>
+
+              <div id="tab-quality" class="tabpane" hidden>
+                <div class="controls">
+                  <button id="dq-scan" class="btn btn-primary">Check all stocks</button>
+                </div>
+                <p class="hint">Every backtest is only as good as the prices under it, and bad prices rarely look bad. This looks for the usual
+                  trouble: impossible candles, a huge one-day jump (often a <b>stock split or bonus issue</b> that one data source adjusted for
+                  and another didn't), missing days, stretches where the price never moved, and histories too short to learn much from.
+                  It only reports; it never changes your data. Most flags are questions, not verdicts -- real news can look the same, so check
+                  the date against the chart before deciding.</p>
+                <div id="dq-list"></div>
+                <div id="dq-detail" class="dq-detail"></div>
               </div>
             </div>
           </div>

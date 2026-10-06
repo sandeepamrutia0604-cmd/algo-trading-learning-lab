@@ -1,6 +1,7 @@
 import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline, toast } from "../util.js";
 import { hooks, positionBySymbol, stockBySymbol, store } from "../store.js";
 import { SMA_COLORS, drawPriceChart, loadChartData, smaOverlays } from "../chart.js";
+import { initDataQuality, qualityLine, renderDataQuality } from "./dataquality.js";
 
 const MODEL_INFO = {
   random_walk: "Random walk: each day's move is random noise around the Trend. Yesterday tells you nothing about tomorrow.",
@@ -140,7 +141,8 @@ async function placeOrder(side, symbol, quantity) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market", "practice", "risk", "costs", "import"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "market", "practice", "risk", "costs", "import", "quality"]) $(`tab-${pane}`).hidden = pane !== name;
+  if (name === "quality") renderDataQuality();
 }
 
 function renderPositions() {
@@ -518,11 +520,17 @@ function switchImportSource() {
   }
 }
 
+/* A short note after an import: nothing when the data looks clean, a nudge to the Data quality tab when not. */
+function qualityNote(summary) {
+  if (!summary || summary.status === "clean") return "";
+  return ` <span class="${summary.status === "problems" ? "down" : "dq-warn"}">&middot; ${escapeHtml(qualityLine(summary))}</span>`;
+}
+
 function renderBrokerResults(result) {
   const rows = result.results
     .map((r) =>
       r.ok
-        ? `<div class="ok"><b>&#10003; ${escapeHtml(r.symbol)}</b> ${r.name && r.name !== r.symbol ? escapeHtml(r.name) : ""} <span class="muted">&middot; ${r.candles_stored.toLocaleString("en-IN")} candles (${r.first_date} to ${r.last_date}) &middot; price ${money(r.current_price)}</span></div>`
+        ? `<div class="ok"><b>&#10003; ${escapeHtml(r.symbol)}</b> ${r.name && r.name !== r.symbol ? escapeHtml(r.name) : ""} <span class="muted">&middot; ${r.candles_stored.toLocaleString("en-IN")} candles (${r.first_date} to ${r.last_date}) &middot; price ${money(r.current_price)}</span>${qualityNote(r.data_quality)}</div>`
         : `<div class="bad"><b>&#10007; ${escapeHtml(r.symbol)}</b> ${escapeHtml(r.error)}</div>`,
     )
     .join("");
@@ -597,7 +605,7 @@ async function importData() {
     const body = { symbol, name: $("im-name").value.trim() || null, csv_text: await file.text(), replace };
     const r = await api("/stocks/import", { method: "POST", body: JSON.stringify(body) });
     const summary = `${r.symbol}: read ${r.candles_read} candles (${r.first_date} to ${r.last_date}); ${r.candles_stored} stored. Market date ${r.market_date}, price ${money(r.current_price)} -- later candles are revealed as the market advances.`;
-    $("im-result").textContent = summary;
+    $("im-result").textContent = r.data_quality && r.data_quality.status !== "clean" ? `${summary} ${qualityLine(r.data_quality)}` : summary;
     toast(r.created ? `Added ${r.symbol}` : `Updated ${r.symbol}`);
     $("im-file").value = "";
     store.symbol = r.symbol;
@@ -709,6 +717,7 @@ export function initTrade() {
   });
   $("ps-model-desc").textContent = MODEL_INFO[$("ps-model").value];
 
+  initDataQuality();
   $("im-source").addEventListener("change", switchImportSource);
   $("im-broker-apply").addEventListener("click", importFromBroker);
   $("im-apply").addEventListener("click", importData);

@@ -4,8 +4,15 @@ from sqlalchemy.orm import Session
 from ..adapters.csv_candles import parse_candles
 from ..db import get_db
 from ..models import PriceData, Stock
-from ..schemas import PracticeStockRequest, StockImportOut, StockImportRequest, StockOut
-from ..services import market_service, practice_stocks
+from ..schemas import (
+    DataQualityReportOut,
+    DataQualitySummaryOut,
+    PracticeStockRequest,
+    StockImportOut,
+    StockImportRequest,
+    StockOut,
+)
+from ..services import data_quality_service, market_service, practice_stocks
 from ..services.real_stocks import import_candles
 
 router = APIRouter()
@@ -28,6 +35,17 @@ def _stock_out(db: Session, stock: Stock) -> StockOut:
 @router.get("/stocks", response_model=list[StockOut])
 def list_stocks(db: Session = Depends(get_db)):
     return [_stock_out(db, stock) for stock in db.query(Stock).order_by(Stock.symbol).all()]
+
+
+@router.get("/data-quality", response_model=list[DataQualitySummaryOut])
+def data_quality_summaries(db: Session = Depends(get_db)):
+    """How trustworthy each stock's stored price history looks (see engine/data_quality.py)."""
+    return data_quality_service.summaries(db)
+
+
+@router.get("/data-quality/{symbol}", response_model=DataQualityReportOut)
+def data_quality_report(symbol: str, db: Session = Depends(get_db)):
+    return data_quality_service.report(db, symbol)
 
 
 @router.post("/stocks/practice", response_model=StockOut)
@@ -66,4 +84,5 @@ def import_stock(body: StockImportRequest, db: Session = Depends(get_db)):
         last_date=candles[-1].date,
         current_price=stock.current_price,
         market_date=market_service.latest_market_date(db),
+        data_quality=data_quality_service.summary(db, stock),
     )

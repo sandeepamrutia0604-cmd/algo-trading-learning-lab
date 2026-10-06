@@ -20,6 +20,7 @@ from ..adapters.base import MarketDataAdapter
 from ..adapters.upstox import MAX_DAYS_PER_REQUEST, UpstoxError, UpstoxMarketDataAdapter
 from ..config import Settings
 from ..models import PriceData, Stock
+from . import data_quality_service
 from .exceptions import StockNotFoundError
 from .real_stocks import REAL_STOCKS, import_real_stock
 
@@ -105,6 +106,7 @@ class ImportOutcome:
     last_date: date | None = None
     current_price: float | None = None
     error: str | None = None
+    data_quality: dict | None = None
 
 
 def import_symbols(
@@ -141,6 +143,15 @@ def import_symbols(
             .one()
         )
         outcomes.append(
-            ImportOutcome(stock.symbol, True, stock.name, count, first.date(), last.date(), stock.current_price)
+            ImportOutcome(
+                stock.symbol,
+                True,
+                stock.name,
+                count,
+                first.date(),
+                last.date(),
+                stock.current_price,
+                data_quality=data_quality_service.summary(db, stock),
+            )
         )
     return outcomes
