@@ -1,5 +1,6 @@
 import { api, money } from "./util.js";
 import { themeColors } from "./theme.js";
+import { reachableLevelPrices } from "./levels.js";
 
 export const SMA_COLORS = { fast: "#4c8dff", slow: "#f5a524" };
 
@@ -30,22 +31,23 @@ export function smaOverlays(smas, indicators) {
   }));
 }
 
-function priceRange(rows, pad_frac = 0.08) {
-  const low = Math.min(...rows.map((p) => p.low));
-  const high = Math.max(...rows.map((p) => p.high));
+/** The price axis range for `rows`, with room for any `extra` prices (the lines of a position's levels). */
+function priceRange(rows, pad_frac = 0.08, extra = []) {
+  const low = Math.min(...rows.map((p) => p.low), ...extra);
+  const high = Math.max(...rows.map((p) => p.high), ...extra);
   const pad = (high - low) * pad_frac || high * 0.01 || 1;
   return [low - pad, high + pad];
 }
 
 /** Rescale the price/volume axes to fit whatever date window is currently zoomed in on,
  * so candles stay readable instead of flattening out over a long history. */
-function attachZoomAutoscale(el, prices) {
+function attachZoomAutoscale(el, prices, extra = []) {
   if (el.removeAllListeners) el.removeAllListeners("plotly_relayout");
   let busy = false;
   el.on("plotly_relayout", (ev) => {
     if (busy) return;
     if (ev["xaxis.autorange"]) {
-      const [low, high] = priceRange(prices);
+      const [low, high] = priceRange(prices, 0.08, extra);
       const maxVol = Math.max(...prices.map((p) => p.volume), 1);
       busy = true;
       Plotly.relayout(el, { "yaxis.range": [low, high], "yaxis2.range": [0, maxVol * 1.15] }).finally(() => (busy = false));
@@ -58,7 +60,7 @@ function attachZoomAutoscale(el, prices) {
     const to = String(x1).slice(0, 10);
     const visible = prices.filter((p) => p.date >= from && p.date <= to);
     if (!visible.length) return;
-    const [low, high] = priceRange(visible);
+    const [low, high] = priceRange(visible, 0.08, extra);
     const maxVol = Math.max(...visible.map((p) => p.volume), 1);
     busy = true;
     Plotly.relayout(el, { "yaxis.range": [low, high], "yaxis2.range": [0, maxVol * 1.15] }).finally(() => (busy = false));
@@ -135,10 +137,44 @@ function signalTrace(side, list, c) {
 }
 
 /**
+ * Horizontal lines for a position's entry, stop-loss and take-profit (see levels.js), with the
+ * space between the entry and each exit tinted: red for what you stand to lose, green for what you
+ * stand to make. A `preview` level (from an order not yet placed) is drawn dotted.
+ * Each level is { kind: "entry"|"stop"|"target", price, label, preview }.
+ */
+function levelDecorations(levels, c) {
+  const colour = { entry: c.accent, stop: c.down, target: c.up };
+  const shapes = [];
+  const annotations = [];
+  const entry = levels.find((l) => l.kind === "entry");
+  for (const l of levels) {
+    if (entry && l.kind !== "entry") {
+      shapes.push({
+        type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: entry.price, y1: l.price,
+        fillcolor: colour[l.kind], opacity: l.preview ? 0.05 : 0.09, line: { width: 0 }, layer: "below",
+      });
+    }
+  }
+  for (const l of levels) {
+    shapes.push({
+      type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: l.price, y1: l.price,
+      line: { color: colour[l.kind], width: 1.4, dash: l.preview ? "dot" : "dash" },
+    });
+    annotations.push({
+      xref: "paper", x: 0.005, xanchor: "left", yref: "y", y: l.price, yanchor: l.kind === "stop" ? "top" : "bottom",
+      text: l.label, showarrow: false, align: "left", borderpad: 2,
+      font: { size: 11, color: colour[l.kind] }, bgcolor: c.panel, opacity: 0.92,
+    });
+  }
+  return { shapes, annotations };
+}
+
+/**
  * Candlesticks + volume, indicator overlays, your trades (triangles) and strategy signals (stars).
  * An overlay with panel "osc" is drawn in its own panel underneath (used for RSI).
+ * `levels` adds entry / stop-loss / take-profit lines (see levelDecorations).
  */
-export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [], signals = [] }) {
+export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [], signals = [], levels = [] }) {
   const c = themeColors();
   const dates = prices.map((p) => p.date);
   const first = dates[0];
@@ -218,7 +254,8 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
   // scroll-to-zoom (and attachZoomAutoscale below) take it from there.
   const visible = prices.length > DEFAULT_VISIBLE_DAYS ? prices.slice(-DEFAULT_VISIBLE_DAYS) : prices;
   const xRange = prices.length > DEFAULT_VISIBLE_DAYS ? [visible[0].date, last] : null;
-  const [priceLow, priceHigh] = priceRange(visible);
+  const levelPrices = reachableLevelPrices(levels, last_close(prices));
+  const [priceLow, priceHigh] = priceRange(visible, 0.08, levelPrices);
   const maxVol = Math.max(...visible.map((p) => p.volume), 1);
 
   const layout = {
@@ -244,14 +281,17 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
     yaxis: { domain: domains.price, side: "right", gridcolor: c.line, tickprefix: "₹", zeroline: false, range: [priceLow, priceHigh], fixedrange: true },
     yaxis2: { domain: domains.volume, side: "right", showgrid: false, showticklabels: false, zeroline: false, range: [0, maxVol * 1.15], fixedrange: true },
     hovermode: "x",
+    ...levelDecorations(levels.filter((l) => levelPrices.includes(l.price)), c),
   };
   if (hasOsc) {
     layout.yaxis3 = { domain: domains.osc, side: "right", gridcolor: c.line, zeroline: false, fixedrange: true, ...(oscRange ? { range: oscRange } : {}) };
   }
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true, scrollZoom: true });
-  attachZoomAutoscale(el, prices);
+  attachZoomAutoscale(el, prices, levelPrices);
   attachCrosshair(el);
 }
+
+const last_close = (prices) => (prices.length ? prices[prices.length - 1].close : 1);
 
 /** A value-over-time line against a reference line (flat starting capital or a buy-and-hold curve). */
 export function drawEquityChart(el, { dates, values, baseline, valueLabel = "Value", baselineLabel = "Baseline" }) {

@@ -30,6 +30,7 @@ export function themeColors() {
     text: get("--text"),
     muted: get("--muted"),
     line: get("--line"),
+    panel: get("--panel"),
     up: get("--up"),
     down: get("--down"),
     accent: get("--accent"),

@@ -2,6 +2,7 @@ import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline, toast }
 import { hooks, positionBySymbol, stockBySymbol, store } from "../store.js";
 import { SMA_COLORS, drawPriceChart, loadChartData, smaOverlays } from "../chart.js";
 import { initDataQuality, qualityLine, renderDataQuality } from "./dataquality.js";
+import { buildLevels } from "../levels.js";
 
 const MODEL_INFO = {
   random_walk: "Random walk: each day's move is random noise around the Trend. Yesterday tells you nothing about tomorrow.",
@@ -145,6 +146,7 @@ function renderTicket() {
   const warn = $("o-warn");
   warn.hidden = !t.warning || t.qty <= 0;
   warn.textContent = t.warning;
+  scheduleLevelsPaint(); // the chart previews the levels this order would set
 
   const submit = $("o-submit");
   submit.className = "btn big " + (t.buy ? "btn-buy" : "btn-sell");
@@ -190,6 +192,8 @@ async function placeOrder(side, symbol, quantity, exits = {}) {
     await api(`/orders/${side.toLowerCase()}`, { method: "POST", body: JSON.stringify(body) });
     const set = [exits.stop != null && `stop ${money(exits.stop)}`, exits.target != null && `target ${money(exits.target)}`].filter(Boolean);
     toast(`${side} ${quantity} ${symbol} executed${set.length ? ` · ${set.join(", ")}` : ""}`);
+    // The levels now belong to the position; leaving the boxes ticked would keep previewing them as a new order.
+    for (const kind of ["sl", "tp"]) $(`o-${kind}-on`).checked = false;
     await hooks.refresh();
   } catch (err) {
     toast(err.message, true);
@@ -747,6 +751,43 @@ function chartOptions() {
   return { smas, showTrades: $("ind-trades").checked, showSignals: $("ind-signals").checked };
 }
 
+/* The chart's data is kept so the entry / stop / target lines can be redrawn (as the order ticket
+   changes, or the toggle is flipped) without fetching every candle again. */
+let chartCache = null;
+let paintedLevels = "";
+let levelsTimer = null;
+
+function levelLabel(l) {
+  const name = { entry: l.preview ? "Buy near" : "Entry", stop: "Stop-loss", target: "Take-profit" }[l.kind];
+  const tail =
+    l.kind === "entry"
+      ? l.quantity ? ` · ${l.quantity} sh` : ""
+      : ` · ${signedPercent(l.awayPct)} from now${l.ifHit === null ? "" : ` · if hit ${signedMoney(l.ifHit)}`}`;
+  return `${name} ${money(l.price)}${tail}${l.preview ? " (this order)" : ""}`;
+}
+
+function chartLevels() {
+  const stock = stockBySymbol(store.symbol);
+  if (!stock || !$("ind-levels").checked) return [];
+  const order = store.side === "BUY" ? { ...exitLevels(stock.current_price), quantity: parseInt($("o-qty").value, 10) || 0 } : null;
+  return buildLevels({ price: stock.current_price, position: positionBySymbol(store.symbol), order }).map((l) => ({ ...l, label: levelLabel(l) }));
+}
+
+function paintChart() {
+  const c = chartCache;
+  if (!c || c.symbol !== store.symbol) return;
+  const levels = chartLevels();
+  paintedLevels = JSON.stringify(levels);
+  drawPriceChart($("chart"), { symbol: c.symbol, prices: c.prices, overlays: c.overlays, trades: c.showTrades ? store.trades : [], signals: c.signals, levels });
+}
+
+function scheduleLevelsPaint() {
+  clearTimeout(levelsTimer);
+  levelsTimer = setTimeout(() => {
+    if (JSON.stringify(chartLevels()) !== paintedLevels) paintChart();
+  }, 150);
+}
+
 async function renderChart() {
   const chartEl = $("chart");
   if (typeof Plotly === "undefined") {
@@ -771,7 +812,8 @@ async function renderChart() {
     $("c-ohlc").textContent = "No price history yet. Use Regenerate history in Market settings.";
   }
 
-  drawPriceChart(chartEl, { symbol, prices, overlays: smaOverlays(smas, indicators), trades: showTrades ? store.trades : [], signals });
+  chartCache = { symbol, prices, overlays: smaOverlays(smas, indicators), showTrades, signals };
+  paintChart();
 }
 
 /* ---------------- public API ---------------- */
@@ -825,6 +867,7 @@ export function initTrade() {
   });
 
   for (const id of ["ind-fast-on", "ind-fast", "ind-slow-on", "ind-slow", "ind-trades", "ind-signals"]) $(id).addEventListener("change", renderChart);
+  $("ind-levels").addEventListener("change", paintChart);
 
   $("t-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-tab]");

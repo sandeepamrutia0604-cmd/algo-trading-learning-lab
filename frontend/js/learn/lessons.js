@@ -843,7 +843,7 @@ export const MODULES = [
         p: "You can attach exits to a trade when you place it. On the order ticket, tick **Stop-loss** to sell if the price falls to a level, and **Take-profit** to sell if it rises to one. Enter each as a percentage from today's price or as an exact price. The ticket shows what each would mean in rupees and the **reward-to-risk ratio**: how much you stand to make for each rupee you stand to lose.",
       },
       {
-        p: "The levels belong to the whole position, and you can change them later with the **Exits** button in the Positions tab. When the market advances, each day is checked against that day's **low** (did it reach the stop?) and **high** (did it reach the target?). Two things a real exchange sorts out on its own are decided like this in the lab:",
+        p: "The levels belong to the whole position, and you can change them later with the **Exits** button in the Positions tab. The chart draws them as lines, with the zone between your entry and each exit tinted red (what you could lose) or green (what you could make), and while you are still filling in the ticket it previews where the lines would sit. When the market advances, each day is checked against that day's **low** (did it reach the stop?) and **high** (did it reach the target?). Two things a real exchange sorts out on its own are decided like this in the lab:",
       },
       {
         list: [

@@ -428,6 +428,14 @@ They are checked as the market advances, **one day at a time** (so "+5 days" can
   `Manual · take-profit`. Days a stock has no candle are skipped, and at the end of real data (the clock can't move) nothing is
   re-checked, so a level set after the fact can't fire on a day that has already happened.
 
+**On the chart:** the Trade chart draws a held position's **entry** (average price), **stop-loss** and **take-profit** as horizontal
+lines, with the zone between the entry and each exit tinted red (what you stand to lose) or green (what you stand to make). Each line
+is labelled with its price, how far it is from the current price, and what you would make or lose if the position closed there, before
+costs. While you set up a BUY on the ticket, the levels it *would* set are previewed as dotted lines, so you can see where a stop sits
+among the recent candles before placing it (a half-typed level, such as a stop above the price, is ignored). Untick **Entry, stop &
+target** in the chart toolbar to hide them. A level more than 25% from the price is not drawn, so a distant target doesn't flatten
+the candles. The line logic is `frontend/js/levels.js`, tested with `node --test frontend/js/levels.test.mjs`.
+
 This is separate from the Risk management stop-loss, which sizes auto-trade positions and exits them on the *closing* price.
 Backtests don't use order-level stops or targets yet. The rules are in `engine/exit_math.py` (pure) and `services/exit_service.py`.
 
@@ -472,7 +480,7 @@ pytest
 The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
 
 ```bash
-node --test frontend/js/learn/lessons.test.mjs
+node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs
 ```
 
 They check that every written lesson is well formed and that every quiz answer points at a real
