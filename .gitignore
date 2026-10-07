@@ -17,3 +17,7 @@ data/upstox_nse_instruments.json
 .DS_Store
 Thumbs.db
 *.lnk
+
+# Recorded demo videos (large; upload to YouTube instead)
+docs/demo/*.webm
+docs/demo/*.mp4

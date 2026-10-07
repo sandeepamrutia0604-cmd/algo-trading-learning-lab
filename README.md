@@ -5,6 +5,60 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
+## Tour
+
+**Watch the 4-minute video tour: https://youtu.be/XV_4WqOabwU**
+
+A practice lab for algorithmic trading, using paper money only. You pick or write a rule for when to buy and
+sell, test it on history, and the app works hard to show you whether the result was skill or luck, because most
+beginners' backtests are luck. Everything below is the real app, running on its built-in demo data (simulated
+stocks, so no broker account or market data licence is needed). To run it yourself:
+`python scripts/demo_setup.py`, then `scripts\start_demo.bat`. The guide to showing it, with a live-demo script and
+how the video and these screenshots are made, is [docs/DEMO.md](docs/DEMO.md).
+
+**Home**: a paper portfolio, a practice checklist, and a guided ten-part course.
+
+![Home](docs/images/01-home.png)
+
+**Scanner**: which stocks is a strategy signalling today? It only uses what has happened by the market date, so
+there is no peeking at the future.
+
+![Scanner](docs/images/04-scanner.png)
+
+**Trade**: a position's entry, stop-loss and take-profit are drawn on the chart, with the zones between them
+tinted red (what you could lose) and green (what you could make).
+
+![A position with its stop-loss and take-profit on the chart](docs/images/06-position-lines.png)
+
+**Order ticket**: set a stop-loss and a take-profit and the chart previews them before you buy, with the money at
+risk, the reward, and the reward-to-risk ratio. The market then moves one day at a time and each day's low and high
+are checked against your levels.
+
+![Previewing a stop-loss and take-profit on the order ticket](docs/images/07-order-ticket.png)
+
+**Data quality**: bad prices rarely look bad. This check found a half-price day that looks like an unadjusted
+stock split, and ten missing days, the kind of thing that quietly fools a backtest.
+
+![The data-quality check](docs/images/09-data-quality.png)
+
+**Backtests**: replay history with a strategy, with trading costs and optional next-day fills. The headline numbers
+are followed by Sharpe and Sortino ratios, the worst fall and how long it lasted, and a comparison with simply
+buying and holding.
+
+![A backtest](docs/images/11-backtest.png)
+
+![Risk, quality and comparison](docs/images/12-backtest-metrics.png)
+
+**Monte Carlo**: reshuffles the trades thousands of times to ask how much of the result was luck.
+
+![Monte Carlo analysis](docs/images/13-monte-carlo.png)
+
+**Optimise**: finds the best settings on a training period, then tests them on data they have never seen. The demo
+stock is a random walk, so there is nothing real to find, and the verdict says so: the training winner did not hold
+up. A big drop from training to test is what overfitting looks like.
+
+![The optimiser catching overfitting](docs/images/14-optimise.png)
+
 **Current phase:** Phase 12 - Paper Trading (in progress). First increment: `AngelOneMarketDataAdapter`
 is a real implementation — login (client code + PIN + TOTP), the historical candle API, the
 scrip-master symbol-to-token mapping, and an LTP quote endpoint, all against Angel One's real

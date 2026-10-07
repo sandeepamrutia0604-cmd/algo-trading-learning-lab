@@ -549,6 +549,10 @@ tr:last-child td { border-bottom: 0; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; }
 
 /* ---------- scanner ---------- */
+#page-scanner .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; margin: 12px 0 4px; }
+#page-scanner .controls .field { min-width: 120px; }
+#page-scanner .controls select { min-width: 280px; }
+#page-scanner .controls input[type="number"] { width: 110px; }
 .sc-params { display: contents; }
 .sc-summary { margin: 10px 0; font-size: 13.5px; line-height: 1.55; }
 .sc-table { width: 100%; }
