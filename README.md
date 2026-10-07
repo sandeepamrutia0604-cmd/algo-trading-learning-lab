@@ -59,14 +59,23 @@ up. A big drop from training to test is what overfitting looks like.
 
 ![The optimiser catching overfitting](docs/images/14-optimise.png)
 
-**Current phase:** Phase 12 - Paper Trading (in progress). First increment: `AngelOneMarketDataAdapter`
-is a real implementation — login (client code + PIN + TOTP), the historical candle API, the
-scrip-master symbol-to-token mapping, and an LTP quote endpoint, all against Angel One's real
-SmartAPI (see "Angel One market data" below for setup and how to import real NSE stocks into
-the app), plus a market clock that replays imported real stocks day by day and an optional
-slippage/brokerage/tax simulation (see "Trading costs" below). Still to come: live WebSocket
-ticks instead of the current REST-poll-based price lookups. No real-money order execution
-ever — see Security and Safety Principles.
+**Where it stands:** Phase 12 - Paper Trading is working end to end, and the lab has grown well past
+it. Everything runs on paper money against a market clock that replays history day by day (real
+NSE stocks you import, or the built-in simulated ones). Besides the Trade terminal, strategies and
+backtests, it now has:
+
+- ten Learn lessons with quizzes, and a **Scanner** showing which stocks a strategy is signalling today;
+- **stop-loss and take-profit** on orders, drawn on the chart, with gap-aware fills;
+- a **data-quality check** on stored prices (missing days, suspicious jumps such as unadjusted splits);
+- richer backtests: Sharpe/Sortino, drawdown, next-open fills, volatility stops, an **optimiser** with
+  walk-forward testing, **Monte Carlo** reshuffling, and saved results;
+- broker import (Angel One SmartAPI, Upstox, or a CSV file), trading costs (slippage, brokerage, taxes),
+  practice stocks you make yourself, and live updates across browser tabs.
+
+Not built: a live price feed (prices still come from the replay, not a streaming broker connection; this is on
+hold) and anything beyond paper trading. There is no real-money order execution, ever: see Security and Safety
+Principles. Corporate actions and market impact are slated for Phase 13 (see "What backtests still
+don't model").
 
 Screens (left navigation):
 - **Home** - portfolio hero with equity curve, practice checklist, watchlist, recent trades.
