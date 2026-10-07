@@ -87,11 +87,35 @@ uncovered. The video is 1280x720 (YouTube shows it at 1080p) with on-screen capt
 `scripts/demo/record.mjs` (the steps and captions), so changing the story means editing that file and recording again.
 
 **Narration.** With `--narrate` the video also has a spoken track, made from `scripts/demo/narration.mjs` (one line per
-caption) with the speech voices built into Windows, so it needs no install, no internet and no account. Each scene
-waits for its line to finish, which is why the narrated video is about a minute and a half longer than the silent
-one. The default voice is *Microsoft Zira*; add `--voice "Microsoft David Desktop"` for the other one, or `--rate 0`
-to speak a little faster (the default is `-1`; the range is -10 to 10). These are the older, plainly synthetic Windows
-voices, so listen before you upload. To change what is said, edit `narration.mjs` and record again.
+caption). Each scene waits for its line to finish, so the narrated video is longer than the silent one. To change
+what is said, edit `narration.mjs` and record again. There are two voices:
+
+- **Kokoro** (the default when it is set up): a free AI voice that runs on your computer, with no account and no
+  internet once installed. It sounds far more natural. Pick another voice with `--voice` (for example `am_michael`,
+  male, or `bf_emma`, British) and change the pace with `--speed 0.95`.
+- **The voices built into Windows** (used when Kokoro is not set up, or with `--engine windows`): needs no install, but
+  they are plainly synthetic. The default is *Microsoft Zira*; add `--voice "Microsoft David Desktop"` for the other
+  one, or `--rate 0` to speak a little faster (the default is `-1`; the range is -10 to 10).
+
+### Setting up Kokoro (once, about 350 MB)
+
+Kokoro lives in its own folder, `C:\Users\<you>\algo-kokoro` (override with the `KOKORO_HOME` environment variable),
+outside the project, so nothing is added to the app's own Python environment. In PowerShell:
+
+```powershell
+$d = "$HOME\algo-kokoro"
+New-Item -ItemType Directory -Force $d | Out-Null
+python -m venv "$d\venv"
+& "$d\venv\Scripts\python.exe" -m pip install kokoro-onnx soundfile
+curl.exe -L -o "$d\kokoro-v1.0.onnx" https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+curl.exe -L -o "$d\voices-v1.0.bin"  https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+```
+
+That is all: `record.mjs` finds `~/algo-kokoro/venv` by itself and uses it for `--narrate`. It prints the voice it used
+(`voice af_heart`). Making the 21 clips takes under a minute. Listen to the result before you upload.
+
+If the recorded `.webm` plays in Chrome but not in another player (it has no duration header), convert it to MP4
+with ffmpeg: `ffmpeg -i in.webm -c:v libx264 -c:a aac out.mp4`.
 
 ## 7. Putting the video on YouTube
 
