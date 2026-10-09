@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Algo Trading Learning Lab: learn algorithmic trading with paper money</title>
+  <meta name="description" content="A free practice lab for algorithmic trading. Write or pick a strategy, test it on history, and see whether the result was skill or luck. Paper money only, no account, no API keys." />
+  <meta property="og:title" content="Algo Trading Learning Lab" />
+  <meta property="og:description" content="Learn algorithmic trading with paper money: backtests, stop-losses, alerts, Monte Carlo and overfitting checks. Free Windows download." />
+  <meta property="og:image" content="https://sandeepamrutia0604-cmd.github.io/algo-trading-learning-lab/images/14-optimise.png" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6feb'/%3E%3Cpath d='M5 22l7-8 5 4 10-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #ffffff; --panel: #f4f6f9; --text: #1b2430; --muted: #566273; --line: #dde3ea;
+      --accent: #1f6feb; --accent-text: #ffffff; --warn-bg: #fff6e0; --warn-line: #f0d28a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f141b; --panel: #171e28; --text: #e6ebf2; --muted: #9aa7b8; --line: #28323f;
+        --accent: #4c8dff; --accent-text: #0b0f15; --warn-bg: #2a2412; --warn-line: #5b4d1e;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--accent); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+    header.top { border-bottom: 1px solid var(--line); }
+    header.top .wrap { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; padding-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+    .brand { font-weight: 700; font-size: 18px; text-decoration: none; color: var(--text); }
+    nav a { margin-left: 18px; font-size: 15px; text-decoration: none; color: var(--muted); }
+    nav a:hover { color: var(--text); }
+    .hero { padding: 56px 0 36px; text-align: center; }
+    .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 14px; }
+    .hero p.lead { font-size: 19px; color: var(--muted); max-width: 640px; margin: 0 auto 26px; }
+    .btn { display: inline-block; background: var(--accent); color: var(--accent-text); padding: 13px 26px; border-radius: 10px; font-weight: 600; text-decoration: none; font-size: 17px; }
+    .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-left: 8px; }
+    .fine { color: var(--muted); font-size: 14px; margin-top: 12px; }
+    section { padding: 36px 0; border-top: 1px solid var(--line); }
+    h2 { font-size: 28px; margin: 0 0 8px; line-height: 1.25; }
+    p.sub { color: var(--muted); margin: 0 0 22px; }
+    .video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+    .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 4px; font-size: 18px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); }
+    figcaption { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
+    .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+    ol.steps { padding-left: 22px; }
+    ol.steps li { margin-bottom: 10px; }
+    code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 14.5px; }
+    pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 14px; }
+    .note { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 10px; padding: 12px 16px; margin: 16px 0; font-size: 15.5px; }
+    details { border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; margin-bottom: 10px; background: var(--panel); }
+    summary { cursor: pointer; font-weight: 600; }
+    details p { color: var(--muted); margin: 8px 0 2px; font-size: 16px; }
+    footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--muted); font-size: 14.5px; }
+    @media (max-width: 560px) { nav a { margin-left: 12px; } .btn.ghost { margin: 10px 0 0; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="#">Algo Trading Learning Lab</a>
+      <nav>
+        <a href="#tour">Tour</a>
+        <a href="#learn">What you learn</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="hero">
+        <h1>Learn algorithmic trading with paper money</h1>
+        <p class="lead">Pick or write a rule for when to buy and sell, test it on history, and see whether the result was skill or luck. Because most beginners' backtests are luck.</p>
+        <a class="btn" href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab/releases/latest">Download for Windows</a>
+        <a class="btn ghost" href="#tour">Watch the tour</a>
+        <p class="fine">Free and open source. No account, no API keys, no real money. About 22 MB.</p>
+      </div>
+
+      <section id="tour">
+        <h2>A four-minute tour</h2>
+        <p class="sub">Everything in the video is the real app, running on its built-in simulated stocks.</p>
+        <div class="video">
+          <iframe src="https://www.youtube-nocookie.com/embed/XV_4WqOabwU" title="Algo Trading Learning Lab: four-minute tour" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      </section>
+
+      <section id="learn">
+        <h2>What you learn by using it</h2>
+        <p class="sub">The app explains each idea in plain language, then lets you try it.</p>
+        <div class="grid">
+          <div class="card"><h3>Ten short lessons</h3><p>From "What is a stock?" to going live, each with a quiz and a Try it button that opens the app ready for the experiment.</p></div>
+          <div class="card"><h3>Stop-loss and take-profit</h3><p>Set both on an order, see them drawn on the chart, and watch them fire as the market moves one day at a time.</p></div>
+          <div class="card"><h3>Price alerts</h3><p>Ask to be told when a stock goes above or below a price. Alerts only notify; they never trade.</p></div>
+          <div class="card"><h3>A scanner</h3><p>Which stocks is a strategy signalling today? It only uses what has happened by the market date, so there is no peeking at the future.</p></div>
+          <div class="card"><h3>Backtests with real metrics</h3><p>Trading costs, realistic next-day fills, Sharpe, Sortino, drawdown, and a buy-and-hold comparison.</p></div>
+          <div class="card"><h3>Is it luck or skill?</h3><p>Monte Carlo reshuffles the trades thousands of times. The optimiser and walk-forward test catch settings that only fit the past.</p></div>
+          <div class="card"><h3>Data quality</h3><p>Catches what quietly fools a backtest: a price that halves because of an unadjusted split, or missing days.</p></div>
+          <div class="card"><h3>Your own data</h3><p>Import a daily-price CSV you downloaded yourself, or create practice stocks with a behaviour you choose.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>A look inside</h2>
+        <p class="sub">Screenshots of the app running on simulated stocks.</p>
+        <div class="shots">
+          <figure><img loading="lazy" src="images/01-home.png" alt="The Home page with a paper portfolio and a practice checklist" /><figcaption>Home: a paper portfolio of ₹1,00,000, a practice checklist and the guided course.</figcaption></figure>
+          <figure><img loading="lazy" src="images/06-position-lines.png" alt="A candlestick chart with entry, stop-loss and take-profit lines" /><figcaption>Trade: entry, stop-loss and take-profit drawn on the chart, tinted red and green.</figcaption></figure>
+          <figure><img loading="lazy" src="images/04-scanner.png" alt="The Scanner page listing stocks with a buy signal" /><figcaption>Scanner: which stocks a strategy is signalling today.</figcaption></figure>
+          <figure><img loading="lazy" src="images/11-backtest.png" alt="Backtest results with an equity curve" /><figcaption>Backtests: the equity curve against buy-and-hold, and every simulated trade.</figcaption></figure>
+          <figure><img loading="lazy" src="images/13-monte-carlo.png" alt="A Monte Carlo spread of outcomes" /><figcaption>Monte Carlo: how much of a result could have been luck.</figcaption></figure>
+          <figure><img loading="lazy" src="images/14-optimise.png" alt="The optimiser showing the winning settings did not hold up" /><figcaption>Optimiser: a big drop from training to test is what overfitting looks like.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>Install on Windows</h2>
+        <p class="sub">There is no installer. You unzip a folder and double-click one file.</p>
+        <ol class="steps">
+          <li><a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab/releases/latest">Download the zip</a> from the latest release.</li>
+          <li>Right-click it and choose <b>Extract All</b>. Don't run it from inside the zip.</li>
+          <li>Open the new folder and double-click <code>AlgoTradingLab.exe</code>.</li>
+          <li>A black window opens and your browser opens the app. <b>Leave the black window open</b> while you use it. Close it to quit.</li>
+        </ol>
+        <div class="note">
+          <b>Windows may say "Windows protected your PC".</b> That is SmartScreen, which warns about any program that
+          is new or not signed with a paid code-signing certificate. This one is not signed. If you trust it, click <b>More info</b>,
+          then <b>Run anyway</b>. The whole source code is public on <a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab">GitHub</a>,
+          and the app only ever talks to your own computer.
+        </div>
+        <p>To check that your download is the one that was published, compare its fingerprint with the one on the release page:</p>
+        <pre>Get-FileHash .\AlgoTradingLab-1.0.0-windows.zip -Algorithm SHA256</pre>
+        <p><b>Where your data lives:</b> <code>C:\Users\&lt;you&gt;\AppData\Local\AlgoTradingLab</code>. Updating or deleting the app folder never touches your portfolio.
+          To remove the app completely, delete the unzipped folder, and that data folder if you want your portfolio gone too.</p>
+        <p class="fine">Windows only for now. Prefer to run it from the source? See the <a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab#readme">README</a> (needs Python).</p>
+      </section>
+
+      <section id="faq">
+        <h2>Questions</h2>
+        <details><summary>Does it use real money?</summary><p>No. Every trade is paper money. The app never places a real order and never connects to a broker.</p></details>
+        <details><summary>Do I need an account or an API key?</summary><p>No. The Windows download works with simulated stocks and with price files you import yourself. Nothing to sign up for, nothing to enter.</p></details>
+        <details><summary>Can I use real stock prices?</summary><p>Yes, with a file. Download daily price history (date, open, high, low, close, volume) as a CSV from a source whose terms let you use it this way, then open <b>Trade, Import data</b>. The stock replays day by day on the app's market clock.</p></details>
+        <details><summary>Is this investment advice?</summary><p>No. It is an educational tool. Simulated results, and even backtests on real history, say little about what a strategy will do next. Nothing here tells you to buy or sell anything.</p></details>
+        <details><summary>Is it connected to NSE, Upstox, Angel One or any other company?</summary><p>No. It is an independent learning project and is not affiliated with or endorsed by any exchange or broker.</p></details>
+        <details><summary>Does it send my data anywhere?</summary><p>No. It runs on your own computer, listens only on your own machine, and keeps its data in the folder above.</p></details>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Algo Trading Learning Lab is open source under the MIT licence. For learning only: paper money, not investment advice.
+      <a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab">Source code on GitHub</a>.
+    </div>
+  </footer>
+</body>
+</html>
