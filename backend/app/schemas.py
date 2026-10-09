@@ -574,6 +574,25 @@ class SavedBacktestOut(BaseModel):
     costs_applied: bool
 
 
+class AlertCreate(BaseModel):
+    symbol: str = Field(min_length=1, max_length=10)
+    kind: Literal["above", "below"]
+    level: float = Field(gt=0, le=10_000_000)
+    note: str | None = Field(default=None, max_length=120)
+
+
+class AlertOut(BaseModel):
+    id: int
+    symbol: str
+    kind: str
+    level: float
+    note: str | None
+    created_at: datetime
+    active: bool
+    triggered_date: dt.date | None
+    triggered_price: float | None
+
+
 class SavedBacktestDetailOut(SavedBacktestOut):
     request: BacktestRequest
     result: BacktestResultOut

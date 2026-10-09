@@ -140,15 +140,16 @@ function signalTrace(side, list, c) {
  * Horizontal lines for a position's entry, stop-loss and take-profit (see levels.js), with the
  * space between the entry and each exit tinted: red for what you stand to lose, green for what you
  * stand to make. A `preview` level (from an order not yet placed) is drawn dotted.
- * Each level is { kind: "entry"|"stop"|"target", price, label, preview }.
+ * Each level is { kind: "entry"|"stop"|"target"|"alert", price, label, preview }. An alert is a dotted
+ * line in the warning colour, with no tint.
  */
 function levelDecorations(levels, c) {
-  const colour = { entry: c.accent, stop: c.down, target: c.up };
+  const colour = { entry: c.accent, stop: c.down, target: c.up, alert: c.warn };
   const shapes = [];
   const annotations = [];
   const entry = levels.find((l) => l.kind === "entry");
   for (const l of levels) {
-    if (entry && l.kind !== "entry") {
+    if (entry && l.kind !== "entry" && l.kind !== "alert") {
       shapes.push({
         type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: entry.price, y1: l.price,
         fillcolor: colour[l.kind], opacity: l.preview ? 0.05 : 0.09, line: { width: 0 }, layer: "below",
@@ -158,7 +159,7 @@ function levelDecorations(levels, c) {
   for (const l of levels) {
     shapes.push({
       type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: l.price, y1: l.price,
-      line: { color: colour[l.kind], width: 1.4, dash: l.preview ? "dot" : "dash" },
+      line: { color: colour[l.kind], width: 1.4, dash: l.preview || l.kind === "alert" ? "dot" : "dash" },
     });
     annotations.push({
       xref: "paper", x: 0.005, xanchor: "left", yref: "y", y: l.price, yanchor: l.kind === "stop" ? "top" : "bottom",

@@ -159,6 +159,7 @@
               <div class="btabs" id="t-tabs">
                 <button data-tab="positions" class="on">Positions <em id="tab-pos-n">0</em></button>
                 <button data-tab="trades">Trades <em id="tab-trd-n">0</em></button>
+                <button data-tab="alerts">Alerts <em id="tab-alr-n">0</em></button>
                 <button data-tab="market">Market settings</button>
                 <button data-tab="practice">New practice stock</button>
                 <button data-tab="risk">Risk management</button>
@@ -185,6 +186,26 @@
                   <tbody></tbody>
                 </table>
                 <p id="trades-empty" class="empty" hidden>No trades yet.</p>
+              </div>
+
+              <div id="tab-alerts" class="tabpane" hidden>
+                <div class="controls">
+                  <div class="field">Stock <span class="static" id="al-symbol">-</span></div>
+                  <label class="field">Tell me when the price goes
+                    <select id="al-kind"><option value="above">above</option><option value="below">below</option></select>
+                  </label>
+                  <label class="field">Price &#8377; <input id="al-level" type="number" step="0.05" min="0" /></label>
+                  <label class="field">Note (optional) <input id="al-note" type="text" maxlength="120" placeholder="e.g. breakout?" /></label>
+                  <button id="al-add" class="btn btn-primary">Add alert</button>
+                </div>
+                <table id="alerts-table">
+                  <thead><tr><th>Symbol</th><th>Alert</th><th class="num">Price now</th><th>Status</th><th>Note</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <p id="alerts-empty" class="empty" hidden>No alerts yet. Pick a stock, choose above or below, and enter a price.</p>
+                <p class="hint">An alert only tells you; it never trades. It is checked as the market advances, against each day's low and high, and
+                  fires once. If a stock opens beyond the price it reports the open instead (a gap). A dotted line on the chart marks each active alert
+                  for the selected stock (switch it off with the Entry, stop &amp; target box). Press <b>Re-arm</b> to watch a fired alert again.</p>
               </div>
 
               <div id="tab-market" class="tabpane" hidden>

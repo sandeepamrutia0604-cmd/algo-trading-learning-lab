@@ -2,6 +2,7 @@ from .cost_settings import CostSettings
 from .market_config import MarketConfig
 from .portfolio import Portfolio
 from .position import Position
+from .price_alert import PriceAlert
 from .price_data import PriceData
 from .risk_settings import RiskSettings
 from .saved_backtest import SavedBacktest
@@ -22,4 +23,5 @@ __all__ = [
     "RiskSettings",
     "CostSettings",
     "SavedBacktest",
+    "PriceAlert",
 ]

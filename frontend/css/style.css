@@ -301,6 +301,7 @@ tr:last-child td { border-bottom: 0; }
 .trow small { display: block; font-size: 11px; margin-top: 2px; color: var(--muted); }
 .trow .px { font-variant-numeric: tabular-nums; }
 .trow .spark { justify-self: end; }
+.trow .bell { font-size: 11px; }
 
 .t-detail { padding: 14px 14px 4px; }
 .t-detail .big { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }

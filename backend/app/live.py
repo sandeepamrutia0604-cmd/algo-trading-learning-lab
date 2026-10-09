@@ -6,7 +6,7 @@ request that changes state succeeds, `announce_changes` (a middleware in main.py
 small message to every connected tab:
 
     {"type": "changed", "kind": "market" | "trades" | "stocks" | "settings" | "strategies" |
-                                 "backtests" | "other", "origin": "<the X-Client-Id of whoever did it>"}
+                                 "backtests" | "alerts" | "other", "origin": "<the X-Client-Id of whoever did it>"}
 
 It carries no data, only the fact that something changed, so a tab simply re-reads what it
 shows. `origin` lets the tab that made the change skip the echo (it already refreshed itself).
@@ -41,6 +41,7 @@ KINDS = (
     ("/api/cost-settings", "settings"),
     ("/api/strategies", "strategies"),
     ("/api/backtests/saved", "backtests"),
+    ("/api/alerts", "alerts"),
 )
 
 

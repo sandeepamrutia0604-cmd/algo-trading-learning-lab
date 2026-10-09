@@ -78,3 +78,18 @@ test("only levels within reach of the price make room on the axis", () => {
   assert.deepEqual(reachableLevelPrices(levels, 100), [100, 95]); // 160 is 60% away
   assert.deepEqual(reachableLevelPrices(levels, 100, 0.7), [100, 95, 160]);
 });
+
+test("an active price alert is drawn as an alert line, with or without a position", () => {
+  const levels = buildLevels({ price: 100, alerts: [{ kind: "above", level: 110, active: true }] });
+  assert.deepEqual(kinds(levels), ["alert"]);
+  assert.equal(levels[0].alertKind, "above");
+  assert.equal(levels[0].ifHit, null);
+  near(levels[0].awayPct, 10);
+
+  const both = buildLevels({ price: 102, position: held, alerts: [{ kind: "below", level: 97, active: true }] });
+  assert.deepEqual(kinds(both), ["entry", "stop", "target", "alert"]);
+});
+
+test("a fired alert is not drawn", () => {
+  assert.deepEqual(buildLevels({ price: 100, alerts: [{ kind: "above", level: 110, active: false }] }), []);
+});

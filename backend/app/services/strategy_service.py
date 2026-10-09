@@ -7,7 +7,7 @@ from ..engine import rule_engine
 from ..models import Position, Signal, Stock, Strategy, Trade
 from ..strategies.base import ChartSeries, SignalEvent, StrategyDef
 from ..strategies.registry import get_definition
-from . import exit_service, market_service, risk_service, trading_service
+from . import alert_service, exit_service, market_service, risk_service, trading_service
 from .exceptions import InvalidStrategyError, StockNotFoundError, StrategyNotFoundError, TradingError
 
 CUSTOM_TYPE = "custom"
@@ -286,10 +286,14 @@ def run_auto_strategies(db: Session) -> list[str]:
 
 
 def advance_market(db: Session, days: int) -> list[str]:
-    """Advance the market. With auto-trade strategies enabled or positions carrying a stop-loss or
-    take-profit, go day by day: each day's exits are checked against that day's candle first, then
-    each strategy signal trades at its own close."""
-    if not db.query(Strategy).filter(Strategy.auto_trade.is_(True)).count() and not exit_service.any_levels(db):
+    """Advance the market. With auto-trade strategies enabled, positions carrying a stop-loss or
+    take-profit, or active price alerts, go day by day: each day's exits and alerts are checked
+    against that day's candle first, then each strategy signal trades at its own close."""
+    if (
+        not db.query(Strategy).filter(Strategy.auto_trade.is_(True)).count()
+        and not exit_service.any_levels(db)
+        and not alert_service.any_active(db)
+    ):
         market_service.advance(db, days)
         return []
     events: list[str] = []
@@ -298,6 +302,7 @@ def advance_market(db: Session, days: int) -> list[str]:
         market_service.advance(db, 1)
         if market_service.current_date(db) != before:  # at the end of real data the clock stays put
             events.extend(exit_service.run_exits(db))
+            events.extend(alert_service.run_alerts(db))
         events.extend(run_auto_strategies(db))
     return events
 

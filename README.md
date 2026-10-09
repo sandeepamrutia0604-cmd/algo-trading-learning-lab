@@ -517,6 +517,19 @@ the candles. The line logic is `frontend/js/levels.js`, tested with `node --test
 This is separate from the Risk management stop-loss, which sizes auto-trade positions and exits them on the *closing* price.
 Backtests don't use order-level stops or targets yet. The rules are in `engine/exit_math.py` (pure) and `services/exit_service.py`.
 
+### Price alerts: Trade, then Alerts
+
+An alert says "tell me when this stock goes above (or below) this price". Pick a stock, choose above or below,
+enter a price and press **Add alert**. It only tells you; it never trades. As the market advances, each active
+alert is checked against that day's low and high, the same way stop-loss and take-profit are. When it is reached
+the app shows a notice ("ALERT: ALPHA fell to ₹100.37 (below ₹100.37)"), the alert turns into **Fired** with the day
+and price, and it stays in the list until you delete it or press **Re-arm**. If a stock opens beyond the price (a
+gap) the alert reports the open, since the price itself never traded. An alert that would fire straight away (an
+"above" price at or under today's price) is refused. Each active alert is a dotted line on the chart (switch it off
+with the *Entry, stop & target* box) and a bell on the watchlist row. Alerts are checked day by day even when you
+advance several days at once, and **Reset** removes them. The rules are in `engine/alert_math.py` (pure) and
+`services/alert_service.py`.
+
 ### Trading costs: slippage, brokerage and taxes
 
 Trade → **Trading costs** tab (off by default). With it on, every paper trade, auto-trade and
@@ -589,12 +602,14 @@ backend/
                     real_stocks.py (imports a real symbol's history into Stock/PriceData),
                     data_quality_service.py (runs the data checks over stored candles),
                     exit_service.py (stop-loss / take-profit levels on positions, checked as the market advances),
+                    alert_service.py (price alerts, checked as the market advances),
                     scanner_service.py (runs a strategy across every stock for the Scanner page)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
                     risk_math.py + cost_math.py (formulas shared by live trading and backtests),
                     data_quality.py (checks a stock's candles for impossible prices, splits, gaps),
                     exit_math.py (when a day's candle triggers a position's stop-loss or take-profit),
+                    alert_math.py (when a day's candle reaches a price alert's level),
                     scanner.py (what a strategy says about a stock as of its latest candle)
                     (custom entry/exit condition trees -> StrategyDef; all pure, no DB)
     migrations.py   Adds new columns to databases created by earlier phases

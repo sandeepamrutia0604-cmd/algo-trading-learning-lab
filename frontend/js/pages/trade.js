@@ -37,8 +37,9 @@ function renderWatchlist() {
   list.innerHTML = store.stocks
     .map((s) => {
       const change = dayChange(s);
+      const watching = store.alerts.filter((a) => a.active && a.symbol === s.symbol).length;
       return `<div class="trow ${s.symbol === store.symbol ? "sel" : ""}" data-symbol="${s.symbol}">
-        <div><b>${s.symbol}</b><small>${s.name}</small></div>
+        <div><b>${s.symbol}</b>${watching ? ` <span class="bell" title="${watching} active price alert${watching === 1 ? "" : "s"}">&#128276;</span>` : ""}<small>${s.name}</small></div>
         ${sparkline(s.recent_closes)}
         <div class="px">${money(s.current_price)}</div>
         <div class="px ${pnlClass(change)}" style="text-align:right;font-size:12px">${signedPercent(change)}</div>
@@ -204,7 +205,7 @@ async function placeOrder(side, symbol, quantity, exits = {}) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "market", "practice", "risk", "costs", "import", "quality"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "alerts", "market", "practice", "risk", "costs", "import", "quality"]) $(`tab-${pane}`).hidden = pane !== name;
   if (name === "quality") renderDataQuality();
 }
 
@@ -332,6 +333,66 @@ function renderTrades() {
       </tr>`;
     })
     .join("");
+}
+
+/* ---------------- price alerts ---------------- */
+
+function renderAlerts() {
+  const alerts = store.alerts;
+  $("tab-alr-n").textContent = alerts.filter((a) => a.active).length;
+  $("al-symbol").textContent = store.symbol;
+  $("alerts-empty").hidden = alerts.length > 0;
+  document.querySelector("#alerts-table tbody").innerHTML = alerts
+    .map((a) => {
+      const stock = stockBySymbol(a.symbol);
+      const status = a.active
+        ? `<span class="chip">Watching</span>`
+        : `<span class="chip">Fired ${a.triggered_date}</span> at ${money(a.triggered_price)}`;
+      const away = stock ? `<small>${signedPercent((a.level / stock.current_price - 1) * 100)} from now</small>` : "";
+      return `<tr>
+        <td><span class="sym-link" data-symbol="${a.symbol}">${a.symbol}</span></td>
+        <td>${a.kind} ${money(a.level)}${a.active ? away : ""}</td>
+        <td class="num">${stock ? money(stock.current_price) : "-"}</td>
+        <td>${status}</td>
+        <td class="muted">${a.note ? escapeText(a.note) : ""}</td>
+        <td><div class="row-actions">
+          ${a.active ? "" : `<button class="btn" data-rearm="${a.id}">Re-arm</button>`}
+          <button class="btn" data-del-alert="${a.id}">Delete</button>
+        </div></td>
+      </tr>`;
+    })
+    .join("");
+  const body = document.querySelector("#alerts-table tbody");
+  body.querySelectorAll(".sym-link").forEach((el) => el.addEventListener("click", () => selectSymbol(el.dataset.symbol)));
+  body.querySelectorAll("[data-rearm]").forEach((btn) => btn.addEventListener("click", () => changeAlert(`/alerts/${btn.dataset.rearm}/rearm`, "POST", "Re-armed the alert")));
+  body.querySelectorAll("[data-del-alert]").forEach((btn) => btn.addEventListener("click", () => changeAlert(`/alerts/${btn.dataset.delAlert}`, "DELETE", "Deleted the alert")));
+}
+
+const escapeText = (text) => text.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+async function changeAlert(path, method, message) {
+  try {
+    await api(path, { method });
+    toast(message);
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function addAlert() {
+  const level = parseFloat($("al-level").value);
+  if (!(level > 0)) return toast("Enter the price you want to be told about", true);
+  try {
+    const body = { symbol: store.symbol, kind: $("al-kind").value, level, note: $("al-note").value.trim() || null };
+    await api("/alerts", { method: "POST", body: JSON.stringify(body) });
+    toast(`Alert set: ${store.symbol} ${body.kind} ${money(level)}`);
+    $("al-level").value = "";
+    $("al-note").value = "";
+    await hooks.refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 function renderSettings() {
@@ -758,9 +819,11 @@ let paintedLevels = "";
 let levelsTimer = null;
 
 function levelLabel(l) {
-  const name = { entry: l.preview ? "Buy near" : "Entry", stop: "Stop-loss", target: "Take-profit" }[l.kind];
+  const name = { entry: l.preview ? "Buy near" : "Entry", stop: "Stop-loss", target: "Take-profit", alert: `Alert ${l.alertKind}` }[l.kind];
   const tail =
-    l.kind === "entry"
+    l.kind === "alert"
+      ? ` · ${signedPercent(l.awayPct)} from now`
+      : l.kind === "entry"
       ? l.quantity ? ` · ${l.quantity} sh` : ""
       : ` · ${signedPercent(l.awayPct)} from now${l.ifHit === null ? "" : ` · if hit ${signedMoney(l.ifHit)}`}`;
   return `${name} ${money(l.price)}${tail}${l.preview ? " (this order)" : ""}`;
@@ -770,7 +833,8 @@ function chartLevels() {
   const stock = stockBySymbol(store.symbol);
   if (!stock || !$("ind-levels").checked) return [];
   const order = store.side === "BUY" ? { ...exitLevels(stock.current_price), quantity: parseInt($("o-qty").value, 10) || 0 } : null;
-  return buildLevels({ price: stock.current_price, position: positionBySymbol(store.symbol), order }).map((l) => ({ ...l, label: levelLabel(l) }));
+  const alerts = store.alerts.filter((a) => a.symbol === store.symbol);
+  return buildLevels({ price: stock.current_price, position: positionBySymbol(store.symbol), order, alerts }).map((l) => ({ ...l, label: levelLabel(l) }));
 }
 
 function paintChart() {
@@ -823,6 +887,7 @@ export function selectSymbol(symbol) {
   store.symbol = symbol;
   renderWatchlist();
   renderTicket();
+  renderAlerts();
   renderSettings();
   riskExample(); // the volatility example is for the selected stock
   renderChart();
@@ -833,6 +898,7 @@ export async function renderTrade() {
   renderTicket();
   renderPositions();
   renderTrades();
+  renderAlerts();
   renderSettings();
   renderPracticeList();
   renderRisk();
@@ -872,6 +938,11 @@ export function initTrade() {
   $("t-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-tab]");
     if (btn) switchTab(btn.dataset.tab);
+  });
+
+  $("al-add").addEventListener("click", addAlert);
+  $("al-level").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addAlert();
   });
 
   $("m-apply").addEventListener("click", applyConfig);
