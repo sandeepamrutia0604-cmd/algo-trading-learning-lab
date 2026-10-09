@@ -4,6 +4,11 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Windows download build output
+.venv-build/
+build/
+dist/
+
 # Secrets
 .env
 
