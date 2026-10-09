@@ -5,6 +5,27 @@ money, no live orders. See
 [algo_trading_learning_lab_project_plan.md](docs/algo_trading_learning_lab_project_plan.md)
 for the full phase-by-phase plan.
 
+## Download for Windows
+
+**[Download the latest release](https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab/releases/latest)**
+(about 22 MB), or see the [website](https://sandeepamrutia0604-cmd.github.io/algo-trading-learning-lab/).
+It needs no Python, no account and no API keys: it comes with simulated stocks, and you can import price files
+(CSV) you downloaded yourself.
+
+1. Right-click the zip and choose **Extract All** (don't run it from inside the zip).
+2. Open the folder and double-click `AlgoTradingLab.exe`. A console window opens and so does your browser.
+   Leave the console window open while you use the app; close it to quit.
+3. If Windows says "Windows protected your PC", that is SmartScreen warning about a program that isn't signed with
+   a paid certificate. Click **More info**, then **Run anyway**. To check your download, compare
+   `Get-FileHash .\AlgoTradingLab-1.0.0-windows.zip -Algorithm SHA256` with the `SHA256.txt` on the release page.
+
+Your portfolio and history live in `%LOCALAPPDATA%\AlgoTradingLab`, not in the app folder, so updating or deleting the
+app never touches them. To remove everything, delete the unzipped folder and that data folder. In this build no broker
+is ever contacted, no `.env` is read, and the Upstox and Angel One import is switched off; a new database starts with
+about three years of simulated history so backtests have something to work with. To run it from the source instead
+(and to use the broker import with your own keys), see [Setup](#setup) below. How the download is built is in
+[docs/DEMO.md](docs/DEMO.md#9-building-the-windows-download).
+
 ## Tour
 
 **Watch the 4-minute video tour: https://youtu.be/XV_4WqOabwU**

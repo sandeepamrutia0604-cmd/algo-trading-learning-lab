@@ -208,3 +208,37 @@ are also a script for reading aloud yourself.
 19. **Optimise, the verdict.** "A big drop from training to test is the signature of overfitting: settings fitted to noise, not to a real pattern."
 20. **Performance.** "Performance and Journal. Every paper trade, with drawdown, win rate, and a monthly breakdown."
 21. **Wrap-up.** "Paper money, real lessons. The whole project is on GitHub, and it is all paper trading, not investment advice."
+
+## 9. Building the Windows download
+
+The download is a PyInstaller "one-folder" build of the app plus a small launcher, zipped. It runs in *desktop mode*
+(`ALGO_DESKTOP=1`, set by the launcher): simulated stocks and CSV import only, no `.env`, the broker routes answer 404,
+and the database lives in `%LOCALAPPDATA%\AlgoTradingLab` (set `ALGO_DATA_DIR` to point it somewhere else, for
+example a temporary folder while testing). A fresh database starts with about three years of simulated history.
+
+```bash
+scripts\build_exe.bat 1.0.0          # makes dist\AlgoTradingLab\ and dist\AlgoTradingLab-1.0.0-windows.zip + dist\SHA256.txt
+```
+
+It uses its own virtual environment, `.venv-build`, so your normal one is untouched; the first run downloads PyInstaller
+and the app's requirements. If PyInstaller doesn't support your newest Python yet, set `BUILD_PYTHON=py -3.13` first.
+The recipe is `scripts/algo_lab.spec` and the launcher is `desktop/launcher.py`. `build/`, `dist/` and `.venv-build/` are
+gitignored. If your project folder is under OneDrive, exclude those three folders from syncing, or they will upload
+a hundred megabytes or so.
+
+Before you publish a build, run it from `dist\` (not from the repo) against a throwaway data folder:
+
+```powershell
+$env:ALGO_DATA_DIR = "$env:TEMP\exe-test"
+dist\AlgoTradingLab\AlgoTradingLab.exe --no-browser --port 8020
+```
+
+and check: the app loads at http://127.0.0.1:8020; `/api/data-sources` is 404; a backtest, Monte Carlo and the optimiser
+produce results; a CSV import works; after closing and reopening, your data is still there; starting the exe a second
+time says it is already running instead of starting another copy; and the database is in the data folder, not next to the
+exe. Then scan the zip with Windows Defender and look at what SmartScreen shows on a machine that has never seen the file.
+
+**Publishing.** Rebuild right before you publish, so the checksum matches the file. Upload the zip and `SHA256.txt` to a
+GitHub Release named `v1.0.0` (the website and README link to the release called "latest"). The website is
+`docs/index.html`, served by GitHub Pages from the `master` branch, `/docs` folder (Settings, Pages). It is unsigned, so
+Windows will show the SmartScreen warning described on the site; a code-signing certificate is the only real fix.
