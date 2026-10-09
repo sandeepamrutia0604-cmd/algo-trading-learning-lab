@@ -693,6 +693,19 @@ async function loadDataSources() {
   renderBrokerStatus();
 }
 
+/* The Windows download never contacts a broker: only the file import is offered (see backend/app/paths.py). */
+async function hideBrokersInDesktopMode() {
+  try {
+    const health = await api("/health");
+    if (!health.desktop) return;
+    $("im-source").value = "file";
+    $("im-source-row").hidden = true;
+    switchImportSource();
+  } catch (err) {
+    // the status pill already says the backend is unreachable
+  }
+}
+
 function switchImportSource() {
   const source = $("im-source").value;
   const fromFile = source === "file";
@@ -961,6 +974,7 @@ export function initTrade() {
 
   initDataQuality();
   $("im-source").addEventListener("change", switchImportSource);
+  hideBrokersInDesktopMode();
   $("im-broker-apply").addEventListener("click", importFromBroker);
   $("im-apply").addEventListener("click", importData);
   $("im-file").addEventListener("change", suggestSymbol);

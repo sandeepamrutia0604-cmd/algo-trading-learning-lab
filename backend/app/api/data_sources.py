@@ -3,11 +3,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..adapters.angel_one_auth import AngelOneAuthError
+from ..config import settings
 from ..db import get_db
 from ..schemas import BrokerImportItem, BrokerImportOut, BrokerImportRequest, DataSourceOut
 from ..services import data_sources, market_service
 
-router = APIRouter()
+
+def _not_in_desktop_mode():
+    """The Windows download never contacts a broker, so these routes don't exist there."""
+    if settings.desktop_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+router = APIRouter(dependencies=[Depends(_not_in_desktop_mode)])
 
 
 @router.get("/data-sources", response_model=list[DataSourceOut])

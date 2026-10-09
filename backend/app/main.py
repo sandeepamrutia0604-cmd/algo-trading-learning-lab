@@ -1,6 +1,5 @@
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -26,6 +25,7 @@ from .db import Base, SessionLocal, engine
 from .live import is_change, kind_for, live, router as live_router
 from .logging_config import configure_logging
 from .migrations import ensure_columns
+from .paths import resource_dir
 from .services.exceptions import StockNotFoundError, StrategyNotFoundError, TradingError
 from .services.seed import ensure_seed_data
 
@@ -102,5 +102,5 @@ app.include_router(costs_router, prefix="/api")
 app.include_router(data_sources_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 
-FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+FRONTEND_DIR = resource_dir() / "frontend"
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
