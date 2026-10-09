@@ -6,12 +6,14 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..engine.price_models import generate_candles
 from ..models import MarketConfig, Portfolio, PriceData, Stock
 from .exceptions import StockNotFoundError
 
 SIM_START_DATE = date(2025, 1, 1)  # a Wednesday
 DEFAULT_HISTORY_DAYS = 60
+DESKTOP_HISTORY_DAYS = 760  # about three years: backtests, the optimiser and Monte Carlo need a long history
 DEFAULT_SEED = 5
 # How many candles of an imported stock are already showing when the market starts, so charts
 # and indicators open with the same kind of history a simulated stock does.
@@ -24,6 +26,12 @@ DEFAULT_CONFIGS = {
     "GAMMA": ("sideways", 0.015, 0.0),
     "DELTA": ("volatile", 0.015, 0.0),
 }
+
+
+def starting_history_days() -> int:
+    """How much simulated history a fresh database (and Reset) starts with. The Windows download opens on
+    about three years, so the backtest pages have something to chew on from the first minute."""
+    return DESKTOP_HISTORY_DAYS if settings.desktop_mode else DEFAULT_HISTORY_DAYS
 
 
 def _default_config(symbol: str) -> tuple[str, float, float]:
@@ -308,7 +316,7 @@ def reset_market(db: Session) -> None:
             continue  # a practice stock you created keeps the behaviour you gave it
         config = get_config(db, stock)
         config.model, config.volatility, config.trend = _default_config(stock.symbol)
-    generate_all(db, DEFAULT_HISTORY_DAYS, seed=DEFAULT_SEED)
+    generate_all(db, starting_history_days(), seed=DEFAULT_SEED)
 
 
 def get_prices(db: Session, symbol: str, limit: int | None = None, *, full: bool = False) -> list[PriceData]:

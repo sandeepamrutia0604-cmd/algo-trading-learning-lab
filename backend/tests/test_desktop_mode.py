@@ -64,3 +64,11 @@ def test_a_normal_run_keeps_the_repo_defaults(monkeypatch):
 
 def test_resource_dir_is_the_repo_when_not_frozen():
     assert (paths.resource_dir() / "frontend" / "index.html").is_file()
+
+
+def test_a_fresh_database_starts_with_three_years_of_history_in_desktop_mode(db_session, monkeypatch):
+    from backend.app.services import market_service
+
+    assert market_service.starting_history_days() == market_service.DEFAULT_HISTORY_DAYS
+    monkeypatch.setattr(settings, "desktop_mode", True)
+    assert market_service.starting_history_days() == market_service.DESKTOP_HISTORY_DAYS == 760

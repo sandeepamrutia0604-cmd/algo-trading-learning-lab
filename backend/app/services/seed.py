@@ -36,9 +36,7 @@ def ensure_seed_data(db: Session, with_history: bool = True) -> None:
         market_service.get_config(db, stock)
 
     if with_history and db.query(PriceData).count() == 0:
-        market_service.generate_all(
-            db, market_service.DEFAULT_HISTORY_DAYS, seed=market_service.DEFAULT_SEED
-        )
+        market_service.generate_all(db, market_service.starting_history_days(), seed=market_service.DEFAULT_SEED)
 
     market_service.ensure_clock(db)
     db.commit()
