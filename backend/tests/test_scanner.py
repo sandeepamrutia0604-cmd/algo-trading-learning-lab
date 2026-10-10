@@ -144,9 +144,15 @@ def test_the_summary_counts_and_labels_the_scan(client, stocks):
     result = scan(client)
 
     assert result["strategy"] == "Breakout 20/10"
-    assert result["scanned"] == len(result["rows"]) >= 4
-    assert (result["buy_today"], result["sell_today"]) == (1, 1)
-    assert result["in_trade"] == sum(1 for r in result["rows"] if r["state"] == "in")
+    rows = result["rows"]
+    assert result["scanned"] == len(rows) >= 4
+    # The summary counts every scanned stock. That includes the simulated ones, whose days after the imported
+    # stocks' start are drawn at random each run, so one of them may also signal today: compare the summary with
+    # the rows themselves, and with the four scripted stocks, whose signals are known.
+    signals_today = [r["signal_today"]["side"] for r in rows if r["signal_today"]]
+    assert (result["buy_today"], result["sell_today"]) == (signals_today.count("BUY"), signals_today.count("SELL"))
+    assert result["buy_today"] >= 1 and result["sell_today"] >= 1  # AAA breaks out today, BBB breaks down today
+    assert result["in_trade"] == sum(1 for r in rows if r["state"] == "in")
     assert result["market_date"] == client.get("/api/market/status").json()["date"]
 
 
