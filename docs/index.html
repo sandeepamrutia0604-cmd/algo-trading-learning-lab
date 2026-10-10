@@ -137,7 +137,7 @@
           and the app only ever talks to your own computer.
         </div>
         <p>To check that your download is the one that was published, compare its fingerprint with the one on the release page:</p>
-        <pre>Get-FileHash .\AlgoTradingLab-1.0.0-windows.zip -Algorithm SHA256</pre>
+        <pre>Get-FileHash .\AlgoTradingLab-*-windows.zip -Algorithm SHA256</pre>
         <p><b>Where your data lives:</b> <code>C:\Users\&lt;you&gt;\AppData\Local\AlgoTradingLab</code>. Updating or deleting the app folder never touches your portfolio.
           To remove the app completely, delete the unzipped folder, and that data folder if you want your portfolio gone too.</p>
         <p class="fine">Windows only for now. Prefer to run it from the source? See the <a href="https://github.com/sandeepamrutia0604-cmd/algo-trading-learning-lab#readme">README</a> (needs Python).</p>

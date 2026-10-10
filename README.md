@@ -17,7 +17,7 @@ It needs no Python, no account and no API keys: it comes with simulated stocks, 
    Leave the console window open while you use the app; close it to quit.
 3. If Windows says "Windows protected your PC", that is SmartScreen warning about a program that isn't signed with
    a paid certificate. Click **More info**, then **Run anyway**. To check your download, compare
-   `Get-FileHash .\AlgoTradingLab-1.0.0-windows.zip -Algorithm SHA256` with the `SHA256.txt` on the release page.
+   `Get-FileHash .\AlgoTradingLab-*-windows.zip -Algorithm SHA256` with the `SHA256.txt` on the release page.
 
 Your portfolio and history live in `%LOCALAPPDATA%\AlgoTradingLab`, not in the app folder, so updating or deleting the
 app never touches them. To remove everything, delete the unzipped folder and that data folder. In this build no broker
