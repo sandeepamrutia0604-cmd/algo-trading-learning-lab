@@ -9,7 +9,7 @@ import { describeExitLevels, parseExitLevels } from "../exitlevels.js";
 import { createStrategyBuilder } from "../strategybuilder.js";
 import { basketLabel, checkSelection, inOrder, keepExisting, skipText } from "../portfolio.js";
 
-const builder = createStrategyBuilder("pf");
+const builder = createStrategyBuilder("pt");
 const state = { result: null, request: null, running: false, picked: [], pickedTouched: false, stockKey: "", saved: [] };
 
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -28,15 +28,15 @@ function renderStocks() {
     state.stockKey = key;
     // Until you choose, start with the first three; afterwards keep your picks that still exist.
     state.picked = state.pickedTouched ? keepExisting(state.picked, symbols) : symbols.slice(0, 3);
-    $("pf-stocks").innerHTML = store.stocks
+    $("pt-stocks").innerHTML = store.stocks
       .map((s) => `<label class="pf-stock" title="${escapeHtml(s.name)}"><input type="checkbox" value="${s.symbol}" /> ${s.symbol}</label>`)
       .join("");
-    $("pf-bench").innerHTML = `<option value="">(nothing)</option>` + symbols.map((s) => `<option value="${s}">${s}</option>`).join("");
-    if (symbols.includes("NSE500")) $("pf-bench").value = "NSE500";
+    $("pt-bench").innerHTML = `<option value="">(nothing)</option>` + symbols.map((s) => `<option value="${s}">${s}</option>`).join("");
+    if (symbols.includes("NSE500")) $("pt-bench").value = "NSE500";
   }
-  $("pf-stocks").querySelectorAll("input").forEach((box) => (box.checked = state.picked.includes(box.value)));
+  $("pt-stocks").querySelectorAll("input").forEach((box) => (box.checked = state.picked.includes(box.value)));
   const n = state.picked.length;
-  $("pf-picked-n").textContent = n ? `(${n} chosen)` : "";
+  $("pt-picked-n").textContent = n ? `(${n} chosen)` : "";
 }
 
 function setPicked(symbols) {
@@ -48,18 +48,18 @@ function setPicked(symbols) {
 /* ---------------- run ---------------- */
 
 function readRequest() {
-  const quantity = parseInt($("pf-qty").value, 10);
-  const initialCapital = parseFloat($("pf-capital").value);
+  const quantity = parseInt($("pt-qty").value, 10);
+  const initialCapital = parseFloat($("pt-capital").value);
   if (!(quantity >= 1)) return { error: "Shares per trade must be at least 1" };
   if (!(initialCapital > 0)) return { error: "Initial capital must be greater than zero" };
   const problem = checkSelection(state.picked);
   if (problem) return { error: problem };
-  const from = $("pf-from").value;
-  const to = $("pf-to").value;
+  const from = $("pt-from").value;
+  const to = $("pt-to").value;
   if (from && to && from > to) return { error: "The From date must be on or before the To date" };
-  const riskFree = parseFloat($("pf-rf").value);
+  const riskFree = parseFloat($("pt-rf").value);
   if (!(riskFree >= 0 && riskFree <= 30)) return { error: "The risk-free rate must be between 0 and 30" };
-  const levels = parseExitLevels($("pf-sl").value, $("pf-tp").value);
+  const levels = parseExitLevels($("pt-sl").value, $("pt-tp").value);
   if (levels.error) return { error: levels.error };
   return {
     body: {
@@ -67,11 +67,11 @@ function readRequest() {
       ...builder.read(),
       quantity,
       initial_capital: initialCapital,
-      fill_mode: $("pf-fill").value,
+      fill_mode: $("pt-fill").value,
       ...(from ? { start_date: from } : {}),
       ...(to ? { end_date: to } : {}),
       risk_free_pct: riskFree,
-      ...($("pf-bench").value ? { benchmark: $("pf-bench").value } : {}),
+      ...($("pt-bench").value ? { benchmark: $("pt-bench").value } : {}),
       ...levels.values,
     },
   };
@@ -81,8 +81,8 @@ async function runPortfolio() {
   const { body, error } = readRequest();
   if (error) return toast(error, true);
   state.running = true;
-  $("pf-run").disabled = true;
-  $("pf-run").textContent = "Running...";
+  $("pt-run").disabled = true;
+  $("pt-run").textContent = "Running...";
   try {
     const result = await api("/portfolio-backtests/run", { method: "POST", body: JSON.stringify(body) });
     state.result = result;
@@ -93,8 +93,8 @@ async function runPortfolio() {
     toast(err.message, true);
   } finally {
     state.running = false;
-    $("pf-run").disabled = false;
-    $("pf-run").textContent = "Run portfolio backtest";
+    $("pt-run").disabled = false;
+    $("pt-run").textContent = "Run portfolio backtest";
   }
 }
 
@@ -112,18 +112,18 @@ function renderMetrics(r) {
     ["Most held at once", `${plural(r.peak_positions, "stock")}`, ""],
   ];
   if (r.costs_applied) tiles.push(["Charges paid", money(r.total_fees), "down"], ["Slippage cost", money(r.slippage_cost), "down"]);
-  $("pf-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
+  $("pt-metrics").innerHTML = tiles.map(([label, value, cls]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
 }
 
 function renderMore(r) {
   const x = r.metrics;
   const ts = x.trade_stats;
   const tiles = (rows) => rows.map(([label, value, cls = ""]) => `<div class="metric"><span>${label}</span><b class="${cls}">${value}</b></div>`).join("");
-  $("pf-more-intro").textContent =
+  $("pt-more-intro").textContent =
     `Worked out from ${x.trading_days.toLocaleString("en-IN")} trading days (${x.years.toFixed(1)} years) of the account's daily value` +
     (x.risk_free_pct ? `, with a ${x.risk_free_pct}% a year risk-free rate for Sharpe, Sortino and alpha` : ", with a 0% risk-free rate") +
     ". Short or quiet backtests make ratios like these unreliable, so read them as clues.";
-  $("pf-m-risk").innerHTML = tiles([
+  $("pt-m-risk").innerHTML = tiles([
     ["Annual growth (CAGR)", maybe(x.cagr_pct, signedPercent), tone(x.cagr_pct)],
     ["Volatility (a year)", maybe(x.volatility_pct, percent)],
     ["Sharpe ratio", ratio(x.sharpe), tone(x.sharpe)],
@@ -132,7 +132,7 @@ function renderMore(r) {
     ["Longest time under water", `${x.longest_drawdown_days.toLocaleString("en-IN")} days`],
     ["Time in the market", `${percent(x.exposure_pct)} (${x.days_in_market.toLocaleString("en-IN")} days)`],
   ]);
-  $("pf-m-trades").innerHTML = tiles([
+  $("pt-m-trades").innerHTML = tiles([
     ["Profit factor", ratio(ts.profit_factor), ts.profit_factor === null ? "" : ts.profit_factor >= 1 ? "up" : "down"],
     ["Expectancy per trade", maybe(ts.expectancy, signedMoney), tone(ts.expectancy)],
     ["Average win", maybe(ts.average_win, money), "up"],
@@ -159,11 +159,11 @@ function renderMore(r) {
   } else if (b) {
     versus.push([b.symbol, `only ${b.days} shared days: too few to compare`]);
   }
-  $("pf-m-versus").innerHTML = tiles(versus);
+  $("pt-m-versus").innerHTML = tiles(versus);
 }
 
 function renderStockTable(r) {
-  document.querySelector("#pf-stock-table tbody").innerHTML = r.per_stock
+  document.querySelector("#pt-stock-table tbody").innerHTML = r.per_stock
     .map(
       (s) => `<tr>
         <td><b>${s.symbol}</b></td>
@@ -194,8 +194,8 @@ function exitStatus(t) {
 
 function renderTrades(r) {
   const rows = inOrder(r.trades);
-  $("pf-trades-empty").hidden = rows.length > 0;
-  document.querySelector("#pf-trades-table tbody").innerHTML = rows
+  $("pt-trades-empty").hidden = rows.length > 0;
+  document.querySelector("#pt-trades-table tbody").innerHTML = rows
     .map(
       (t) => `<tr>
         <td><b>${t.symbol}</b></td>
@@ -214,12 +214,12 @@ function renderTrades(r) {
 
 function renderResults() {
   const r = state.result;
-  $("pf-empty").hidden = Boolean(r);
-  $("pf-results").hidden = !r;
+  $("pt-empty").hidden = Boolean(r);
+  $("pt-results").hidden = !r;
   if (!r) return;
-  $("pf-title").textContent = `${r.type_label} on ${plural(r.symbols.length, "stock")}`;
+  $("pt-title").textContent = `${r.type_label} on ${plural(r.symbols.length, "stock")}`;
   const skipped = skipText(r.skipped_by_reason);
-  $("pf-sub").textContent =
+  $("pt-sub").textContent =
     `${basketLabel(r.symbols, 8)} · ${r.rule} · started with ${money(r.initial_capital)} · traded ${r.period_start} to ${r.period_end}` +
     (r.fill_mode === "next_open" ? " · every trade made at the next day's opening price" : "") +
     (r.unfilled_signals ? ` · ${plural(r.unfilled_signals, "decision")} on the last days had no next day to trade on` : "") +
@@ -234,7 +234,7 @@ function renderResults() {
   renderMetrics(r);
   renderMore(r);
   renderStockTable(r);
-  drawEquityChart($("pf-equity"), {
+  drawEquityChart($("pt-equity"), {
     dates: r.equity_curve.map((p) => p.date),
     values: r.equity_curve.map((p) => p.value),
     baseline: r.baseline_curve.map((p) => p.value),
@@ -291,10 +291,10 @@ async function loadSavedList() {
 
 function renderSaved() {
   const rows = state.saved;
-  $("pf-saved-n").textContent = rows.length ? `(${rows.length})` : "";
-  $("pf-saved-empty").hidden = rows.length > 0;
-  $("pf-saved-table").hidden = rows.length === 0;
-  const body = document.querySelector("#pf-saved-table tbody");
+  $("pt-saved-n").textContent = rows.length ? `(${rows.length})` : "";
+  $("pt-saved-empty").hidden = rows.length > 0;
+  $("pt-saved-table").hidden = rows.length === 0;
+  const body = document.querySelector("#pt-saved-table tbody");
   body.innerHTML = rows
     .map(
       (r) => `<tr>
@@ -319,12 +319,12 @@ function renderSaved() {
 
 async function saveRun() {
   if (!state.result || !state.request) return;
-  const button = $("pf-save");
+  const button = $("pt-save");
   button.disabled = true;
   try {
-    const saved = await api("/portfolio-backtests/saved", { method: "POST", body: JSON.stringify({ name: $("pf-save-name").value.trim() || null, request: state.request }) });
+    const saved = await api("/portfolio-backtests/saved", { method: "POST", body: JSON.stringify({ name: $("pt-save-name").value.trim() || null, request: state.request }) });
     toast(`Saved "${saved.name}"`);
-    $("pf-save-name").value = "";
+    $("pt-save-name").value = "";
     await loadSavedList();
   } catch (err) {
     toast(err.message, true);
@@ -347,16 +347,16 @@ async function loadSavedRun(id) {
 
   builder.write(req);
   setPicked(req.symbols);
-  $("pf-qty").value = req.quantity;
-  $("pf-capital").value = req.initial_capital;
-  $("pf-fill").value = req.fill_mode || "signal_close";
-  $("pf-sl").value = req.stop_loss_pct ?? "";
-  $("pf-tp").value = req.take_profit_pct ?? "";
-  $("pf-rf").value = req.risk_free_pct ?? 0;
-  $("pf-bench").value = req.benchmark || "";
-  $("pf-from").value = req.start_date || "";
-  $("pf-to").value = req.end_date || "";
-  $("pf-save-name").value = saved.name;
+  $("pt-qty").value = req.quantity;
+  $("pt-capital").value = req.initial_capital;
+  $("pt-fill").value = req.fill_mode || "signal_close";
+  $("pt-sl").value = req.stop_loss_pct ?? "";
+  $("pt-tp").value = req.take_profit_pct ?? "";
+  $("pt-rf").value = req.risk_free_pct ?? 0;
+  $("pt-bench").value = req.benchmark || "";
+  $("pt-from").value = req.start_date || "";
+  $("pt-to").value = req.end_date || "";
+  $("pt-save-name").value = saved.name;
 
   const result = await runPortfolio();
   if (!result) return;
@@ -368,7 +368,7 @@ async function loadSavedRun(id) {
       : `Loaded "${saved.name}", but it gives different numbers now (${signedPercent(result.total_return_pct)} vs ${signedPercent(was.total_return_pct)} when saved). A stock's data, or your risk or cost settings, have changed since.`,
     !same,
   );
-  $("pf-results").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("pt-results").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function deleteSavedRun(id) {
@@ -393,14 +393,14 @@ export async function renderPortfolioTest() {
 
 export function initPortfolioTest() {
   builder.init();
-  $("pf-stocks").addEventListener("change", (event) => {
+  $("pt-stocks").addEventListener("change", (event) => {
     if (event.target.type !== "checkbox") return;
     setPicked(store.stocks.map((s) => s.symbol).filter((s) => (s === event.target.value ? event.target.checked : state.picked.includes(s))));
   });
-  $("pf-all").addEventListener("click", () => setPicked(store.stocks.map((s) => s.symbol).slice(0, 20)));
-  $("pf-none").addEventListener("click", () => setPicked([]));
-  $("pf-run").addEventListener("click", runPortfolio);
-  $("pf-save").addEventListener("click", saveRun);
-  $("pf-export-trades").addEventListener("click", exportTrades);
-  $("pf-export-equity").addEventListener("click", exportEquity);
+  $("pt-all").addEventListener("click", () => setPicked(store.stocks.map((s) => s.symbol).slice(0, 20)));
+  $("pt-none").addEventListener("click", () => setPicked([]));
+  $("pt-run").addEventListener("click", runPortfolio);
+  $("pt-save").addEventListener("click", saveRun);
+  $("pt-export-trades").addEventListener("click", exportTrades);
+  $("pt-export-equity").addEventListener("click", exportEquity);
 }

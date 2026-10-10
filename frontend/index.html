@@ -762,114 +762,114 @@
               <p class="hint">Trades one strategy across <b>several stocks at once from one account</b>, with your Risk management and Trading costs settings,
                 the way live auto-trading would. Buys share the same cash, so a second stock can be skipped when the money has run out.</p>
               <label class="field">Strategy type
-                <select id="pf-type"></select>
+                <select id="pt-type"></select>
               </label>
-              <div id="pf-desc" class="type-desc"></div>
-              <div id="pf-params" class="param-grid"></div>
-              <div class="rule stacked" id="pf-rule"></div>
+              <div id="pt-desc" class="type-desc"></div>
+              <div id="pt-params" class="param-grid"></div>
+              <div class="rule stacked" id="pt-rule"></div>
 
-              <div id="pf-custom" hidden>
+              <div id="pt-custom" hidden>
                 <div class="rule-side">
                   <div class="rule-side-head">Entry (BUY)
-                    <select id="pf-entry-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                    <select id="pt-entry-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
                   </div>
-                  <div id="pf-entry-rows" class="cond-rows"></div>
-                  <button type="button" id="pf-entry-add" class="btn">+ Add condition</button>
+                  <div id="pt-entry-rows" class="cond-rows"></div>
+                  <button type="button" id="pt-entry-add" class="btn">+ Add condition</button>
                 </div>
                 <div class="rule-side">
                   <div class="rule-side-head">Exit (SELL)
-                    <select id="pf-exit-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
+                    <select id="pt-exit-logic"><option value="AND">ALL true (AND)</option><option value="OR">ANY true (OR)</option></select>
                   </div>
-                  <div id="pf-exit-rows" class="cond-rows"></div>
-                  <button type="button" id="pf-exit-add" class="btn">+ Add condition</button>
+                  <div id="pt-exit-rows" class="cond-rows"></div>
+                  <button type="button" id="pt-exit-add" class="btn">+ Add condition</button>
                 </div>
-                <div class="rule-preview" id="pf-custom-preview"></div>
+                <div class="rule-preview" id="pt-custom-preview"></div>
               </div>
 
-              <div class="field">Stocks to trade <span class="muted" id="pf-picked-n"></span>
+              <div class="field">Stocks to trade <span class="muted" id="pt-picked-n"></span>
                 <div class="range-presets">
-                  <button type="button" class="btn" id="pf-all">All</button>
-                  <button type="button" class="btn" id="pf-none">None</button>
+                  <button type="button" class="btn" id="pt-all">All</button>
+                  <button type="button" class="btn" id="pt-none">None</button>
                 </div>
-                <div id="pf-stocks" class="pf-stocks"></div>
+                <div id="pt-stocks" class="pf-stocks"></div>
               </div>
 
               <label class="field">Shares per BUY signal
-                <input id="pf-qty" type="number" min="1" value="10" />
+                <input id="pt-qty" type="number" min="1" value="10" />
               </label>
               <p class="hint">Used when Risk management is off. With it on, each buy is sized from the whole account's value instead.</p>
               <label class="field">Initial capital (one account for all the stocks)
-                <input id="pf-capital" type="number" min="1" step="1000" value="100000" />
+                <input id="pt-capital" type="number" min="1" step="1000" value="100000" />
               </label>
               <label class="field">Trade at
-                <select id="pf-fill">
+                <select id="pt-fill">
                   <option value="signal_close">The signal day's close (as before)</option>
                   <option value="next_open">The next day's open (more realistic)</option>
                 </select>
               </label>
               <div class="param-grid">
-                <label class="field">Stop-loss (% below entry) <input id="pf-sl" type="number" min="0" max="99.9" step="0.5" placeholder="none" /></label>
-                <label class="field">Take-profit (% above entry) <input id="pf-tp" type="number" min="0" max="1000" step="0.5" placeholder="none" /></label>
+                <label class="field">Stop-loss (% below entry) <input id="pt-sl" type="number" min="0" max="99.9" step="0.5" placeholder="none" /></label>
+                <label class="field">Take-profit (% above entry) <input id="pt-tp" type="number" min="0" max="1000" step="0.5" placeholder="none" /></label>
               </div>
               <div class="param-grid">
-                <label class="field">Risk-free rate (% a year) <input id="pf-rf" type="number" min="0" max="30" step="0.5" value="0" /></label>
+                <label class="field">Risk-free rate (% a year) <input id="pt-rf" type="number" min="0" max="30" step="0.5" value="0" /></label>
                 <label class="field">Compare with
-                  <select id="pf-bench"><option value="">(nothing)</option></select>
+                  <select id="pt-bench"><option value="">(nothing)</option></select>
                 </label>
               </div>
               <div class="param-grid">
-                <label class="field">From <input id="pf-from" type="date" /></label>
-                <label class="field">To <input id="pf-to" type="date" /></label>
+                <label class="field">From <input id="pt-from" type="date" /></label>
+                <label class="field">To <input id="pt-to" type="date" /></label>
               </div>
               <p class="hint">Leave both dates empty to use all the stored history. Each stock trades only on days it has a price.</p>
 
-              <button id="pf-run" class="btn btn-primary big">Run portfolio backtest</button>
+              <button id="pt-run" class="btn btn-primary big">Run portfolio backtest</button>
               <p class="hint">A what-if: no trades are placed. When two stocks signal a buy on the same day they are tried in alphabetical order, and sells are
                 carried out before buys so the money from an exit can fund one. The optimiser, walk-forward test and Monte Carlo are not available for portfolios.</p>
             </div>
 
             <div class="strat-main">
-              <div class="panel" id="pf-empty">
+              <div class="panel" id="pt-empty">
                 <p class="empty">Pick a strategy and at least two stocks, then press "Run portfolio backtest".</p>
               </div>
 
-              <div id="pf-results" hidden>
+              <div id="pt-results" hidden>
                 <div class="panel">
                   <div class="sd-head">
                     <div>
-                      <h2 id="pf-title"></h2>
-                      <div class="muted small" id="pf-sub"></div>
+                      <h2 id="pt-title"></h2>
+                      <div class="muted small" id="pt-sub"></div>
                     </div>
                     <div class="sd-actions">
-                      <input id="pf-save-name" type="text" maxlength="120" placeholder="Name (optional)" />
-                      <button id="pf-save" class="btn btn-primary">Save this run</button>
+                      <input id="pt-save-name" type="text" maxlength="120" placeholder="Name (optional)" />
+                      <button id="pt-save" class="btn btn-primary">Save this run</button>
                     </div>
                   </div>
-                  <div class="metrics-grid" id="pf-metrics"></div>
+                  <div class="metrics-grid" id="pt-metrics"></div>
                 </div>
 
                 <div class="panel">
                   <h3>Account value vs. holding all the stocks equally</h3>
                   <p class="hint">The grey line splits the same starting money equally across the stocks on the first day and never trades.</p>
-                  <div id="pf-equity" class="chart small"></div>
+                  <div id="pt-equity" class="chart small"></div>
                 </div>
 
                 <div class="panel">
                   <h3>Risk, quality and comparison</h3>
-                  <p class="hint" id="pf-more-intro"></p>
+                  <p class="hint" id="pt-more-intro"></p>
                   <h4 class="lesson-h">Return for the risk taken</h4>
-                  <div class="metrics-grid" id="pf-m-risk"></div>
+                  <div class="metrics-grid" id="pt-m-risk"></div>
                   <h4 class="lesson-h">What the trades looked like</h4>
-                  <div class="metrics-grid" id="pf-m-trades"></div>
+                  <div class="metrics-grid" id="pt-m-trades"></div>
                   <h4 class="lesson-h">Against holding them equally, and against the market</h4>
-                  <div class="metrics-grid" id="pf-m-versus"></div>
+                  <div class="metrics-grid" id="pt-m-versus"></div>
                   <p class="hint">These are the same measures as on the Backtests page (see its glossary). "Time in the market" counts days with at least one position open.</p>
                 </div>
 
                 <div class="panel">
                   <h3>By stock</h3>
                   <p class="hint">Profit and loss on each stock's trades (a position still open counts at the last close). The contributions add up to the account's total return.</p>
-                  <table id="pf-stock-table">
+                  <table id="pt-stock-table">
                     <thead><tr><th>Stock</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Realised P&amp;L</th><th class="num">Open P&amp;L</th><th class="num">Total P&amp;L</th><th class="num">Contribution</th><th class="num">Just holding it</th></tr></thead>
                     <tbody></tbody>
                   </table>
@@ -878,22 +878,22 @@
                 <div class="panel">
                   <h3>Trades</h3>
                   <div class="controls">
-                    <button id="pf-export-trades" class="btn">Export trades (CSV)</button>
-                    <button id="pf-export-equity" class="btn">Export equity curve (CSV)</button>
+                    <button id="pt-export-trades" class="btn">Export trades (CSV)</button>
+                    <button id="pt-export-equity" class="btn">Export equity curve (CSV)</button>
                   </div>
-                  <table id="pf-trades-table">
+                  <table id="pt-trades-table">
                     <thead><tr><th>Stock</th><th>Entry date</th><th class="num">Entry</th><th>Exit date</th><th class="num">Exit</th><th class="num">Qty</th><th class="num">P&amp;L</th><th class="num">P&amp;L %</th><th class="num">Stop</th></tr></thead>
                     <tbody></tbody>
                   </table>
-                  <p id="pf-trades-empty" class="empty" hidden>No trades in this run.</p>
+                  <p id="pt-trades-empty" class="empty" hidden>No trades in this run.</p>
                 </div>
               </div>
 
-              <div class="panel" id="pf-saved-panel">
-                <h3>Saved portfolio backtests <span class="muted" id="pf-saved-n"></span></h3>
+              <div class="panel" id="pt-saved-panel">
+                <h3>Saved portfolio backtests <span class="muted" id="pt-saved-n"></span></h3>
                 <p class="hint">Runs you chose to keep. <b>Load</b> puts a run's settings back in the builder and runs it again, and tells you if the numbers have changed since.</p>
-                <p id="pf-saved-empty" class="empty">Nothing saved yet. Run a portfolio backtest and press "Save this run".</p>
-                <table id="pf-saved-table" hidden>
+                <p id="pt-saved-empty" class="empty">Nothing saved yet. Run a portfolio backtest and press "Save this run".</p>
+                <table id="pt-saved-table" hidden>
                   <thead><tr><th>Name</th><th>Period</th><th class="num">Return</th><th class="num">Final</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th>Saved</th><th></th></tr></thead>
                   <tbody></tbody>
                 </table>
