@@ -2,6 +2,8 @@ import { $, api, money, pnlClass, signedMoney, signedPercent, sparkline, toast }
 import { hooks, positionBySymbol, stockBySymbol, store } from "../store.js";
 import { SMA_COLORS, drawPriceChart, loadChartData, smaOverlays } from "../chart.js";
 import { initDataQuality, qualityLine, renderDataQuality } from "./dataquality.js";
+import { initBackup, renderBackup } from "./backup.js";
+import { downloadCsv } from "../csv.js";
 import { buildLevels } from "../levels.js";
 
 const MODEL_INFO = {
@@ -205,8 +207,9 @@ async function placeOrder(side, symbol, quantity, exits = {}) {
 
 function switchTab(name) {
   document.querySelectorAll("#t-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
-  for (const pane of ["positions", "trades", "alerts", "market", "practice", "risk", "costs", "import", "quality"]) $(`tab-${pane}`).hidden = pane !== name;
+  for (const pane of ["positions", "trades", "alerts", "market", "practice", "risk", "costs", "import", "quality", "backup"]) $(`tab-${pane}`).hidden = pane !== name;
   if (name === "quality") renderDataQuality();
+  if (name === "backup") renderBackup();
 }
 
 const exitEdit = { symbol: null, stop: "", target: "" }; // the position whose levels are being edited, and what is typed
@@ -307,6 +310,43 @@ function renderPositions() {
       if (p && confirm(`Sell all ${p.quantity} ${p.symbol} at the market price?`)) placeOrder("SELL", p.symbol, p.quantity);
     }),
   );
+}
+
+/* ---------------- CSV exports (everything, not just the rows shown) ---------------- */
+
+function exportTrades() {
+  if (!store.trades.length) return toast("There are no trades to export yet", true);
+  downloadCsv(`trades-${store.marketDate || "all"}.csv`, [
+    { header: "Market date", value: "market_date" },
+    { header: "Time", value: "timestamp" },
+    { header: "Symbol", value: "symbol" },
+    { header: "Side", value: "side" },
+    { header: "Quantity", value: "quantity" },
+    { header: "Price", value: "price" },
+    { header: "Quoted price", value: "market_price" },
+    { header: "Fees", value: "fees" },
+    { header: "Realized P&L", value: "realized_pnl" },
+    { header: "Reason", value: "reason" },
+    { header: "Source", value: "source" },
+  ], store.trades);
+  toast(`Exported ${store.trades.length} trades`);
+}
+
+function exportPositions() {
+  if (!store.positions.length) return toast("There are no open positions to export", true);
+  downloadCsv(`positions-${store.marketDate || "now"}.csv`, [
+    { header: "Symbol", value: "symbol" },
+    { header: "Name", value: "name" },
+    { header: "Quantity", value: "quantity" },
+    { header: "Average price", value: "average_price" },
+    { header: "Current price", value: "current_price" },
+    { header: "Market value", value: "market_value" },
+    { header: "Unrealized P&L", value: "unrealized_pnl" },
+    { header: "Day P&L", value: "day_pnl" },
+    { header: "Stop-loss", value: "stop_price" },
+    { header: "Take-profit", value: "target_price" },
+  ], store.positions);
+  toast(`Exported ${store.positions.length} position${store.positions.length === 1 ? "" : "s"}`);
 }
 
 function renderTrades() {
@@ -973,6 +1013,9 @@ export function initTrade() {
   $("ps-model-desc").textContent = MODEL_INFO[$("ps-model").value];
 
   initDataQuality();
+  initBackup();
+  $("t-export-trades").addEventListener("click", exportTrades);
+  $("t-export-positions").addEventListener("click", exportPositions);
   $("im-source").addEventListener("change", switchImportSource);
   hideBrokersInDesktopMode();
   $("im-broker-apply").addEventListener("click", importFromBroker);

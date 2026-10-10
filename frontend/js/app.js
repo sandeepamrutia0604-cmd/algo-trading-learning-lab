@@ -65,8 +65,8 @@ async function refresh() {
 /** Another tab changed something: re-read what that kind of change can affect, then redraw. */
 async function onLiveChange(kinds) {
   const reloads = [];
-  if (kinds.has("stocks") || kinds.has("market") || kinds.has("reconnected")) reloads.push(loadConfigs());
-  if (kinds.has("settings") || kinds.has("reconnected")) reloads.push(loadRiskSettings(), loadCostSettings());
+  if (kinds.has("stocks") || kinds.has("market") || kinds.has("backup") || kinds.has("reconnected")) reloads.push(loadConfigs());
+  if (kinds.has("settings") || kinds.has("backup") || kinds.has("reconnected")) reloads.push(loadRiskSettings(), loadCostSettings());
   await Promise.all(reloads).catch(() => {});
   await refresh();
 }

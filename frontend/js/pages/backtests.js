@@ -3,6 +3,7 @@ import { store } from "../store.js";
 import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
 import * as rb from "../rulebuilder.js";
 import { initMonteCarlo, showMonteCarlo } from "./montecarlo.js";
+import { downloadCsv } from "../csv.js";
 
 const MAX_COMPARE = 6;
 const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
@@ -337,6 +338,57 @@ function renderTrades(r) {
     .join("");
 }
 
+/* ---------------- CSV exports (from the result on the page: nothing is run again) ---------------- */
+
+function exportBacktestTrades() {
+  const r = state.result;
+  if (!r) return toast("Run a backtest first", true);
+  if (!r.trades.length) return toast("This run made no trades to export", true);
+  downloadCsv(`backtest-${r.symbol}-${r.type}-trades.csv`, [
+    { header: "Entry date", value: "entry_date" },
+    { header: "Entry price", value: "entry_price" },
+    { header: "Exit date", value: "exit_date" },
+    { header: "Exit price", value: "exit_price" },
+    { header: "Quantity", value: "quantity" },
+    { header: "P&L", value: "pnl" },
+    { header: "P&L %", value: "pnl_pct" },
+    { header: "Status", value: (t) => (t.open ? "open" : t.stopped_out ? "closed by stop-loss" : "closed") },
+    { header: "Stop distance %", value: "stop_pct" },
+  ], r.trades);
+  toast(`Exported ${r.trades.length} trades`);
+}
+
+function exportBacktestEquity() {
+  const r = state.result;
+  if (!r) return toast("Run a backtest first", true);
+  downloadCsv(`backtest-${r.symbol}-${r.type}-equity.csv`, [
+    { header: "Date", value: "date" },
+    { header: "Strategy value", value: "value" },
+  ], r.equity_curve);
+  toast("Exported the equity curve");
+}
+
+function exportSavedList() {
+  if (!state.saved.length) return toast("There are no saved backtests to export", true);
+  downloadCsv("saved-backtests.csv", [
+    { header: "Name", value: "name" },
+    { header: "Symbol", value: "symbol" },
+    { header: "Strategy", value: "type_label" },
+    { header: "Period start", value: "period_start" },
+    { header: "Period end", value: "period_end" },
+    { header: "Starting capital", value: "initial_capital" },
+    { header: "Final capital", value: "final_capital" },
+    { header: "Return %", value: "total_return_pct" },
+    { header: "Trades", value: "total_trades" },
+    { header: "Win rate %", value: "win_rate_pct" },
+    { header: "Max drawdown %", value: "max_drawdown_pct" },
+    { header: "Risk managed", value: "risk_managed" },
+    { header: "Costs applied", value: "costs_applied" },
+    { header: "Saved on", value: "created_at" },
+  ], state.saved);
+  toast(`Exported ${state.saved.length} saved backtests`);
+}
+
 /* ---------------- comparison ---------------- */
 
 function addToComparison() {
@@ -584,6 +636,9 @@ export function initBacktests() {
 
   $("bt-add-compare").addEventListener("click", addToComparison);
   $("bt-save").addEventListener("click", saveRun);
+  $("bt-export-trades").addEventListener("click", exportBacktestTrades);
+  $("bt-export-equity").addEventListener("click", exportBacktestEquity);
+  $("bt-export-saved").addEventListener("click", exportSavedList);
   initMonteCarlo(() => state.request);
   $("bt-clear-compare").addEventListener("click", () => {
     state.compareList = [];

@@ -166,9 +166,11 @@
                 <button data-tab="costs">Trading costs</button>
                 <button data-tab="import">Import data</button>
                 <button data-tab="quality">Data quality</button>
+                <button data-tab="backup">Backup</button>
               </div>
 
               <div id="tab-positions" class="tabpane">
+                <div class="controls"><button id="t-export-positions" class="btn">Export CSV</button></div>
                 <table id="positions-table">
                   <thead><tr><th>Symbol</th><th class="num">Qty</th><th class="num">Avg</th><th class="num">LTP</th><th class="num">Value</th><th class="num">Unrealized P&amp;L</th><th class="num">Day</th><th class="num">Stop-loss</th><th class="num">Take-profit</th><th></th></tr></thead>
                   <tbody></tbody>
@@ -181,6 +183,7 @@
               </div>
 
               <div id="tab-trades" class="tabpane" hidden>
+                <div class="controls"><button id="t-export-trades" class="btn">Export CSV</button><span class="muted">All trades, not just the latest 100 shown.</span></div>
                 <table id="trades-table">
                   <thead><tr><th>Market date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Fees</th><th class="num">Realized P&amp;L</th><th>Source</th></tr></thead>
                   <tbody></tbody>
@@ -349,6 +352,28 @@
                     Your broker credentials stay in your local .env file and are never typed into this page.</p>
                   <div id="im-broker-results" class="import-results"></div>
                 </div>
+              </div>
+
+              <div id="tab-backup" class="tabpane" hidden>
+                <div class="controls">
+                  <button id="bk-download" class="btn btn-primary">Download backup</button>
+                  <label class="field">Restore from a backup <input id="bk-file" type="file" accept=".db,.sqlite,.sqlite3" /></label>
+                  <button id="bk-restore" class="btn btn-sell">Restore</button>
+                </div>
+                <p class="hint" id="bk-info"></p>
+                <p class="hint" id="bk-result"></p>
+                <p class="hint">A backup is one file with <b>everything</b> in the app: your portfolio and market date, trades, positions, strategies,
+                  saved backtests, alerts, risk and cost settings, and every stock's price history (including files you imported). Download one
+                  now and then, and before you try something risky. <b>Restore</b> replaces everything with the file's contents; the app saves a
+                  safety copy of your current data first, and a backup made by an older version of the app is upgraded automatically. It restores only
+                  files made by this app.</p>
+                <div class="controls">
+                  <button id="bk-progress-download" class="btn">Download Learn progress</button>
+                  <label class="field">Load Learn progress <input id="bk-progress-file" type="file" accept=".json,application/json" /></label>
+                  <button id="bk-progress-load" class="btn">Load</button>
+                </div>
+                <p class="hint">Your Learn course progress is kept in this browser, not in the backup file, so use this to move it to another
+                  computer. Loading adds to what is already there and never removes progress.</p>
               </div>
 
               <div id="tab-quality" class="tabpane" hidden>
@@ -600,6 +625,10 @@
 
                 <div class="panel">
                   <h3>Trades</h3>
+                  <div class="controls">
+                    <button id="bt-export-trades" class="btn">Export trades (CSV)</button>
+                    <button id="bt-export-equity" class="btn">Export equity curve (CSV)</button>
+                  </div>
                   <table id="bt-trades-table">
                     <thead><tr><th>Entry date</th><th class="num">Entry</th><th>Exit date</th><th class="num">Exit</th><th class="num">Qty</th><th class="num">P&amp;L</th><th class="num">P&amp;L %</th><th class="num">Stop</th></tr></thead>
                     <tbody></tbody>
@@ -667,6 +696,7 @@
                   back in the builder and runs it again (and tells you if the numbers have changed since, for instance because you re-imported
                   the stock or changed your risk or cost settings). <b>Compare</b> adds the saved result to the comparison without re-running it.</p>
                 <p id="bt-saved-empty" class="empty">Nothing saved yet. Run a backtest and press "Save this run".</p>
+                <div class="controls"><button id="bt-export-saved" class="btn">Export saved list (CSV)</button></div>
                 <table id="bt-saved-table" hidden>
                   <thead><tr><th>Name</th><th>Period</th><th class="num">Return</th><th class="num">Final</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Max drawdown</th><th>Saved</th><th></th></tr></thead>
                   <tbody></tbody>
