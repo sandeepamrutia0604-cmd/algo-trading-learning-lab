@@ -1,0 +1,24 @@
+# Line endings: text files are stored with LF in the repository and checked out with LF on every system,
+# so Git stops warning "LF will be replaced by CRLF" on Windows and editors/tools that write LF stay consistent.
+* text=auto eol=lf
+
+# Windows batch files are the exception: cmd.exe can mis-read labels and goto in LF-only files,
+# so they are checked out with CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files: never convert or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.webm binary
+*.mp4 binary
+*.db binary
+*.sqlite3 binary
+*.lnk binary
+*.clipchamp binary
