@@ -574,6 +574,20 @@ class SavedBacktestOut(BaseModel):
     costs_applied: bool
 
 
+class BackupInfoOut(BaseModel):
+    database_bytes: int
+    location: str | None  # the database file on this computer; None for an in-memory database
+    safety_copies: int
+    newest_safety_copy: str | None
+
+
+class BackupRestoreOut(BaseModel):
+    stocks: int
+    trades: int
+    market_date: dt.date | None
+    safety_copy: str  # where the data from before the restore was kept
+
+
 class AlertCreate(BaseModel):
     symbol: str = Field(min_length=1, max_length=10)
     kind: Literal["above", "below"]

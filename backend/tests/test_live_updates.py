@@ -35,6 +35,7 @@ def market(client):
         ("/api/backtests/saved/4", "backtests"),
         ("/api/alerts", "alerts"),
         ("/api/alerts/3/rearm", "alerts"),
+        ("/api/backup/restore", "backup"),
         ("/api/portfolio/starting-capital", "other"),
     ],
 )

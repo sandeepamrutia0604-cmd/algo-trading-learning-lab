@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.alerts import router as alerts_router
 from .api.analytics import router as analytics_router
+from .api.backup import router as backup_router
 from .api.backtests import router as backtests_router
 from .api.costs import router as costs_router
 from .api.data_sources import router as data_sources_router
@@ -97,6 +98,7 @@ app.include_router(strategies_router, prefix="/api")
 app.include_router(backtests_router, prefix="/api")
 app.include_router(scanner_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
+app.include_router(backup_router, prefix="/api")
 app.include_router(risk_router, prefix="/api")
 app.include_router(costs_router, prefix="/api")
 app.include_router(data_sources_router, prefix="/api")
