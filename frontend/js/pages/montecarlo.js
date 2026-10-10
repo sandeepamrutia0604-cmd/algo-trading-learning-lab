@@ -3,6 +3,7 @@
 
 import { $, api, percent, signedPercent, toast } from "../util.js";
 import { currentTheme, themeColors } from "../theme.js";
+import { describeExitLevels } from "../exitlevels.js";
 
 const state = { result: null, analysis: null, runId: 0, drawn: "", running: false };
 
@@ -131,6 +132,7 @@ function render() {
     `Based on ${a.trade_count} closed trades from ${a.period_start} to ${a.period_end}` +
     (a.open_trade_excluded ? " (a position still open at the end is left out)" : "") +
     (a.fill_mode === "next_open" ? ", trading at the next day's open" : "") +
+    (a.stop_loss_pct || a.take_profit_pct ? `, with ${describeExitLevels(a.stop_loss_pct, a.take_profit_pct)}` : "") +
     (a.uses_risk ? ", with your Risk management settings" : "") +
     (a.uses_costs ? ", with trading costs" : "") +
     `. ${a.method === "shuffle" ? "Each simulation re-orders the same trades." : "Each simulation draws the same number of trades at random, with replacement, from this run's trades."} ` +

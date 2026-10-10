@@ -4,6 +4,7 @@ import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } fr
 import * as rb from "../rulebuilder.js";
 import { initMonteCarlo, showMonteCarlo } from "./montecarlo.js";
 import { downloadCsv } from "../csv.js";
+import { describeExitLevels, parseExitLevels } from "../exitlevels.js";
 
 const MAX_COMPARE = 6;
 const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
@@ -157,7 +158,9 @@ async function runBacktest() {
 
   const riskFree = parseFloat($("bt-rf").value);
   if (!(riskFree >= 0 && riskFree <= 30)) return toast("The risk-free rate must be between 0 and 30", true);
-  const extra = { risk_free_pct: riskFree, ...($("bt-bench").value ? { benchmark: $("bt-bench").value } : {}) };
+  const levels = parseExitLevels($("bt-sl").value, $("bt-tp").value);
+  if (levels.error) return toast(levels.error, true);
+  const extra = { risk_free_pct: riskFree, ...($("bt-bench").value ? { benchmark: $("bt-bench").value } : {}), ...levels.values };
 
   state.running = true;
   $("bt-run").disabled = true;
@@ -286,9 +289,11 @@ async function renderResults() {
     (r.fill_mode === "next_open" ? " · every trade made at the next day's opening price" : "") +
     (r.unfilled_signal ? " · a decision on the last day had no next day to trade on, so it was not carried out" : "") +
     (r.risk_managed ? ` · sized and stop-lossed using your Risk management settings${r.volatility_stops ? " (each stop set from the stock's volatility on the day of the buy)" : ""}` : "") +
+    (r.stop_loss_pct || r.take_profit_pct ? ` · order-level exits: ${describeExitLevels(r.stop_loss_pct, r.take_profit_pct)}, checked against each day's low and high` : "") +
     (r.costs_applied ? " · slippage, brokerage and taxes applied from your Trading costs settings" : "") +
     (r.skipped_buys ? ` · ${r.skipped_buys} buy signal${r.skipped_buys === 1 ? "" : "s"} skipped (insufficient cash or over a risk limit)` : "") +
-    (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "");
+    (r.stopped_out ? ` · ${r.stopped_out} position${r.stopped_out === 1 ? "" : "s"} closed by stop-loss` : "") +
+    (r.take_profits ? ` · ${r.take_profits} closed by take-profit` : "");
   renderMetrics(r);
   renderMore(r);
 
@@ -317,6 +322,20 @@ async function renderResults() {
   renderTrades(r);
 }
 
+/** The little label after an exit date: why the trade closed, when it wasn't just the strategy's own sell signal. */
+function exitChip(t) {
+  if (t.exit_reason === "take_profit") return ' <span class="chip">take-profit</span>';
+  if (t.exit_reason === "risk_stop") return ' <span class="chip">risk stop</span>';
+  return t.stopped_out ? ' <span class="chip">stop-loss</span>' : "";
+}
+
+function exitStatus(t) {
+  if (t.open) return "open";
+  if (t.exit_reason === "take_profit") return "closed by take-profit";
+  if (t.exit_reason === "risk_stop") return "closed by risk stop";
+  return t.stopped_out ? "closed by stop-loss" : "closed";
+}
+
 function renderTrades(r) {
   const closed = r.trades.filter((t) => !t.open);
   const open = r.trades.filter((t) => t.open);
@@ -327,7 +346,7 @@ function renderTrades(r) {
       (t) => `<tr>
         <td>${t.entry_date}</td>
         <td class="num">${money(t.entry_price)}</td>
-        <td>${t.exit_date ? t.exit_date + (t.stopped_out ? ' <span class="chip">stop-loss</span>' : "") : "-"}</td>
+        <td>${t.exit_date ? t.exit_date + exitChip(t) : "-"}</td>
         <td class="num">${t.exit_date ? money(t.exit_price) : `<span class="muted">open</span>`}</td>
         <td class="num">${t.quantity}</td>
         <td class="num ${t.pnl == null ? "" : pnlClass(t.pnl)}">${t.pnl == null ? "-" : money(t.pnl)}</td>
@@ -352,7 +371,7 @@ function exportBacktestTrades() {
     { header: "Quantity", value: "quantity" },
     { header: "P&L", value: "pnl" },
     { header: "P&L %", value: "pnl_pct" },
-    { header: "Status", value: (t) => (t.open ? "open" : t.stopped_out ? "closed by stop-loss" : "closed") },
+    { header: "Status", value: exitStatus },
     { header: "Stop distance %", value: "stop_pct" },
   ], r.trades);
   toast(`Exported ${r.trades.length} trades`);
@@ -402,6 +421,7 @@ function addToComparison() {
     (isPartial(state.result) ? ` (${state.result.period_start} to ${state.result.period_end})` : "") +
     (state.result.fill_mode === "next_open" ? " (next open)" : "") +
     (state.result.risk_managed ? " (risk-managed)" : "") +
+    (state.result.stop_loss_pct || state.result.take_profit_pct ? ` (${describeExitLevels(state.result.stop_loss_pct, state.result.take_profit_pct)})` : "") +
     (state.result.costs_applied ? " (with costs)" : "");
   pushComparison(label, state.result);
 }
@@ -553,6 +573,8 @@ async function loadSavedRun(id) {
   $("bt-capital").value = req.initial_capital;
   $("bt-fill").value = req.fill_mode || "signal_close";
   updateFillHint();
+  $("bt-sl").value = req.stop_loss_pct ?? "";
+  $("bt-tp").value = req.take_profit_pct ?? "";
   $("bt-rf").value = req.risk_free_pct ?? 0;
   $("bt-bench").value = req.benchmark || "";
   await refreshRange(); // sets the date limits for this stock; then put the saved dates back

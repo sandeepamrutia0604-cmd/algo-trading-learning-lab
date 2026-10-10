@@ -145,6 +145,19 @@ Screens (left navigation):
   and is saved with a saved backtest. On five years of five large NSE stocks the average effect
   was small (about -0.2 percentage points) but mattered most for trend followers.
 
+  **Stop-loss % / Take-profit %** (optional, empty = none) give a backtest the same order-level exits a live
+  order can carry (see "Stop-loss and take-profit on an order" below), so a backtest can answer "what if I had used a
+  5% stop and a 10% target?". Each trade's levels are measured from its own entry price (after slippage), and every
+  day an open trade is checked against that day's open, high and low with the very same rule as the live order: a
+  stock that opens beyond a level fills at the open, otherwise at the level, and a day that reaches both takes the stop.
+  A trade entered at a close is first checked the next day; one entered at the next open is protected from that same
+  day. The exit is sold like any other (slippage and charges apply), happens before that day's strategy signal, and
+  does not change how many shares are bought. It works alongside the Risk management stop (which looks at closes and
+  sizes the position): whichever fires first wins. Each trade records why it closed (the strategy's sell, the risk stop,
+  the stop-loss or the take-profit), shown as a small label in the trade list. The levels also apply to the Optimise page
+  (held fixed while the settings are swept; single split and walk-forward) and to Monte Carlo, and are saved with a saved
+  backtest (older saved runs, made without them, still load). With the boxes empty every result is exactly as before.
+
   Under a result, **Monte Carlo** shows how much of it was luck. It takes the run's closed
   trades, reduces each to its return on the account at the moment it opened (exact, since trades
   never overlap), and re-plays them 100 to 5,000 times: **resampling** them with replacement (so
@@ -536,7 +549,10 @@ target** in the chart toolbar to hide them. A level more than 25% from the price
 the candles. The line logic is `frontend/js/levels.js`, tested with `node --test frontend/js/levels.test.mjs`.
 
 This is separate from the Risk management stop-loss, which sizes auto-trade positions and exits them on the *closing* price.
-Backtests don't use order-level stops or targets yet. The rules are in `engine/exit_math.py` (pure) and `services/exit_service.py`.
+Backtests can use the same two levels: on the Backtests and Optimise pages, fill in **Stop-loss %** and **Take-profit %** (see
+Backtests above), and a test in the project checks that a backtest and a live position exit on the same day at the same
+price. The rules are in `engine/exit_math.py` (pure, shared by both) and `services/exit_service.py` (live orders); the
+backtest side is `ExitConfig` in `engine/backtest.py`.
 
 ### Price alerts: Trade, then Alerts
 
@@ -617,7 +633,7 @@ pytest
 The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
 
 ```bash
-node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs
+node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs frontend/js/exitlevels.test.mjs
 ```
 
 They check that every written lesson is well formed and that every quiz answer points at a real

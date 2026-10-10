@@ -1,5 +1,6 @@
 import { $, api, percent, pnlClass, signedPercent, toast } from "../util.js";
 import { store } from "../store.js";
+import { describeExitLevels, parseExitLevels } from "../exitlevels.js";
 import { currentTheme, themeColors } from "../theme.js";
 
 const MAX_COMBINATIONS = 400; // keep in step with services/optimizer_service.py
@@ -152,12 +153,15 @@ function buildBase() {
     quantity: parseInt($("op-qty").value, 10),
     initial_capital: parseFloat($("op-capital").value),
     fill_mode: $("op-fill").value,
+    ...parseExitLevels($("op-sl").value, $("op-tp").value).values,
   };
   if ($("op-y").value) request.y = axis("op-y", $("op-y").value);
   return request;
 }
 
 function checkBase(request) {
+  const levels = parseExitLevels($("op-sl").value, $("op-tp").value);
+  if (levels.error) return levels.error;
   if (!(request.quantity >= 1)) return "Shares per BUY must be at least 1";
   if (!(request.initial_capital > 0)) return "Initial capital must be greater than zero";
   for (const axis of [request.x, request.y].filter(Boolean)) {
@@ -333,6 +337,7 @@ function renderResults() {
     `${r.valid} of ${r.combinations} combinations valid · scored by ${METRIC_LABEL[r.metric]}` +
     (fixed ? ` · other settings held at their defaults (${fixed})` : "") +
     (r.fill_mode === "next_open" ? " · trades at the next day's open" : "") +
+    (r.stop_loss_pct || r.take_profit_pct ? ` · with ${describeExitLevels(r.stop_loss_pct, r.take_profit_pct)}` : "") +
     (r.uses_risk ? " · with your Risk management settings" : "") +
     (r.uses_costs ? " · with trading costs" : "");
   const v = verdict(r);
@@ -468,6 +473,7 @@ function renderWalkForward() {
   $("op-wf-sub").textContent =
     `${r.summary.folds} folds · ${r.mode} training window (${r.train_ratio}:1 train to test) · ${r.combinations} combinations per fold · scored by ${METRIC_LABEL[r.metric]}` +
     (r.fill_mode === "next_open" ? " · trades at the next day's open" : "") +
+    (r.stop_loss_pct || r.take_profit_pct ? ` · with ${describeExitLevels(r.stop_loss_pct, r.take_profit_pct)}` : "") +
     (r.uses_risk ? " · with your Risk management settings" : "") +
     (r.uses_costs ? " · with trading costs" : "");
   const v = wfVerdict(r);

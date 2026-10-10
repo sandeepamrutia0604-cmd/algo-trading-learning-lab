@@ -535,6 +535,11 @@
               </label>
               <p class="hint" id="bt-fill-hint"></p>
               <div class="param-grid">
+                <label class="field">Stop-loss (% below entry) <input id="bt-sl" type="number" min="0" max="99.9" step="0.5" placeholder="none" /></label>
+                <label class="field">Take-profit (% above entry) <input id="bt-tp" type="number" min="0" max="1000" step="0.5" placeholder="none" /></label>
+              </div>
+              <p class="hint">Optional order-level exits, like the stop-loss and take-profit on an order ticket: each trade is closed if a day's low reaches the stop or its high reaches the target, measured from that trade's entry price. If a stock opens beyond a level it fills at the open instead (a gap), and a day that reaches both takes the stop. They don't change how many shares are bought, and they work alongside the Risk management stop.</p>
+              <div class="param-grid">
                 <label class="field">Risk-free rate (% a year) <input id="bt-rf" type="number" min="0" max="30" step="0.5" value="0" /></label>
                 <label class="field">Compare with
                   <select id="bt-bench"><option value="">(nothing)</option></select>
@@ -768,6 +773,11 @@
                   <option value="next_open">The next day's open (more realistic)</option>
                 </select>
               </label>
+              <div class="param-grid">
+                <label class="field">Stop-loss (% below entry) <input id="op-sl" type="number" min="0" max="99.9" step="0.5" placeholder="none" /></label>
+                <label class="field">Take-profit (% above entry) <input id="op-tp" type="number" min="0" max="1000" step="0.5" placeholder="none" /></label>
+              </div>
+              <p class="hint">Optional order-level exits held fixed while the settings are swept (see Backtests). Leave empty for none.</p>
 
               <div class="op-axis" id="op-wf-box" hidden>
                 <b class="small">Walk-forward windows</b>
