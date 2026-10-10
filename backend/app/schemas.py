@@ -411,6 +411,9 @@ class BacktestRequest(BaseModel):
     # When a decision is carried out: at the close of the day the signal appears (the default), or
     # at the next trading day's opening price, the first price you could really have got.
     fill_mode: Literal["signal_close", "next_open"] = "signal_close"
+    # Order-level exits, as percentages of each trade's entry price: the same two levels a live order can carry.
+    stop_loss_pct: float | None = Field(default=None, gt=0, lt=100)
+    take_profit_pct: float | None = Field(default=None, gt=0, le=1000)
     risk_free_pct: float = Field(default=0.0, ge=0, le=30)  # yearly, for the Sharpe and Sortino ratios and alpha
     benchmark: str | None = Field(default=None, max_length=40)  # another stock or index to compare with
 
@@ -469,7 +472,8 @@ class BacktestTradeOut(BaseModel):
     pnl: float | None = None
     pnl_pct: float | None = None
     open: bool
-    stopped_out: bool = False
+    stopped_out: bool = False  # closed by a stop-loss of either kind
+    exit_reason: str | None = None  # "signal", "risk_stop", "stop_loss" or "take_profit"; None while open or on a run saved earlier
     stop_pct: float | None = None  # the stop distance this trade was sized and protected with (risk management on)
 
 
@@ -538,6 +542,9 @@ class BacktestResultOut(BaseModel):
     max_drawdown_pct: float
     skipped_buys: int
     stopped_out: int = 0
+    take_profits: int = 0  # trades closed by an order-level take-profit
+    stop_loss_pct: float | None = None  # the order-level exits this run used, if any
+    take_profit_pct: float | None = None
     fill_mode: str = "signal_close"
     unfilled_signal: bool = False  # next-open fills: a decision on the last day had no next day to trade on
     metrics: BacktestMetricsOut | None = None  # None on a result saved before these existed
@@ -633,6 +640,9 @@ class OptimiseRequest(BaseModel):
     test_start: dt.date | None = None
     test_end: dt.date | None = None
     fill_mode: Literal["signal_close", "next_open"] = "signal_close"
+    # Order-level exits, as percentages of each trade's entry price: the same two levels a live order can carry.
+    stop_loss_pct: float | None = Field(default=None, gt=0, lt=100)
+    take_profit_pct: float | None = Field(default=None, gt=0, le=1000)
 
 
 class GridCellOut(BaseModel):
@@ -670,6 +680,8 @@ class OptimiseOut(BaseModel):
     type_label: str
     metric: str
     fill_mode: str = "signal_close"
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
     x: GridAxisOut
     y: GridAxisOut | None = None
     train: GridPeriodOut
@@ -696,6 +708,9 @@ class WalkForwardRequest(BaseModel):
     start_date: dt.date | None = None
     end_date: dt.date | None = None
     fill_mode: Literal["signal_close", "next_open"] = "signal_close"
+    # Order-level exits, as percentages of each trade's entry price: the same two levels a live order can carry.
+    stop_loss_pct: float | None = Field(default=None, gt=0, lt=100)
+    take_profit_pct: float | None = Field(default=None, gt=0, le=1000)
 
 
 class WalkForwardFoldOut(BaseModel):
@@ -743,6 +758,8 @@ class WalkForwardOut(BaseModel):
     metric: str
     mode: str
     fill_mode: str = "signal_close"
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
     train_ratio: float
     x: GridAxisOut
     y: GridAxisOut | None = None
@@ -811,5 +828,7 @@ class MonteCarloOut(BaseModel):
     fan: McFanOut
     open_trade_excluded: bool
     fill_mode: str = "signal_close"
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
     uses_risk: bool
     uses_costs: bool

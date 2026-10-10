@@ -24,6 +24,7 @@ backtest with a From date; nothing from a test period reaches the training run t
 from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import median
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -163,19 +164,29 @@ def _buy_and_hold_pct(closes: list[float], start_index: int) -> float:
     return (closes[-1] / closes[start_index] - 1) * 100
 
 
-def _data(candles: list, start: date | None, end: date | None, fill_mode: str) -> tuple:
-    """(dates, closes, start_index, opens) for one window; opens only when fills are at the next open."""
+class Window(NamedTuple):
+    """The prices of one training or test window, lined up the way `run_backtest` wants them."""
+
+    dates: list
+    closes: list
+    start_index: int
+    opens: list
+    highs: list
+    lows: list
+
+
+def _data(candles: list, start: date | None, end: date | None, fill_mode: str = "signal_close") -> Window:
     dates, closes, start_index = backtest_service.window(candles, start, end)
-    opens = backtest_service.opens_until(candles, end) if fill_mode == "next_open" else None
-    return dates, closes, start_index, opens
+    opens, highs, lows = backtest_service.ohlc_until(candles, end)
+    return Window(dates, closes, start_index, opens, highs, lows)
 
 
-def _runner(sweep: Sweep, quantity: int, initial_capital: float, risk, costs, fill_mode: str = "signal_close"):
-    def run(data, params):
-        dates, closes, start_index, opens = data
+def _runner(sweep: Sweep, quantity: int, initial_capital: float, risk, costs, fill_mode: str = "signal_close", exits=None):
+    def run(data: Window, params):
         return run_backtest(
-            sweep.defn, params, dates, closes, quantity, initial_capital, risk, costs,
-            start_index=start_index, fill_mode=fill_mode, opens=opens,
+            sweep.defn, params, data.dates, data.closes, quantity, initial_capital, risk, costs,
+            start_index=data.start_index, fill_mode=fill_mode, opens=data.opens, highs=data.highs, lows=data.lows,
+            exits=exits,
         )
 
     return run
@@ -262,13 +273,16 @@ def optimise(
     test_start: date | None = None,
     test_end: date | None = None,
     fill_mode: str = "signal_close",
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
 ) -> dict:
     backtest_service.check_fill_mode(fill_mode)
+    exits = backtest_service.exit_config(stop_loss_pct, take_profit_pct)
     sweep = _prepare(type_key, fixed_params, x, y, metric, quantity, initial_capital)
     train_start, train_end = _periods(train_start, train_end, test_start, test_end)
     candles = _history(db, symbol)
     risk, costs = backtest_service.run_config(db)
-    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode)
+    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode, exits)
 
     train_data = _data(candles, train_start, train_end, fill_mode)
     test_data = _data(candles, test_start, test_end, fill_mode) if test_start else None
@@ -281,12 +295,11 @@ def optimise(
     if best_test is not None:
         test_rank, test_valid, test_median = _test_standing(test_rows, best_test)
 
-    def period(data, rows):
-        dates, closes, start_index, _ = data
+    def period(data: Window, rows):
         return {
-            "start": dates[start_index],
-            "end": dates[-1],
-            "buy_hold_pct": round(_buy_and_hold_pct(closes, start_index), 4),
+            "start": data.dates[data.start_index],
+            "end": data.dates[-1],
+            "buy_hold_pct": round(_buy_and_hold_pct(data.closes, data.start_index), 4),
             "cells": rows,
         }
 
@@ -296,6 +309,8 @@ def optimise(
         "type_label": sweep.defn.label,
         "metric": metric,
         "fill_mode": fill_mode,
+        "stop_loss_pct": stop_loss_pct,
+        "take_profit_pct": take_profit_pct,
         "x": _axis_out(sweep.x_spec, sweep.x_values),
         "y": _axis_out(sweep.y_spec, sweep.y_values) if sweep.y else None,
         "train": period(train_data, train_rows),
@@ -378,14 +393,17 @@ def walk_forward(
     start_date: date | None = None,
     end_date: date | None = None,
     fill_mode: str = "signal_close",
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
 ) -> dict:
     backtest_service.check_fill_mode(fill_mode)
+    exits = backtest_service.exit_config(stop_loss_pct, take_profit_pct)
     sweep = _prepare(type_key, fixed_params, x, y, metric, quantity, initial_capital)
     candles = _history(db, symbol)
     in_range = [c.date for c in candles if (not start_date or c.date >= start_date) and (not end_date or c.date <= end_date)]
     plan = fold_plan(len(in_range), folds, train_ratio, mode)
     risk, costs = backtest_service.run_config(db)
-    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode)
+    run = _runner(sweep, quantity, initial_capital, risk, costs, fill_mode, exits)
 
     fold_rows: list[dict] = []
     equity_dates: list[date] = []
@@ -406,7 +424,7 @@ def walk_forward(
 
         # The winner's actual test-window run, to chain its equity curve onto the previous folds'.
         result = run(test_data, sweep.defn.normalize(params))
-        test_dates, test_closes, test_start, _ = test_data
+        test_dates, test_closes, test_start = test_data.dates, test_data.closes, test_data.start_index
         hold_pct = _buy_and_hold_pct(test_closes, test_start)
         for point, close in zip(result.equity_curve, test_closes[test_start:]):
             equity_dates.append(point.date)
@@ -418,8 +436,8 @@ def walk_forward(
         fold_rows.append(
             {
                 "index": index + 1,
-                "train_start": train_data[0][train_data[2]],
-                "train_end": train_data[0][-1],
+                "train_start": train_data.dates[train_data.start_index],
+                "train_end": train_data.dates[-1],
                 "test_start": test_dates[test_start],
                 "test_end": test_dates[-1],
                 "params": params,
@@ -450,6 +468,8 @@ def walk_forward(
         "metric": metric,
         "mode": mode,
         "fill_mode": fill_mode,
+        "stop_loss_pct": stop_loss_pct,
+        "take_profit_pct": take_profit_pct,
         "train_ratio": train_ratio,
         "x": _axis_out(sweep.x_spec, sweep.x_values),
         "y": _axis_out(sweep.y_spec, sweep.y_values) if sweep.y else None,

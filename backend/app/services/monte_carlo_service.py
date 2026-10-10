@@ -30,6 +30,8 @@ def analyse(db: Session, request: BacktestRequest, simulations: int, method: str
         start_date=request.start_date,
         end_date=request.end_date,
         fill_mode=request.fill_mode,
+        stop_loss_pct=request.stop_loss_pct,
+        take_profit_pct=request.take_profit_pct,
     )
     closed = [t for t in result.trades if not t.is_open]
     if len(closed) < MIN_TRADES:
@@ -49,6 +51,8 @@ def analyse(db: Session, request: BacktestRequest, simulations: int, method: str
         backtest_return_pct=result.total_return_pct,
         backtest_max_drawdown_pct=result.max_drawdown_pct,
         fill_mode=result.fill_mode,
+        stop_loss_pct=result.stop_loss_pct,
+        take_profit_pct=result.take_profit_pct,
         open_trade_excluded=len(closed) != len(result.trades),
         uses_risk=risk_enabled,
         uses_costs=result.costs_applied,

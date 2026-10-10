@@ -21,6 +21,9 @@ def default_name(result: BacktestResultOut, request: BacktestRequest) -> str:
         name += f" ({result.period_start} to {result.period_end})"
     if result.fill_mode == "next_open":
         name += ", next-open fills"
+    if result.stop_loss_pct or result.take_profit_pct:
+        levels = [f"{result.stop_loss_pct:g}% stop" if result.stop_loss_pct else "", f"{result.take_profit_pct:g}% target" if result.take_profit_pct else ""]
+        name += ", " + " / ".join(level for level in levels if level)
     return name
 
 

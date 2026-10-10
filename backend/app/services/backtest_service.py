@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..adapters import get_market_data_adapter
 from ..engine import rule_engine
-from ..engine.backtest import FILL_MODES, BacktestResult, RiskConfig, run_backtest
+from ..engine.backtest import FILL_MODES, BacktestResult, ExitConfig, RiskConfig, run_backtest
 from ..engine.cost_math import CostConfig
 from ..strategies.base import StrategyDef
 from ..strategies.registry import get_definition
@@ -60,9 +60,20 @@ def window(candles: list, start_date: date | None, end_date: date | None) -> tup
     return [c.date for c in candles], [c.close for c in candles], start_index
 
 
-def opens_until(candles: list, end_date: date | None) -> list[float]:
-    """Opening prices lined up with the dates `window` returns for the same `end_date`."""
-    return [c.open for c in candles if not end_date or c.date <= end_date]
+def ohlc_until(candles: list, end_date: date | None) -> tuple[list[float], list[float], list[float]]:
+    """(opens, highs, lows) lined up with the dates `window` returns for the same `end_date`: what fills at
+    the next open and the order-level stop-loss and take-profit need besides the closes."""
+    kept = [c for c in candles if not end_date or c.date <= end_date]
+    return [c.open for c in kept], [c.high for c in kept], [c.low for c in kept]
+
+
+def exit_config(stop_loss_pct: float | None, take_profit_pct: float | None) -> ExitConfig:
+    """The order-level exits a request asks for (percentages of each trade's entry price), or none."""
+    if stop_loss_pct is not None and not 0 < stop_loss_pct < 100:
+        raise InvalidStrategyError("The stop-loss must be more than 0% and less than 100% below the entry price")
+    if take_profit_pct is not None and not 0 < take_profit_pct <= 1000:
+        raise InvalidStrategyError("The take-profit must be more than 0% above the entry price (up to 1000%)")
+    return ExitConfig(stop_pct=stop_loss_pct, target_pct=take_profit_pct)
 
 
 def check_fill_mode(fill_mode: str) -> None:
@@ -96,6 +107,8 @@ def run(
     start_date: date | None = None,
     end_date: date | None = None,
     fill_mode: str = "signal_close",
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
 ) -> tuple[StrategyDef, dict, list[date], list[float], BacktestResult, bool]:
     """Returns (defn, params, dates, closes, result, risk_enabled). The backtest applies the
     same RiskSettings (position sizing, stop-loss, max allocation) live auto-trading would,
@@ -108,8 +121,12 @@ def run(
     the first traded day.
 
     `fill_mode` is when decisions are carried out: "signal_close" (at the close of the day a signal
-    appears) or "next_open" (at the next day's opening price); see engine/backtest.py."""
+    appears) or "next_open" (at the next day's opening price); see engine/backtest.py.
+
+    `stop_loss_pct` / `take_profit_pct` (optional) are order-level exits, as percentages of each trade's entry
+    price, checked every day against that day's low and high like the exits on a live order."""
     check_fill_mode(fill_mode)
+    exits = exit_config(stop_loss_pct, take_profit_pct)
     if quantity < 1:
         raise InvalidStrategyError("Quantity must be at least 1")
     if initial_capital <= 0:
@@ -121,8 +138,9 @@ def run(
         raise InvalidStrategyError("Not enough price history to run a backtest")
     dates, closes, start_index = window(candles, start_date, end_date)
     risk, costs = run_config(db)
-    opens = opens_until(candles, end_date) if fill_mode == "next_open" else None
+    opens, highs, lows = ohlc_until(candles, end_date)
     result = run_backtest(
-        defn, clean, dates, closes, quantity, initial_capital, risk, costs, start_index=start_index, fill_mode=fill_mode, opens=opens
+        defn, clean, dates, closes, quantity, initial_capital, risk, costs, start_index=start_index, fill_mode=fill_mode,
+        opens=opens, highs=highs, lows=lows, exits=exits,
     )
     return defn, clean, dates, closes, result, risk.enabled

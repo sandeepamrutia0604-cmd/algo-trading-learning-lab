@@ -30,6 +30,7 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
     defn, params, dates, closes, result, risk_managed = backtest_service.run(
         db, body.symbol, body.type, body.params, body.quantity, body.initial_capital, body.rules,
         start_date=body.start_date, end_date=body.end_date, fill_mode=body.fill_mode,
+        stop_loss_pct=body.stop_loss_pct, take_profit_pct=body.take_profit_pct,
     )
     period_start, period_end = result.equity_curve[0].date, result.equity_curve[-1].date
     return BacktestResultOut(
@@ -54,6 +55,9 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
         max_drawdown_pct=result.max_drawdown_pct,
         skipped_buys=result.skipped_buys,
         stopped_out=result.stopped_out,
+        take_profits=result.take_profits,
+        stop_loss_pct=result.stop_loss_pct,
+        take_profit_pct=result.take_profit_pct,
         risk_managed=risk_managed,
         volatility_stops=risk_managed and risk_service.get_settings(db).stop_mode == "volatility",
         costs_applied=result.costs_applied,
@@ -71,6 +75,7 @@ def _run(body: BacktestRequest, db: Session) -> BacktestResultOut:
                 pnl_pct=t.pnl_pct,
                 open=t.is_open,
                 stopped_out=t.stopped_out,
+                exit_reason=t.exit_reason,
                 stop_pct=t.stop_pct,
             )
             for t in result.trades
@@ -116,6 +121,8 @@ def optimise(body: OptimiseRequest, db: Session = Depends(get_db)):
         body.test_start,
         body.test_end,
         body.fill_mode,
+        body.stop_loss_pct,
+        body.take_profit_pct,
     )
 
 
@@ -147,6 +154,8 @@ def walk_forward(body: WalkForwardRequest, db: Session = Depends(get_db)):
         body.start_date,
         body.end_date,
         body.fill_mode,
+        body.stop_loss_pct,
+        body.take_profit_pct,
     )
 
 

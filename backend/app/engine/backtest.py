@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..strategies.base import StrategyDef
-from . import cost_math, indicators, risk_math
+from . import cost_math, exit_math, indicators, risk_math
 from .cost_math import CostConfig
 
 
@@ -26,6 +26,32 @@ class RiskConfig:
     volatility_multiplier: float = 2.0
 
 
+@dataclass(frozen=True)
+class ExitConfig:
+    """An order-level stop-loss and take-profit, as percentages of each trade's entry price: the same two
+    levels a live paper order can carry (engine/exit_math.py). Checked every day against that day's open,
+    high and low, and independent of the Risk management stop (which looks at closes and sizes the position)."""
+
+    stop_pct: float | None = None
+    target_pct: float | None = None
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.stop_pct or self.target_pct)
+
+    def levels(self, entry_price: float) -> tuple[float | None, float | None]:
+        """(stop price, target price) for a trade that entered at `entry_price`, rounded to 2 decimals like
+        the order ticket does (unless rounding would put a level on the wrong side of the entry)."""
+        stop = target = None
+        if self.stop_pct:
+            raw = entry_price * (1 - self.stop_pct / 100)
+            stop = round(raw, 2) if round(raw, 2) < entry_price else raw
+        if self.target_pct:
+            raw = entry_price * (1 + self.target_pct / 100)
+            target = round(raw, 2) if round(raw, 2) > entry_price else raw
+        return stop, target
+
+
 @dataclass
 class BacktestTrade:
     entry_date: date
@@ -35,7 +61,8 @@ class BacktestTrade:
     exit_price: float | None = None
     pnl: float | None = None
     pnl_pct: float | None = None
-    stopped_out: bool = False
+    stopped_out: bool = False  # closed by a stop-loss of either kind (Risk management or order-level)
+    exit_reason: str | None = None  # "signal", "risk_stop", "stop_loss" or "take_profit"; None while open
     stop_pct: float | None = None  # the stop distance this trade was sized and protected with
     entry_fees: float = 0.0
     exit_fees: float = 0.0
@@ -63,6 +90,9 @@ class BacktestResult:
     max_drawdown_pct: float
     skipped_buys: int
     stopped_out: int = 0
+    take_profits: int = 0  # trades closed by an order-level take-profit
+    stop_loss_pct: float | None = None  # the order-level levels this run used, if any
+    take_profit_pct: float | None = None
     costs_applied: bool = False
     total_fees: float = 0.0
     slippage_cost: float = 0.0
@@ -80,8 +110,15 @@ FILL_MODES = ("signal_close", "next_open")
 
 
 def _close_trade(
-    trade: BacktestTrade, day: date, price: float, *, stopped_out: bool = False, exit_fees: float = 0.0
+    trade: BacktestTrade,
+    day: date,
+    price: float,
+    *,
+    stopped_out: bool = False,
+    exit_fees: float = 0.0,
+    reason: str = "signal",
 ) -> None:
+    trade.exit_reason = reason
     trade.exit_date = day
     trade.exit_price = price
     trade.exit_fees = exit_fees
@@ -105,6 +142,9 @@ def run_backtest(
     start_index: int = 0,
     fill_mode: str = "signal_close",
     opens: list[float] | None = None,
+    highs: list[float] | None = None,
+    lows: list[float] | None = None,
+    exits: ExitConfig | None = None,
 ) -> BacktestResult:
     """Process `dates`/`closes` chronologically, buying/selling on each signal at that day's
     close, marking to market every day. A BUY is skipped if it would cost more than the cash
@@ -132,12 +172,22 @@ def run_backtest(
     known then); whether the cash and allocation cap allow it is checked at the open it fills at. A
     decision on the final day has no next day and is dropped (`unfilled_signal`). The account is
     still marked to market at each close.
+
+    `exits` adds an order-level stop-loss and/or take-profit (needs `opens`, `highs` and `lows`, one per
+    close). Each day, before anything else is decided, an open trade is checked against that day's candle
+    with the same rule live orders use (engine/exit_math.py): a gap beyond a level fills at the open,
+    otherwise the level itself, and a day that reaches both takes the stop. A trade that entered at a close
+    is first checked the next day; one that entered at an open is live from that day. The exit is sold
+    through the ordinary sell path (slippage and charges apply). It does not size the position.
     """
     if fill_mode not in FILL_MODES:
         raise ValueError(f"Unknown fill mode '{fill_mode}'. Choose one of: {', '.join(FILL_MODES)}")
     next_open = fill_mode == "next_open"
     if next_open and (opens is None or len(opens) != len(closes)):
         raise ValueError("Next-open fills need one opening price per close")
+    exits = exits if exits is not None else ExitConfig()
+    if exits.enabled and any(series is None or len(series) != len(closes) for series in (opens, highs, lows)):
+        raise ValueError("Order-level stops need one open, high and low per close")
     events_by_index = {e.index: e for e in defn.generate(closes, params)}
     risk = risk if risk is not None else RiskConfig()
     costs = costs if costs is not None else CostConfig()
@@ -156,12 +206,13 @@ def run_backtest(
     equity_curve: list[EquityPoint] = []
     skipped_buys = 0
     stopped_out = 0
+    take_profits = 0
     total_fees = 0.0
     slippage_cost = 0.0
     peak = initial_capital
     max_drawdown_pct = 0.0
 
-    def execute_sell(day: date, quote: float, *, stopped: bool = False) -> None:
+    def execute_sell(day: date, quote: float, *, stopped: bool = False, reason: str | None = None) -> None:
         nonlocal cash, held, total_fees, slippage_cost, stopped_out
         fill = cost_math.fill_price(quote, "SELL", costs)
         proceeds = fill * held
@@ -169,7 +220,7 @@ def run_backtest(
         cash += proceeds - fees
         total_fees += fees
         slippage_cost += (quote - fill) * held
-        _close_trade(trades[-1], day, fill, stopped_out=stopped, exit_fees=fees)
+        _close_trade(trades[-1], day, fill, stopped_out=stopped, exit_fees=fees, reason=reason or ("risk_stop" if stopped else "signal"))
         held = 0
         if stopped:
             stopped_out += 1
@@ -207,6 +258,14 @@ def run_backtest(
             else:
                 execute_sell(day, opens[i], stopped=pending[1])
             pending = None
+
+        if exits.enabled and held > 0:
+            stop_level, target_level = exits.levels(trades[-1].entry_price)
+            hit = exit_math.exit_fill(opens[i], highs[i], lows[i], stop_level, target_level)
+            if hit is not None:
+                execute_sell(day, hit.price, stopped=hit.kind == "stop", reason="stop_loss" if hit.kind == "stop" else "take_profit")
+                if hit.kind == "target":
+                    take_profits += 1
 
         open_stop_pct = (trades[-1].stop_pct or risk.stop_loss_pct) if held > 0 else None
         if risk.enabled and open_stop_pct and held > 0 and pending is None:
@@ -268,6 +327,9 @@ def run_backtest(
         max_drawdown_pct=max_drawdown_pct,
         skipped_buys=skipped_buys,
         stopped_out=stopped_out,
+        take_profits=take_profits,
+        stop_loss_pct=exits.stop_pct or None,
+        take_profit_pct=exits.target_pct or None,
         costs_applied=costs.enabled,
         total_fees=total_fees,
         slippage_cost=slippage_cost,
