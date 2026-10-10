@@ -15,6 +15,7 @@ from .api.health import router as health_router
 from .api.market import router as market_router
 from .api.orders import router as orders_router
 from .api.portfolio import router as portfolio_router
+from .api.portfolio_backtests import router as portfolio_backtests_router
 from .api.risk import router as risk_router
 from .api.scanner import router as scanner_router
 from .api.simulation import router as simulation_router
@@ -96,6 +97,7 @@ app.include_router(trades_router, prefix="/api")
 app.include_router(simulation_router, prefix="/api")
 app.include_router(strategies_router, prefix="/api")
 app.include_router(backtests_router, prefix="/api")
+app.include_router(portfolio_backtests_router, prefix="/api")
 app.include_router(scanner_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(backup_router, prefix="/api")

@@ -619,6 +619,118 @@ class SavedBacktestDetailOut(SavedBacktestOut):
     result: BacktestResultOut
 
 
+class PortfolioBacktestRequest(BaseModel):
+    """One strategy traded across several stocks from one account. The strategy and run settings are named as in
+    BacktestRequest; `quantity` is the fixed share count used per buy when risk management is off."""
+
+    symbols: list[str] = Field(min_length=2, max_length=20)
+    type: str = "ma_crossover"
+    params: dict[str, float] = {}
+    rules: dict | None = None
+    quantity: int = Field(default=10, ge=1, le=100000)
+    initial_capital: float = Field(default=100_000.0, gt=0, le=1_000_000_000)
+    start_date: dt.date | None = None
+    end_date: dt.date | None = None
+    fill_mode: Literal["signal_close", "next_open"] = "signal_close"
+    stop_loss_pct: float | None = Field(default=None, gt=0, lt=100)
+    take_profit_pct: float | None = Field(default=None, gt=0, le=1000)
+    risk_free_pct: float = Field(default=0.0, ge=0, le=30)
+    benchmark: str | None = Field(default=None, max_length=40)
+
+    @model_validator(mode="after")
+    def _dates_in_order(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValueError("start_date must be on or before end_date")
+        return self
+
+
+class PortfolioTradeOut(BacktestTradeOut):
+    symbol: str
+
+
+class PortfolioStockOut(BaseModel):
+    symbol: str
+    trades: int
+    wins: int
+    win_rate_pct: float
+    realized_pnl: float
+    open_pnl: float
+    total_pnl: float
+    contribution_pct: float  # total P&L as a share of the starting capital; these add up to the total return
+    stock_return_pct: float  # buying and holding just this stock over the period
+
+
+class SkippedByReasonOut(BaseModel):
+    cash: int = 0
+    allocation: int = 0
+    max_positions: int = 0
+    size: int = 0
+
+
+class PortfolioResultOut(BaseModel):
+    symbols: list[str]
+    type: str
+    type_label: str
+    params: dict
+    rule: str
+    quantity: int
+    initial_capital: float
+    final_capital: float
+    period_start: dt.date
+    period_end: dt.date
+    total_return_pct: float
+    total_trades: int
+    winning_trades: int
+    losing_trades: int
+    win_rate_pct: float
+    max_drawdown_pct: float
+    skipped_buys: int
+    skipped_by_reason: SkippedByReasonOut
+    stopped_out: int = 0
+    take_profits: int = 0
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
+    fill_mode: str = "signal_close"
+    unfilled_signals: int = 0
+    peak_positions: int = 0
+    max_open_positions: int = 0  # the Risk limit in force (0 = none); only applies with risk management on
+    metrics: BacktestMetricsOut  # buy_hold here is the equal-weight baseline
+    risk_managed: bool = False
+    costs_applied: bool = False
+    total_fees: float = 0.0
+    slippage_cost: float = 0.0
+    equity_curve: list[EquityPoint]
+    baseline_curve: list[EquityPoint]  # the same money split equally across the stocks and left alone
+    per_stock: list[PortfolioStockOut]
+    trades: list[PortfolioTradeOut]
+
+
+class SavePortfolioBacktestRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    request: PortfolioBacktestRequest
+
+
+class SavedPortfolioBacktestOut(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    symbols: list[str]
+    type_label: str
+    period_start: dt.date
+    period_end: dt.date
+    initial_capital: float
+    final_capital: float
+    total_return_pct: float
+    total_trades: int
+    win_rate_pct: float
+    max_drawdown_pct: float
+
+
+class SavedPortfolioBacktestDetailOut(SavedPortfolioBacktestOut):
+    request: PortfolioBacktestRequest
+    result: PortfolioResultOut
+
+
 class AxisRange(BaseModel):
     param: str = Field(min_length=1, max_length=40)
     low: float

@@ -29,7 +29,7 @@ router = APIRouter()
 SEND_TIMEOUT = 2.0  # seconds; a stuck tab must not hold up the others
 READ_ONLY_METHODS = {"GET", "HEAD", "OPTIONS"}
 # POSTs that compute something but change nothing stored (a backtest, an optimisation, a walk-forward test, a Monte Carlo analysis, a scan).
-NOT_CHANGES = {"/api/backtests/run", "/api/backtests/optimise", "/api/backtests/walk-forward", "/api/backtests/monte-carlo", "/api/scanner/run"}
+NOT_CHANGES = {"/api/backtests/run", "/api/backtests/optimise", "/api/backtests/walk-forward", "/api/backtests/monte-carlo", "/api/scanner/run", "/api/portfolio-backtests/run"}
 
 KINDS = (
     ("/api/market", "market"),
@@ -41,6 +41,7 @@ KINDS = (
     ("/api/cost-settings", "settings"),
     ("/api/strategies", "strategies"),
     ("/api/backtests/saved", "backtests"),
+    ("/api/portfolio-backtests/saved", "backtests"),
     ("/api/alerts", "alerts"),
     ("/api/backup", "backup"),
 )

@@ -6,6 +6,7 @@ from .price_alert import PriceAlert
 from .price_data import PriceData
 from .risk_settings import RiskSettings
 from .saved_backtest import SavedBacktest
+from .saved_portfolio_backtest import SavedPortfolioBacktest
 from .signal import Signal
 from .stock import Stock
 from .strategy import Strategy
@@ -23,5 +24,6 @@ __all__ = [
     "RiskSettings",
     "CostSettings",
     "SavedBacktest",
+    "SavedPortfolioBacktest",
     "PriceAlert",
 ]

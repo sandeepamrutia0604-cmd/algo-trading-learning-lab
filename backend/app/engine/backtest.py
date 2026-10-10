@@ -66,6 +66,7 @@ class BacktestTrade:
     stop_pct: float | None = None  # the stop distance this trade was sized and protected with
     entry_fees: float = 0.0
     exit_fees: float = 0.0
+    symbol: str = ""  # set by portfolio backtests, where trades from several stocks share one list
 
     @property
     def is_open(self) -> bool:
