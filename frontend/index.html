@@ -30,6 +30,7 @@
         <a href="#/performance" data-route="performance">Performance</a>
         <a href="#/journal" data-route="journal">Journal</a>
         <a href="#/learn" data-route="learn">Learn</a>
+        <a href="#/feedback" data-route="feedback">Feedback</a>
       </nav>
       <div class="side-foot">
         <span id="status" class="status-pill">Checking...</span>
@@ -1149,6 +1150,33 @@
             <p class="hint">Every strategy signal with the reasons behind it, newest first. Your manual trades are in Trade &rarr; Trades.</p>
             <div id="journal-feed"></div>
             <p id="journal-empty" class="empty" hidden>No signals yet. Create a strategy, press "Run on history", or turn on auto-trade and advance the market.</p>
+          </div>
+        </section>
+
+        <!-- ============ FEEDBACK & SUPPORT ============ -->
+        <section id="page-feedback" class="page" hidden>
+          <div class="panel fb-panel">
+            <h2>Feedback and support</h2>
+            <p class="fb-lead">This app is free, and everything in it stays free. I'm trying to learn whether people find it useful, and whether a
+              paid version with extra tools would ever be worth making. After you have used it for a while, a two-minute answer helps a lot.</p>
+            <h3>Tell me what you think</h3>
+            <p>A short form: how you use the app, which tools you'd value, and what would make it better. Nobody is asked for anything they don't want to give.</p>
+            <p><a class="btn btn-primary" id="fb-form" href="https://forms.gle/jwaFkED2fRhBtn4E6" target="_blank" rel="noopener noreferrer">Give feedback (opens in your browser)</a></p>
+            <p class="hint">The form is a Google Form. The link opens in your web browser only when you click it; the app itself never sends anything anywhere.</p>
+          </div>
+
+          <div class="panel fb-panel">
+            <h3>Support the project (optional)</h3>
+            <p>If the app has helped you learn and you'd like to say thanks, you can send any amount by UPI. It is a gift: it unlocks nothing, nothing
+              is held back for people who don't, and no receipt or invoice is issued.</p>
+            <div class="fb-upi">
+              <img src="/images/support-upi.jpeg" alt="UPI QR code for Sundeep Amrutia: scan with any UPI app" width="260" loading="lazy" />
+              <div>
+                <p>Scan the code with any UPI app (Google Pay, PhonePe, Paytm, your bank's app), or pay to this UPI ID:</p>
+                <p><code id="fb-upi-id">sundeepamrutia2006@okhdfcbank</code> <button type="button" class="btn" id="fb-copy">Copy</button></p>
+                <p class="hint">Check that the name shown in your UPI app is "sundeep amrutia" before you confirm.</p>
+              </div>
+            </div>
           </div>
         </section>
 

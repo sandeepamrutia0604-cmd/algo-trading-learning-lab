@@ -6,6 +6,7 @@ import { checkHealth, initTopbar, renderTopbar } from "./topbar.js";
 import { renderHome } from "./pages/home.js";
 import { initTrade, renderTrade } from "./pages/trade.js";
 import { initLearn, renderLearn } from "./pages/learn.js";
+import { initFeedback } from "./pages/feedback.js";
 import { initStrategies, renderStrategies } from "./pages/strategies.js";
 import { initBacktests, renderBacktests } from "./pages/backtests.js";
 import { initScanner, renderScanner } from "./pages/scanner.js";
@@ -15,7 +16,7 @@ import { initOptimise, renderOptimise } from "./pages/optimise.js";
 import { renderPerformance } from "./pages/performance.js";
 import { renderJournal } from "./pages/journal.js";
 
-const ROUTES = ["home", "trade", "strategies", "scanner", "compare", "backtests", "portfolio-test", "optimise", "performance", "journal", "learn"];
+const ROUTES = ["home", "trade", "strategies", "scanner", "compare", "backtests", "portfolio-test", "optimise", "performance", "journal", "learn", "feedback"];
 const PAGE_OF = {
   home: "home",
   trade: "trade",
@@ -28,6 +29,7 @@ const PAGE_OF = {
   performance: "performance",
   journal: "journal",
   learn: "learn",
+  feedback: "feedback",
 };
 
 function currentRoute() {
@@ -53,7 +55,7 @@ async function renderActive() {
 function showRoute() {
   const route = currentRoute();
   const page = PAGE_OF[route];
-  for (const name of ["home", "trade", "strategies", "scanner", "compare", "backtests", "portfolio-test", "optimise", "performance", "journal", "learn"]) $(`page-${name}`).hidden = name !== page;
+  for (const name of ["home", "trade", "strategies", "scanner", "compare", "backtests", "portfolio-test", "optimise", "performance", "journal", "learn", "feedback"]) $(`page-${name}`).hidden = name !== page;
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.route === route));
   return refresh();
 }
@@ -95,6 +97,7 @@ async function boot() {
   initPortfolioTest();
   initOptimise();
   initLearn();
+  initFeedback();
   window.addEventListener("hashchange", showRoute);
   checkHealth();
   try {

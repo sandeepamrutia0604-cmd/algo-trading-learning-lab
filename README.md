@@ -648,6 +648,13 @@ The code is `services/backup_service.py` and `api/backup.py` (the backup uses SQ
 file swapping), and `frontend/js/pages/backup.js` and `frontend/js/csv.js`. In the Windows download the database is in
 `%LOCALAPPDATA%\AlgoTradingLab`, so a backup is also the way to move your portfolio to another PC.
 
+### Feedback and support
+
+The **Feedback** page (last item in the sidebar) has a link to a short Google Form, where you can say how you use the app and
+which extra tools you would value, and an optional UPI QR code if you want to support the project. Both are voluntary: the app
+stays free and nothing is locked. The form link opens in your web browser only when you click it; the app itself sends nothing
+anywhere. The page is static (`frontend/js/pages/feedback.js` only handles the Copy button for the UPI ID).
+
 ### Trading costs: slippage, brokerage and taxes
 
 Trade → **Trading costs** tab (off by default). With it on, every paper trade, auto-trade and
