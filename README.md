@@ -551,6 +551,31 @@ with the *Entry, stop & target* box) and a bell on the watchlist row. Alerts are
 advance several days at once, and **Reset** removes them. The rules are in `engine/alert_math.py` (pure) and
 `services/alert_service.py`.
 
+### Backup, restore and exports: Trade, then Backup
+
+The **Backup** tab on the Trade page saves everything the app knows to one file, and puts it back.
+
+- **Download backup** makes a copy of the whole database: your portfolio and market date, trades, positions, strategies,
+  saved backtests, alerts, risk and cost settings, and every stock's price history, including stocks you imported from a
+  file (those can't be regenerated). It is safe to take while the app is running. Keep a copy somewhere safe, and before
+  you try something risky.
+- **Restore** replaces everything with the contents of a backup file. First the app saves a safety copy of your current
+  data to a `backups` folder inside your data folder (the newest 5 are kept, and the tab says where the latest is), then
+  loads the file. A backup made by an older version of the app is upgraded automatically. Only files made by this app
+  are accepted: a text file, a damaged database, or some other database is refused and nothing changes. The restore
+  request has to carry the app's own header and come from the app's own page, so another website you have open can't
+  trigger one. Other open tabs refresh by themselves.
+- **Learn progress** is stored in your browser, not in the database, so it isn't in the backup file. The same tab can
+  download it as a small file and load it on another computer (loading adds to what is there and never removes progress).
+- **Export CSV** buttons give you spreadsheets: Trade, then Trades (every trade, not just the 100 shown) and Positions;
+  Backtests, then a run's trades and its equity curve, and the saved backtests list. The files open correctly in Excel
+  (UTF-8 with a byte-order mark), numbers are rounded to 4 decimals, and text that a spreadsheet could run as a formula
+  (it starts with `=`, `+`, `-` or `@`) gets a leading apostrophe.
+
+The code is `services/backup_service.py` and `api/backup.py` (the backup uses SQLite's online backup API, so there is no
+file swapping), and `frontend/js/pages/backup.js` and `frontend/js/csv.js`. In the Windows download the database is in
+`%LOCALAPPDATA%\AlgoTradingLab`, so a backup is also the way to move your portfolio to another PC.
+
 ### Trading costs: slippage, brokerage and taxes
 
 Trade → **Trading costs** tab (off by default). With it on, every paper trade, auto-trade and
@@ -592,11 +617,12 @@ pytest
 The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
 
 ```bash
-node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs
+node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs
 ```
 
 They check that every written lesson is well formed and that every quiz answer points at a real
-option, which matters as lessons are added.
+option, which matters as lessons are added, and that CSV files are built correctly and Learn progress files
+are read safely.
 
 ## Project Structure
 
@@ -624,6 +650,7 @@ backend/
                     data_quality_service.py (runs the data checks over stored candles),
                     exit_service.py (stop-loss / take-profit levels on positions, checked as the market advances),
                     alert_service.py (price alerts, checked as the market advances),
+                    backup_service.py (backup and restore of the whole database),
                     scanner_service.py (runs a strategy across every stock for the Scanner page)
     strategies/     One pure module per canned strategy type + registry.py
     engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
