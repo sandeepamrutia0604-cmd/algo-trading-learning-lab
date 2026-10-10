@@ -3,6 +3,8 @@ import { themeColors } from "./theme.js";
 import { reachableLevelPrices } from "./levels.js";
 
 export const SMA_COLORS = { fast: "#4c8dff", slow: "#f5a524" };
+/** The colours of the lines when several things share one chart (compared backtests, compared stocks). */
+export const SERIES_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
 
 const DEFAULT_VISIBLE_DAYS = 90;
 
@@ -174,8 +176,10 @@ function levelDecorations(levels, c) {
  * Candlesticks + volume, indicator overlays, your trades (triangles) and strategy signals (stars).
  * An overlay with panel "osc" is drawn in its own panel underneath (used for RSI).
  * `levels` adds entry / stop-loss / take-profit lines (see levelDecorations).
+ * `visibleDays` is how many of the latest days show at first (the rest is a scroll or zoom away); pass
+ * Infinity to show every candle given.
  */
-export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [], signals = [], levels = [] }) {
+export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [], signals = [], levels = [], visibleDays = DEFAULT_VISIBLE_DAYS }) {
   const c = themeColors();
   const dates = prices.map((p) => p.date);
   const first = dates[0];
@@ -253,8 +257,8 @@ export function drawPriceChart(el, { symbol, prices, overlays = [], trades = [],
 
   // Default to the most recent window so candles stay readable on a long history;
   // scroll-to-zoom (and attachZoomAutoscale below) take it from there.
-  const visible = prices.length > DEFAULT_VISIBLE_DAYS ? prices.slice(-DEFAULT_VISIBLE_DAYS) : prices;
-  const xRange = prices.length > DEFAULT_VISIBLE_DAYS ? [visible[0].date, last] : null;
+  const visible = prices.length > visibleDays ? prices.slice(-visibleDays) : prices;
+  const xRange = prices.length > visibleDays ? [visible[0].date, last] : null;
   const levelPrices = reachableLevelPrices(levels, last_close(prices));
   const [priceLow, priceHigh] = priceRange(visible, 0.08, levelPrices);
   const maxVol = Math.max(...visible.map((p) => p.volume), 1);
@@ -363,4 +367,72 @@ export function drawMultiLineChart(el, series) {
     yaxis: { side: "right", gridcolor: c.line, tickprefix: "₹", tickformat: ",.0f", zeroline: false, range: [low - pad, high + pad] },
   };
   Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
+}
+
+/**
+ * Several stocks on one chart, each rebased so it starts at 100 (see compare.js), so what is compared is how
+ * much each moved, not what a share costs. A dashed line marks 100; the hover shows each line's value and the
+ * change from the start. With `single`, one line is drawn with a tinted fill down to 100 (used for "A against B").
+ * series: [{ label, values, color }], all on the same `dates`.
+ */
+export function drawRebasedChart(el, { dates, series, single = false }) {
+  const c = themeColors();
+  const traces = series.map((s) => ({
+    type: "scatter",
+    mode: "lines",
+    name: s.label,
+    x: dates,
+    y: s.values,
+    customdata: s.values.map((v) => v - 100),
+    line: { color: s.color, width: 2 },
+    hovertemplate: `${s.label}: %{y:.1f} (%{customdata:+.1f}%)<extra></extra>`,
+  }));
+  if (single) {
+    traces.unshift({ type: "scatter", mode: "lines", x: dates, y: dates.map(() => 100), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    traces[1].fill = "tonexty";
+    traces[1].fillcolor = series[0].color + "22";
+  }
+  const all = series.flatMap((s) => s.values).filter(Number.isFinite);
+  const low = Math.min(...all, 100);
+  const high = Math.max(...all, 100);
+  const pad = Math.max((high - low) * 0.12, 1);
+  const layout = {
+    margin: { l: 8, r: 46, t: 6, b: single ? 24 : 40 },
+    showlegend: !single,
+    legend: { orientation: "h", font: { size: 11, color: c.muted }, y: -0.12 },
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: c.muted, size: 11 },
+    hovermode: "x unified",
+    xaxis: { gridcolor: "rgba(0,0,0,0)", rangebreaks: [{ bounds: ["sat", "mon"] }], linecolor: c.line, showspikes: true, spikemode: "across", spikecolor: c.muted, spikethickness: 1, spikedash: "dot" },
+    yaxis: { side: "right", gridcolor: c.line, tickformat: ".0f", zeroline: false, range: [low - pad, high + pad] },
+    shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 100, y1: 100, line: { color: c.muted, width: 1, dash: "dash" } }],
+  };
+  Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
+}
+
+/**
+ * Make two charts that share a date axis zoom and pan together. Call it after both are drawn (drawPriceChart
+ * replaces a chart's listeners each time it draws). A change is only copied when the other chart isn't already
+ * showing that range, so the two never ping-pong.
+ */
+export function linkXRanges(elA, elB) {
+  const parse = (value) => Date.parse(String(value).replace(" ", "T") + (String(value).length <= 10 ? "T00:00:00Z" : "Z"));
+  const same = (range, other) => other && Math.abs(parse(range[0]) - parse(other[0])) < 1000 && Math.abs(parse(range[1]) - parse(other[1])) < 1000;
+  const follow = (from, to) =>
+    from.on("plotly_relayout", (ev) => {
+      const target = to._fullLayout && to._fullLayout.xaxis;
+      if (!target) return;
+      if (ev["xaxis.autorange"]) {
+        if (target.autorange !== true) Plotly.relayout(to, { "xaxis.autorange": true });
+        return;
+      }
+      // A drag or scroll reports "xaxis.range[0]" and "[1]"; a program setting the whole range reports "xaxis.range".
+      const [lo, hi] = ev["xaxis.range"] || [ev["xaxis.range[0]"], ev["xaxis.range[1]"]];
+      if (lo == null || hi == null || same([lo, hi], target.range)) return;
+      // Written the way a drag reports it, so the other chart's own price-axis refit (attachZoomAutoscale) runs too.
+      Plotly.relayout(to, { "xaxis.range[0]": lo, "xaxis.range[1]": hi });
+    });
+  follow(elA, elB);
+  follow(elB, elA);
 }

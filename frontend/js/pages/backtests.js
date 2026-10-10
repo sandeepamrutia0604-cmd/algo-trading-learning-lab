@@ -1,13 +1,12 @@
 import { $, api, money, percent, pnlClass, signedMoney, signedPercent, toast } from "../util.js";
 import { store } from "../store.js";
-import { drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
+import { SERIES_COLORS, drawEquityChart, drawMultiLineChart, drawPriceChart, loadChartData } from "../chart.js";
 import * as rb from "../rulebuilder.js";
 import { initMonteCarlo, showMonteCarlo } from "./montecarlo.js";
 import { downloadCsv } from "../csv.js";
 import { describeExitLevels, parseExitLevels } from "../exitlevels.js";
 
 const MAX_COMPARE = 6;
-const COMPARE_COLORS = ["#4c8dff", "#f5a524", "#a78bfa", "#26a69a", "#ef5350", "#8a94a3"];
 
 const state = { result: null, request: null, running: false, compareList: [], ranges: {}, saved: [] };
 
@@ -475,7 +474,7 @@ function renderComparison() {
         label: row.label,
         dates: row.result.equity_curve.map((p) => p.date),
         values: row.result.equity_curve.map((p) => p.value),
-        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+        color: SERIES_COLORS[i % SERIES_COLORS.length],
       })),
     );
   }
