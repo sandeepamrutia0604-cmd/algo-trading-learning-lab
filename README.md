@@ -546,6 +546,37 @@ the Trade chart it only shows prices up to the market date and follows the clock
 stored or traded. The numbers are `frontend/js/compare.js` (pure, tested with `node --test frontend/js/compare.test.mjs`) and the
 page is `frontend/js/pages/compare.js`; the charts are `drawRebasedChart` and `linkXRanges` in `frontend/js/chart.js`.
 
+### Portfolio test: one strategy across several stocks
+
+A normal backtest trades one stock. The **Portfolio test** page trades one strategy across two to twenty stocks at once
+from **one account**, the way live auto-trading with that strategy on each of them would: one pool of cash, and the same
+Risk management and Trading costs settings. Pick the strategy (a built-in type or your own rules), tick the stocks, and set
+the starting capital, fill timing, optional stop-loss and take-profit, dates and an optional benchmark such as an imported
+NSE500, as on the Backtests page.
+
+How the money is shared:
+
+- Each stock follows its own signals, worked out from its own prices only, so nothing looks ahead.
+- With Risk management on, each buy is sized from the **whole account's** value at that moment, and the two portfolio limits
+  apply: the maximum number of open positions, and the maximum share of the account in one stock. With it off, each buy is
+  the fixed share count and neither limit applies (the same as live).
+- When several stocks signal a buy on the same day they are tried in **alphabetical order** and the account's cash is used up
+  as it goes, so a later stock can be skipped. **Sells are carried out before buys** on a day, so an exit can fund one. The
+  result says how many buys were skipped and why (not enough cash, the open-positions limit, the share-of-account limit).
+- Stocks keep their own calendars. The account is valued every day any of them traded, a stock with no price that day stays at
+  its last close, and the traded period runs from the earliest start to the latest end.
+
+The result has the usual figures plus the **most stocks held at once**, an account-value chart against **holding all the stocks
+equally** (the same money split equally on the first day and never touched), a **by-stock table** (trades, win rate, profit
+and loss, and each stock's share of the total return, which add up to it), and a trades list with a **Stock** column. Runs can
+be saved and loaded like backtests, and the trades and equity curve exported to CSV.
+
+Not included: the optimiser, walk-forward test and Monte Carlo are single-stock features. Monte Carlo in particular assumes
+trades never overlap, which no longer holds when several stocks are held at once. The engine is
+`backend/app/engine/portfolio_backtest.py` (pure; with one stock it gives exactly the single-stock engine's numbers, and a
+test compares it with live auto-trading over the same days), the page is `frontend/js/pages/portfolio.js`, and its figures are
+tested in `backend/tests/test_portfolio_backtest.py` and `test_portfolio_backtest_api.py`.
+
 ### Stop-loss and take-profit on an order
 
 On the Trade page's order ticket, a BUY can carry a **stop-loss** (sell if the price falls to a level) and a
@@ -658,12 +689,12 @@ pytest
 The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
 
 ```bash
-node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs frontend/js/exitlevels.test.mjs frontend/js/compare.test.mjs
+node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs frontend/js/exitlevels.test.mjs frontend/js/compare.test.mjs frontend/js/portfolio.test.mjs
 ```
 
 They check that every written lesson is well formed and that every quiz answer points at a real
 option, which matters as lessons are added, that CSV files are built correctly, Learn progress files
-are read safely, and that the Compare page's figures are right.
+are read safely, that the Compare page's figures are right, and that the Portfolio test page's helpers behave.
 
 ## Project Structure
 
@@ -694,7 +725,7 @@ backend/
                     backup_service.py (backup and restore of the whole database),
                     scanner_service.py (runs a strategy across every stock for the Scanner page)
     strategies/     One pure module per canned strategy type + registry.py
-    engine/         price_models.py, indicators.py, backtest.py, rule_engine.py,
+    engine/         price_models.py, indicators.py, backtest.py, portfolio_backtest.py, rule_engine.py,
                     risk_math.py + cost_math.py (formulas shared by live trading and backtests),
                     data_quality.py (checks a stock's candles for impossible prices, splits, gaps),
                     exit_math.py (when a day's candle triggers a position's stop-loss or take-profit),
@@ -707,9 +738,9 @@ frontend/
   index.html      App shell (sidebar, top bar, page sections)
   css/style.css   Dark/light theme tokens and layout
   js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
-                  chart.js (shared price chart), compare.js (aligning and comparing stocks), why.js (the "Why?" card),
+                  chart.js (shared price chart), compare.js (aligning and comparing stocks), portfolio.js (Portfolio test helpers), strategybuilder.js (strategy form), why.js (the "Why?" card),
                   rulebuilder.js (custom-strategy condition editor)
-  js/pages/       home.js, trade.js, strategies.js, scanner.js, compare.js, backtests.js, performance.js, journal.js, soon.js
+  js/pages/       home.js, trade.js, strategies.js, scanner.js, compare.js, backtests.js, portfolio.js, performance.js, journal.js, soon.js
 scripts/
   start.bat             Double-click launcher
   test_angel_one_adapter.py   Smoke-tests the real Angel One adapter against your own account
