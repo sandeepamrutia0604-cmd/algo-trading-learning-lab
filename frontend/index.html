@@ -23,6 +23,7 @@
         <a href="#/trade" data-route="trade">Trade</a>
         <a href="#/strategies" data-route="strategies">Strategies</a>
         <a href="#/scanner" data-route="scanner">Scanner</a>
+        <a href="#/compare" data-route="compare">Compare</a>
         <a href="#/backtests" data-route="backtests">Backtests</a>
         <a href="#/optimise" data-route="optimise">Optimise</a>
         <a href="#/performance" data-route="performance">Performance</a>
@@ -468,6 +469,46 @@
         </section>
 
         <!-- ============ BACKTESTS ============ -->
+        <section id="page-compare" class="page" hidden>
+          <div class="panel">
+            <h3>Compare</h3>
+            <p class="hint">Put stocks next to each other to see which did better. <b>Start at 100</b> draws each stock as if you had put 100 in on the first
+              day, so a cheap stock and an expensive one can share a chart. <b>Side by side</b> shows two candlestick charts that zoom together. To compare a stock with
+              an index such as the NSE500, import the index's price file like a stock (Trade, then Import data, with the symbol <code>NSE500</code>): it then appears in the
+              lists below, and is picked automatically as the second stock. Only prices up to the market date are used.</p>
+            <div class="controls">
+              <label class="field">Stock <select id="cmp-a"></select></label>
+              <label class="field">Compared with <select id="cmp-b"></select></label>
+              <label class="field">And (optional) <select id="cmp-c"></select></label>
+              <label class="field">And (optional) <select id="cmp-d"></select></label>
+            </div>
+            <div class="controls">
+              <div class="seg neutral" id="cmp-view"><button type="button" data-view="rebased" class="on">Start at 100</button><button type="button" data-view="candles">Side by side</button></div>
+              <div class="seg neutral cmp-periods" id="cmp-periods">
+                <button type="button" data-period="1M">1M</button><button type="button" data-period="3M">3M</button><button type="button" data-period="6M">6M</button><button type="button" data-period="1Y">1Y</button><button type="button" data-period="all" class="on">All shared</button>
+              </div>
+            </div>
+            <p class="hint" id="cmp-note"></p>
+            <p id="cmp-empty" class="empty" hidden></p>
+            <div id="cmp-rebased">
+              <div id="cmp-chart" class="chart small"></div>
+              <div id="cmp-rel-wrap">
+                <h3 id="cmp-rel-title"></h3>
+                <div id="cmp-rel" class="chart small"></div>
+              </div>
+            </div>
+            <div id="cmp-candles" class="cmp-pair" hidden>
+              <div><div class="toolbar" id="cmp-head-a"></div><div id="cmp-chart-a" class="chart small"></div></div>
+              <div><div class="toolbar" id="cmp-head-b"></div><div id="cmp-chart-b" class="chart small"></div></div>
+            </div>
+            <div id="cmp-figures"></div>
+            <p class="hint"><b>Return</b> is the change from the first shared day to the last. <b>Volatility</b> is how much the daily moves vary, scaled to a year (the
+              standard deviation of daily returns times the square root of 252). <b>Max drawdown</b> is the biggest fall from a peak to a later low. <b>Correlation</b> is how
+              closely the daily moves go together (+1 together, 0 unrelated, -1 opposite). <b>Beta</b> is how much the first stock moved for each 1% the other moved. Only days
+              that every chosen stock traded are used, so a holiday in one stock's file never pairs it with the wrong day of another.</p>
+          </div>
+        </section>
+
         <section id="page-scanner" class="page" hidden>
           <div class="panel">
             <h3>Scanner</h3>

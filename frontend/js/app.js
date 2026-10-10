@@ -9,16 +9,18 @@ import { initLearn, renderLearn } from "./pages/learn.js";
 import { initStrategies, renderStrategies } from "./pages/strategies.js";
 import { initBacktests, renderBacktests } from "./pages/backtests.js";
 import { initScanner, renderScanner } from "./pages/scanner.js";
+import { initCompare, renderCompare } from "./pages/compare.js";
 import { initOptimise, renderOptimise } from "./pages/optimise.js";
 import { renderPerformance } from "./pages/performance.js";
 import { renderJournal } from "./pages/journal.js";
 
-const ROUTES = ["home", "trade", "strategies", "scanner", "backtests", "optimise", "performance", "journal", "learn"];
+const ROUTES = ["home", "trade", "strategies", "scanner", "compare", "backtests", "optimise", "performance", "journal", "learn"];
 const PAGE_OF = {
   home: "home",
   trade: "trade",
   strategies: "strategies",
   scanner: "scanner",
+  compare: "compare",
   backtests: "backtests",
   optimise: "optimise",
   performance: "performance",
@@ -37,6 +39,7 @@ async function renderActive() {
   else if (route === "trade") await renderTrade();
   else if (route === "strategies") await renderStrategies();
   else if (route === "scanner") await renderScanner();
+  else if (route === "compare") await renderCompare();
   else if (route === "backtests") await renderBacktests();
   else if (route === "optimise") await renderOptimise();
   else if (route === "performance") await renderPerformance();
@@ -47,7 +50,7 @@ async function renderActive() {
 function showRoute() {
   const route = currentRoute();
   const page = PAGE_OF[route];
-  for (const name of ["home", "trade", "strategies", "scanner", "backtests", "optimise", "performance", "journal", "learn"]) $(`page-${name}`).hidden = name !== page;
+  for (const name of ["home", "trade", "strategies", "scanner", "compare", "backtests", "optimise", "performance", "journal", "learn"]) $(`page-${name}`).hidden = name !== page;
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.route === route));
   return refresh();
 }
@@ -85,6 +88,7 @@ async function boot() {
   initStrategies();
   initBacktests();
   initScanner();
+  initCompare();
   initOptimise();
   initLearn();
   window.addEventListener("hashchange", showRoute);

@@ -521,6 +521,31 @@ it scans again whenever the market date moves (+1 day, Play) or your strategies 
 bought or sold, nothing is stored, and a scan is not announced to your other tabs as a change. The logic is `engine/scanner.py`
 (pure); the endpoint is `POST /api/scanner/run` (`{type, params, rules}`, the same way a backtest names its strategy).
 
+### Compare: stocks side by side
+
+The **Compare** page puts two to four stocks next to each other. Pick the first stock, the one to compare it with (and up
+to two more), and a period (1M, 3M, 6M, 1Y or all shared history). It has two views:
+
+- **Start at 100** draws every stock as if 100 had been invested on the first day, so a ₹150 stock and a ₹24,000 index can
+  share one chart and what you see is how much each *moved*. A second chart below shows the first stock divided by the
+  second, also starting at 100: above 100 means the first is ahead.
+- **Side by side** shows two candlestick charts next to each other (stacked on a phone) covering the same window. Zooming or
+  panning one moves the other, and each chart's price axis refits to what is visible.
+
+Under the charts a table gives, for the days every chosen stock traded, each stock's **return**, **volatility** (the standard
+deviation of daily returns times the square root of 252) and **max drawdown**, then for each of the others against the first
+stock: **correlation** of daily returns (+1 together, -1 opposite), **beta** (how much the first moved per 1% the other
+moved) and the difference in return. The page repeats these definitions in words.
+
+To compare a stock with an index such as the NSE500, import the index's price file like a stock (Trade, then Import data, with
+the symbol `NSE500`): the app has no separate "index" type, an index is simply a stock imported from a file, and an imported
+`NSE500` or `NIFTY500` is picked as the second stock automatically until you choose one yourself. Calendars differ (holidays,
+different history), so the start-at-100 view and the table use only the dates that **every** chosen stock has, and the page says
+how many that is; stocks that share no days (an index file from another year, say) get a plain message instead of a chart. Like
+the Trade chart it only shows prices up to the market date and follows the clock as it advances. It reads only: nothing is
+stored or traded. The numbers are `frontend/js/compare.js` (pure, tested with `node --test frontend/js/compare.test.mjs`) and the
+page is `frontend/js/pages/compare.js`; the charts are `drawRebasedChart` and `linkXRanges` in `frontend/js/chart.js`.
+
 ### Stop-loss and take-profit on an order
 
 On the Trade page's order ticket, a BUY can carry a **stop-loss** (sell if the price falls to a level) and a
@@ -633,12 +658,12 @@ pytest
 The Learn page's lesson data and progress logic have their own tests (Node 18+, no install needed):
 
 ```bash
-node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs frontend/js/exitlevels.test.mjs
+node --test frontend/js/learn/lessons.test.mjs frontend/js/levels.test.mjs frontend/js/csv.test.mjs frontend/js/learn/progress.test.mjs frontend/js/exitlevels.test.mjs frontend/js/compare.test.mjs
 ```
 
 They check that every written lesson is well formed and that every quiz answer points at a real
-option, which matters as lessons are added, and that CSV files are built correctly and Learn progress files
-are read safely.
+option, which matters as lessons are added, that CSV files are built correctly, Learn progress files
+are read safely, and that the Compare page's figures are right.
 
 ## Project Structure
 
@@ -682,9 +707,9 @@ frontend/
   index.html      App shell (sidebar, top bar, page sections)
   css/style.css   Dark/light theme tokens and layout
   js/             ES modules: app.js (router), store.js, topbar.js, theme.js, util.js,
-                  chart.js (shared price chart), why.js (the "Why?" card),
+                  chart.js (shared price chart), compare.js (aligning and comparing stocks), why.js (the "Why?" card),
                   rulebuilder.js (custom-strategy condition editor)
-  js/pages/       home.js, trade.js, strategies.js, backtests.js, performance.js, journal.js, soon.js
+  js/pages/       home.js, trade.js, strategies.js, scanner.js, compare.js, backtests.js, performance.js, journal.js, soon.js
 scripts/
   start.bat             Double-click launcher
   test_angel_one_adapter.py   Smoke-tests the real Angel One adapter against your own account
