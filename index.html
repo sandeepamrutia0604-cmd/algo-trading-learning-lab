@@ -6,7 +6,7 @@
   <title>Algo Trading Learning Lab: learn algorithmic trading with paper money</title>
   <meta name="description" content="A free practice lab for algorithmic trading. Write or pick a strategy, test it on history, and see whether the result was skill or luck. Paper money only, no account, no API keys." />
   <meta property="og:title" content="Algo Trading Learning Lab" />
-  <meta property="og:description" content="Learn algorithmic trading with paper money: backtests, stop-losses, alerts, Monte Carlo and overfitting checks. Free Windows download." />
+  <meta property="og:description" content="Learn algorithmic trading with paper money: backtests, stop-losses, alerts, Monte Carlo and overfitting checks. Strategy Finder, Portfolio test and more. Free Windows download." />
   <meta property="og:image" content="https://sandeepamrutia0604-cmd.github.io/algo-trading-learning-lab/images/14-optimise.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6feb'/%3E%3Cpath d='M5 22l7-8 5 4 10-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
   <style>
@@ -102,6 +102,9 @@
           <div class="card"><h3>A scanner</h3><p>Which stocks is a strategy signalling today? It only uses what has happened by the market date, so there is no peeking at the future.</p></div>
           <div class="card"><h3>Backtests with real metrics</h3><p>Trading costs, realistic next-day fills, Sharpe, Sortino, drawdown, and a buy-and-hold comparison.</p></div>
           <div class="card"><h3>Is it luck or skill?</h3><p>Monte Carlo reshuffles the trades thousands of times. The optimiser and walk-forward test catch settings that only fit the past.</p></div>
+          <div class="card"><h3>Strategy Finder</h3><p>Tries many settings on the early part of a stock's history, then checks the best of each on the part it never saw, next to simply holding the stock.</p></div>
+          <div class="card"><h3>Portfolio test</h3><p>Run one strategy across several stocks from one account, with the same risk limits and costs as the rest of the app.</p></div>
+          <div class="card"><h3>Compare</h3><p>Two to four stocks side by side, or all starting at 100, with correlation, volatility and drawdown.</p></div>
           <div class="card"><h3>Data quality</h3><p>Catches what quietly fools a backtest: a price that halves because of an unadjusted split, or missing days.</p></div>
           <div class="card"><h3>Your own data</h3><p>Import a daily-price CSV you downloaded yourself, or create practice stocks with a behaviour you choose.</p></div>
         </div>
@@ -111,6 +114,7 @@
         <h2>A look inside</h2>
         <p class="sub">Screenshots of the app running on simulated stocks.</p>
         <div class="shots">
+          <figure><img loading="lazy" src="images/20-strategy-finder.png" alt="The Strategy Finder comparing training and unseen-period returns for five strategies on a practice stock" /><figcaption>Strategy Finder: the same settings on the data they were tuned on, and on data they never saw (a practice stock with random prices).</figcaption></figure>
           <figure><img loading="lazy" src="images/01-home.png" alt="The Home page with a paper portfolio and a practice checklist" /><figcaption>Home: a paper portfolio of ₹1,00,000, a practice checklist and the guided course.</figcaption></figure>
           <figure><img loading="lazy" src="images/06-position-lines.png" alt="A candlestick chart with entry, stop-loss and take-profit lines" /><figcaption>Trade: entry, stop-loss and take-profit drawn on the chart, tinted red and green.</figcaption></figure>
           <figure><img loading="lazy" src="images/04-scanner.png" alt="The Scanner page listing stocks with a buy signal" /><figcaption>Scanner: which stocks a strategy is signalling today.</figcaption></figure>
